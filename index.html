@@ -96,125 +96,104 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="showPage('entrata',this)">Entrata WA</div>
-  <div class="tab" onclick="showPage('uscita',this)">Uscita WA</div>
+  <div class="tab active" onclick="showPage('wa',this)">WA</div>
   <div class="tab" onclick="showPage('imballo',this)">Imballo</div>
-  <div class="tab" onclick="showPage('ddt-entrata',this)">DDT Entrata</div>
-  <div class="tab" onclick="showPage('ddt-uscita',this)">DDT Uscita</div>
-  <div class="tab" onclick="showPage('riepilogo-wa',this)">Riepilogo WA</div>
-  <div class="tab" onclick="showPage('confronto',this)">Confronto</div>
-  <div class="tab" onclick="showPage('riepilogo',this)">Riepilogo</div>
+  <div class="tab admin-tab" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
+  <div class="tab admin-tab" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
+  <div class="tab admin-tab" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
+  <div class="tab admin-tab" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
+  <div class="tab admin-tab" onclick="showPage('riepilogo',this)" style="display:none">Riepilogo</div>
   <div class="tab" onclick="showPage('cfg',this)">Config</div>
 </div>
 
-<!-- ENTRATA MERCE -->
-<div id="page-entrata" class="page active">
-  <div id="msg-entrata"></div>
+<!-- WA UNICA -->
+<div id="page-wa" class="page active">
+  <div id="msg-wa"></div>
   <div class="card">
-    <h2>Come vuoi inserire?</h2>
+    <h2>Cosa vuoi fare?</h2>
     <div class="metodo-btns">
-      <button id="btn-e-man" class="btn btn-green" onclick="setMetodo('e','manuale')">INSERISCI MANUALE</button>
-      <button id="btn-e-wa" class="btn btn-gray" onclick="setMetodo('e','wa')">INCOLLA WHATSAPP</button>
+      <button id="btn-wa-e" class="btn btn-green" onclick="setWAMode('entrata')">ENTRATA</button>
+      <button id="btn-wa-u" class="btn btn-gray" onclick="setWAMode('uscita')">USCITA</button>
     </div>
   </div>
-  <div id="e-sezione-manuale" class="card">
-    <h2>Inserisci articolo entrata</h2>
-    <label>Cerca articolo</label>
-    <div class="cerca-box">
-      <input class="cerca-input" id="e-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('e')" autocomplete="off">
-      <div class="cerca-risultati" id="e-ris"></div>
-    </div>
-    <div class="art-sel" id="e-sel"></div>
-    <input type="hidden" id="e-cod"><input type="hidden" id="e-dsc">
-    <label>Quantità</label>
-    <input type="number" id="e-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
-    <label>Note</label><input type="text" id="e-note" placeholder="">
-    <button class="btn btn-green" onclick="salvaEntrataMerce()">AGGIUNGI</button>
-  </div>
-  <div id="e-sezione-wa" class="card" style="display:none">
-    <h2>Incolla messaggio WhatsApp entrata</h2>
-    <textarea id="e-wa-text" placeholder="Incolla qui il messaggio WhatsApp..."></textarea>
-    <button class="btn btn-green" onclick="aggiungiWAEntrata()">AGGIUNGI RIGHE</button>
-  </div>
-  <div class="card">
-    <h2>Articoli entrati</h2>
-    <button class="btn btn-red btn-sm" onclick="svuota('whatsapp_righe','msg-entrata')">SVUOTA TUTTO</button>
-    <br>
-    <div id="e-lista"><div class="empty">Nessun articolo ancora</div></div>
-  </div>
-</div>
 
-<!-- USCITA MERCE -->
-<div id="page-uscita" class="page">
-  <div id="msg-uscita"></div>
-  <div class="card">
-    <h2>Come vuoi inserire?</h2>
-    <div class="metodo-btns">
-      <button id="btn-u-man" class="btn btn-teal" onclick="setMetodo('u','manuale')">INSERISCI MANUALE</button>
-      <button id="btn-u-wa" class="btn btn-gray" onclick="setMetodo('u','wa')">INCOLLA WHATSAPP</button>
+  <!-- SEZIONE ENTRATA -->
+  <div id="wa-sezione-entrata">
+    <div class="card">
+      <h2 style="color:#217346;">Come inserire entrata?</h2>
+      <div class="metodo-btns">
+        <button id="btn-e-man" class="btn btn-green" onclick="setMetodo('e','manuale')">INSERISCI MANUALE</button>
+        <button id="btn-e-wa" class="btn btn-gray" onclick="setMetodo('e','wa')">INCOLLA WHATSAPP</button>
+      </div>
+    </div>
+    <div id="e-sezione-manuale" class="card">
+      <h2>Inserisci articolo entrata</h2>
+      <label>Cerca articolo</label>
+      <div class="cerca-box">
+        <input class="cerca-input" id="e-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('e')" autocomplete="off">
+        <div class="cerca-risultati" id="e-ris"></div>
+      </div>
+      <div class="art-sel" id="e-sel"></div>
+      <input type="hidden" id="e-cod"><input type="hidden" id="e-dsc">
+      <label>Quantità</label>
+      <input type="number" id="e-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
+      <label>Note</label><input type="text" id="e-note" placeholder="">
+      <button class="btn btn-green" onclick="salvaEntrataMerce()">AGGIUNGI</button>
+    </div>
+    <div id="e-sezione-wa" class="card" style="display:none">
+      <h2>Incolla messaggio WhatsApp entrata</h2>
+      <textarea id="e-wa-text" placeholder="Incolla qui il messaggio WhatsApp..."></textarea>
+      <button class="btn btn-green" onclick="aggiungiWAEntrata()">AGGIUNGI RIGHE</button>
+    </div>
+    <div class="card">
+      <h2>Articoli entrati</h2>
+      <button class="btn btn-red btn-sm" onclick="svuota('whatsapp_righe','msg-wa')">SVUOTA TUTTO</button>
+      <br>
+      <div id="e-lista"><div class="empty">Nessun articolo ancora</div></div>
     </div>
   </div>
-  <div id="u-sezione-manuale" class="card">
-    <h2>Inserisci imballo uscita</h2>
-    <label>Cerca articolo</label>
-    <div class="cerca-box">
-      <input class="cerca-input" id="u-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('u')" autocomplete="off">
-      <div class="cerca-risultati" id="u-ris"></div>
-    </div>
-    <div class="art-sel" id="u-sel"></div>
-    <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
-    <label>Sequenza pezzi (es. 37+37+37)</label>
-    <div class="imb-row">
-      <input type="text" id="u-seq" placeholder="37+37+37" oninput="calcolaSeq('u-seq','u-tot')">
-      <div class="imb-tot" id="u-tot">0</div>
-    </div>
-    <label>Note</label><input type="text" id="u-note" placeholder="">
-    <button class="btn btn-teal" onclick="salvaUscitaMerce()">AGGIUNGI</button>
-  </div>
-  <div id="u-sezione-wa" class="card" style="display:none">
-    <h2>Incolla messaggio WhatsApp uscita</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:10px;">Messaggio ricevuto da chi fa l'imballo.</p>
-    <textarea id="u-wa-text" placeholder="Incolla qui il messaggio..."></textarea>
-    <button class="btn btn-teal" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
-  </div>
-  <div id="u-confronto" style="display:none" class="card">
-    <h2>Confronto imballo</h2>
-    <div id="u-confronto-res"></div>
-  </div>
-  <div class="card">
-    <h2>Uscite registrate</h2>
-    <button class="btn btn-red btn-sm" onclick="svuotaUscite()">SVUOTA TUTTO</button>
-    <br>
-    <div id="u-lista"><div class="empty">Nessuna uscita ancora</div></div>
-  </div>
-</div>
 
-<!-- IMBALLO -->
-<div id="page-imballo" class="page">
-  <div id="msg-imballo"></div>
-  <div class="card">
-    <h2>Registra imballo</h2>
-    <label>Cerca articolo</label>
-    <div class="cerca-box">
-      <input class="cerca-input" id="imb-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('imb')" autocomplete="off">
-      <div class="cerca-risultati" id="imb-ris"></div>
+  <!-- SEZIONE USCITA -->
+  <div id="wa-sezione-uscita" style="display:none">
+    <div class="card">
+      <h2 style="color:#1F6B75;">Come inserire uscita?</h2>
+      <div class="metodo-btns">
+        <button id="btn-u-man" class="btn btn-teal" onclick="setMetodo('u','manuale')">INSERISCI MANUALE</button>
+        <button id="btn-u-wa" class="btn btn-gray" onclick="setMetodo('u','wa')">INCOLLA WHATSAPP</button>
+      </div>
     </div>
-    <div class="art-sel" id="imb-sel"></div>
-    <input type="hidden" id="imb-cod"><input type="hidden" id="imb-dsc">
-    <label>Sequenza pezzi (es. 37+37+37+37)</label>
-    <div class="imb-row">
-      <input type="text" id="imb-seq" placeholder="37+37+37+37" oninput="calcolaSeq('imb-seq','imb-tot')">
-      <div class="imb-tot" id="imb-tot">0</div>
+    <div id="u-sezione-manuale" class="card">
+      <h2>Inserisci imballo uscita</h2>
+      <label>Cerca articolo</label>
+      <div class="cerca-box">
+        <input class="cerca-input" id="u-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('u')" autocomplete="off">
+        <div class="cerca-risultati" id="u-ris"></div>
+      </div>
+      <div class="art-sel" id="u-sel"></div>
+      <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
+      <label>Sequenza pezzi (es. 37+37+37)</label>
+      <div class="imb-row">
+        <input type="text" id="u-seq" placeholder="37+37+37" oninput="calcolaSeq('u-seq','u-tot')">
+        <div class="imb-tot" id="u-tot">0</div>
+      </div>
+      <label>Note</label><input type="text" id="u-note" placeholder="">
+      <button class="btn btn-teal" onclick="salvaUscitaMerce()">AGGIUNGI</button>
     </div>
-    <label>Note</label>
-    <input type="text" id="imb-note" placeholder="">
-    <button class="btn btn-purple" onclick="salvaImballo()">SALVA IMBALLO</button>
-  </div>
-  <div class="card">
-    <h2>Imballi registrati</h2>
-    <button class="btn btn-red btn-sm" onclick="svuotaImballo()">SVUOTA TUTTO</button>
-    <br>
-    <div id="imb-lista"><div class="empty">Nessun imballo ancora</div></div>
+    <div id="u-sezione-wa" class="card" style="display:none">
+      <h2>Incolla messaggio WhatsApp uscita</h2>
+      <textarea id="u-wa-text" placeholder="Incolla qui il messaggio..."></textarea>
+      <button class="btn btn-teal" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
+    </div>
+    <div id="u-confronto" style="display:none" class="card">
+      <h2>Confronto imballo</h2>
+      <div id="u-confronto-res"></div>
+    </div>
+    <div class="card">
+      <h2>Uscite registrate</h2>
+      <button class="btn btn-red btn-sm" onclick="svuotaUscite()">SVUOTA TUTTO</button>
+      <br>
+      <div id="u-lista"><div class="empty">Nessuna uscita ancora</div></div>
+    </div>
   </div>
 </div>
 
@@ -341,6 +320,19 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 
 <!-- CONFIG -->
 <div id="page-cfg" class="page">
+  <!-- LOGIN ADMIN -->
+  <div id="login-box" class="card" style="border:2px solid #1F4E79;">
+    <h2>Accesso Admin</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci la password per accedere a tutte le funzioni.</p>
+    <input type="password" id="admin-pwd" placeholder="Password admin..." style="margin-bottom:8px;">
+    <button class="btn btn-blue" onclick="loginAdmin()">ACCEDI</button>
+    <div id="msg-login"></div>
+    <div id="admin-logout" style="display:none;margin-top:8px;">
+      <span style="color:#375623;font-size:13px;">✅ Accesso admin attivo</span>
+      <button class="btn btn-gray btn-sm" onclick="logoutAdmin()" style="margin-top:8px;">ESCI DA ADMIN</button>
+    </div>
+  </div>
+
   <div class="config-box">
     <h3>Credenziali Supabase</h3>
     <label>URL Progetto</label><input type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
@@ -469,8 +461,7 @@ function showPage(name,el){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   document.getElementById('page-'+name).classList.add('active');
   if(el)el.classList.add('active');
-  if(name==='entrata')caricaEntrate();
-  if(name==='uscita')caricaUscite();
+  if(name==='wa'){caricaEntrate();caricaUscite();}
   if(name==='imballo')caricaImballo();
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
@@ -957,8 +948,51 @@ async function azzeraTutto(){
   }
 }
 
+
+// ── LOGIN ADMIN ───────────────────────────────────────────────────────
+var ADMIN_PWD = 'vale8479';
+
+function loginAdmin(){
+  var pwd = document.getElementById('admin-pwd').value;
+  if(pwd === ADMIN_PWD){
+    localStorage.setItem('ddt_admin','1');
+    mostraAdmin();
+    document.getElementById('admin-pwd').value='';
+    document.getElementById('msg-login').innerHTML='';
+  } else {
+    document.getElementById('msg-login').innerHTML='<div class="msg msg-err">Password errata!</div>';
+  }
+}
+
+function logoutAdmin(){
+  localStorage.removeItem('ddt_admin');
+  nascondiAdmin();
+}
+
+function mostraAdmin(){
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.style.display='block';});
+  document.getElementById('admin-logout').style.display='block';
+  document.getElementById('login-box').style.borderColor='#217346';
+}
+
+function nascondiAdmin(){
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.style.display='none';});
+  document.getElementById('admin-logout').style.display='none';
+  document.getElementById('login-box').style.borderColor='#1F4E79';
+}
+
+function setWAMode(mode){
+  var isE = mode==='entrata';
+  document.getElementById('wa-sezione-entrata').style.display = isE?'block':'none';
+  document.getElementById('wa-sezione-uscita').style.display = isE?'none':'block';
+  document.getElementById('btn-wa-e').className = 'btn '+(isE?'btn-green':'btn-gray');
+  document.getElementById('btn-wa-u').className = 'btn '+(isE?'btn-gray':'btn-teal');
+  if(isE) caricaEntrate(); else caricaUscite();
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────
 window.onload=function(){
+  if(localStorage.getItem('ddt_admin')==='1') mostraAdmin();
   var c=getConfig();
   if(c.url){
     document.getElementById('conn-status').textContent='Connesso: '+c.url.replace('https://','').split('.')[0];
@@ -966,6 +1000,7 @@ window.onload=function(){
     caricaEntrate();
     setMetodo('e','manuale');
     setMetodo('u','manuale');
+    setWAMode('entrata');
   }
 };
 
