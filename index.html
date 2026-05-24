@@ -101,6 +101,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab" onclick="showPage('imballo',this)">Imballo</div>
   <div class="tab" onclick="showPage('ddt-entrata',this)">DDT Entrata</div>
   <div class="tab" onclick="showPage('ddt-uscita',this)">DDT Uscita</div>
+  <div class="tab" onclick="showPage('riepilogo-wa',this)">Riepilogo WA</div>
   <div class="tab" onclick="showPage('confronto',this)">Confronto</div>
   <div class="tab" onclick="showPage('riepilogo',this)">Riepilogo</div>
   <div class="tab" onclick="showPage('cfg',this)">Config</div>
@@ -280,6 +281,26 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- RIEPILOGO WA -->
+<div id="page-riepilogo-wa" class="page">
+  <div class="card">
+    <h2>Entrate e Uscite WA</h2>
+    <button class="btn btn-gray btn-sm" onclick="caricaRiepilogoWA()">AGGIORNA</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="card" style="margin-bottom:0">
+      <h2 style="color:#217346;">Entrate WA</h2>
+      <div id="rwa-entrate"><div class="empty">Nessuna entrata</div></div>
+      <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#217346;" id="rwa-tot-e"></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <h2 style="color:#1F6B75;">Uscite WA</h2>
+      <div id="rwa-uscite"><div class="empty">Nessuna uscita</div></div>
+      <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#1F6B75;" id="rwa-tot-u"></div>
+    </div>
+  </div>
+</div>
+
 <!-- CONFRONTO -->
 <div id="page-confronto" class="page">
   <div class="card">
@@ -453,6 +474,7 @@ function showPage(name,el){
   if(name==='imballo')caricaImballo();
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
+  if(name==='riepilogo-wa')caricaRiepilogoWA();
   if(name==='confronto')aggiornaConfronto();
   if(name==='riepilogo')caricaRiepilogo();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
@@ -673,6 +695,49 @@ async function caricaDDTU(){
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
   l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span></div>';}).join('');
+}
+
+
+// ── RIEPILOGO WA ──────────────────────────────────────────────────────
+async function caricaRiepilogoWA(){
+  var we=await apiGet('whatsapp_righe');
+  var wu=await apiGet('whatsapp_uscita');
+  if(!we||!wu)return;
+
+  // Entrate per articolo
+  var mapE={};
+  we.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||'?';
+    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
+    if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0};
+    mapE[k].tot+=(r.quantita||0);
+  });
+  var totE=we.reduce(function(a,r){return a+(r.quantita||0);},0);
+  var lE=document.getElementById('rwa-entrate');
+  lE.innerHTML=Object.values(mapE).map(function(a){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+      +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
+      +'<div style="font-size:16px;font-weight:bold;color:#217346;min-width:40px;text-align:right;">'+a.tot+'</div>'
+    +'</div>';
+  }).join('');
+  document.getElementById('rwa-tot-e').textContent='Totale: '+totE+' pz';
+
+  // Uscite per articolo
+  var mapU={};
+  wu.forEach(function(r){
+    var k=r.descrizione||r.testo_riga||'?';
+    if(!mapU[k])mapU[k]={desc:k,tot:0};
+    mapU[k].tot+=(r.quantita||0);
+  });
+  var totU=wu.reduce(function(a,r){return a+(r.quantita||0);},0);
+  var lU=document.getElementById('rwa-uscite');
+  lU.innerHTML=Object.values(mapU).map(function(a){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+      +'<div style="font-size:12px;flex:1;">'+a.desc+'</div>'
+      +'<div style="font-size:16px;font-weight:bold;color:#1F6B75;min-width:40px;text-align:right;">'+a.tot+'</div>'
+    +'</div>';
+  }).join('');
+  document.getElementById('rwa-tot-u').textContent='Totale: '+totU+' pz';
 }
 
 // ── CONFRONTO ─────────────────────────────────────────────────────────
