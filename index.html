@@ -197,6 +197,35 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- IMBALLO -->
+<div id="page-imballo" class="page">
+  <div id="msg-imballo"></div>
+  <div class="card">
+    <h2>Registra imballo</h2>
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="imb-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('imb')" autocomplete="off">
+      <div class="cerca-risultati" id="imb-ris"></div>
+    </div>
+    <div class="art-sel" id="imb-sel"></div>
+    <input type="hidden" id="imb-cod"><input type="hidden" id="imb-dsc">
+    <label>Sequenza pezzi (es. 37+37+37+37)</label>
+    <div class="imb-row">
+      <input type="text" id="imb-seq" placeholder="37+37+37+37" oninput="calcolaSeq('imb-seq','imb-tot')">
+      <div class="imb-tot" id="imb-tot">0</div>
+    </div>
+    <label>Note</label>
+    <input type="text" id="imb-note" placeholder="">
+    <button class="btn btn-purple" onclick="salvaImballo()">SALVA IMBALLO</button>
+  </div>
+  <div class="card">
+    <h2>Imballi registrati</h2>
+    <button class="btn btn-red btn-sm" onclick="svuotaImballo()">SVUOTA TUTTO</button>
+    <br>
+    <div id="imb-lista"><div class="empty">Nessun imballo ancora</div></div>
+  </div>
+</div>
+
 <!-- DDT ENTRATA -->
 <div id="page-ddt-entrata" class="page">
   <div id="msg-ddt-e"></div>
@@ -461,8 +490,14 @@ function showPage(name,el){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   document.getElementById('page-'+name).classList.add('active');
   if(el)el.classList.add('active');
-  if(name==='wa'){caricaEntrate();caricaUscite();}
-  if(name==='imballo')caricaImballo();
+  if(name==='wa'){setWAMode('entrata');}
+  if(name==='imballo'){
+    caricaImballo();
+    // Reset form imballo
+    var ic=document.getElementById('imb-cerca');if(ic)ic.value='';
+    var is=document.getElementById('imb-sel');if(is)is.style.display='none';
+    var it=document.getElementById('imb-tot');if(it)it.textContent='0';
+  }
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='riepilogo-wa')caricaRiepilogoWA();
@@ -992,15 +1027,19 @@ function setWAMode(mode){
 
 // ── INIT ──────────────────────────────────────────────────────────────
 window.onload=function(){
+  // Prima nascondi sempre le tab admin
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.style.display='none';});
+  // Poi controlla se admin loggato
   if(localStorage.getItem('ddt_admin')==='1') mostraAdmin();
+  // Imposta modalità default
+  setWAMode('entrata');
+  setMetodo('e','manuale');
+  setMetodo('u','manuale');
   var c=getConfig();
   if(c.url){
     document.getElementById('conn-status').textContent='Connesso: '+c.url.replace('https://','').split('.')[0];
     caricaArticoli();
     caricaEntrate();
-    setMetodo('e','manuale');
-    setMetodo('u','manuale');
-    setWAMode('entrata');
   }
 };
 
