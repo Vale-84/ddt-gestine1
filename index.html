@@ -98,6 +98,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div class="tabs">
   <div class="tab active" onclick="showPage('wa',this)">WA</div>
   <div class="tab" onclick="showPage('imballo',this)">Imballo</div>
+  <div class="tab admin-tab" onclick="showPage('verniciato',this)" style="display:none">Verniciato</div>
   <div class="tab admin-tab" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
   <div class="tab admin-tab" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
@@ -223,6 +224,33 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-red btn-sm" onclick="svuotaImballo()">SVUOTA TUTTO</button>
     <br>
     <div id="imb-lista"><div class="empty">Nessun imballo ancora</div></div>
+  </div>
+</div>
+
+<!-- VERNICIATO -->
+<div id="page-verniciato" class="page">
+  <div id="msg-verniciato"></div>
+  <div class="card">
+    <h2>Registra verniciato</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci gli articoli che hai verniciato oggi.</p>
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="vern-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('vern')" autocomplete="off">
+      <div class="cerca-risultati" id="vern-ris"></div>
+    </div>
+    <div class="art-sel" id="vern-sel"></div>
+    <input type="hidden" id="vern-cod"><input type="hidden" id="vern-dsc">
+    <label>Quantità verniciata</label>
+    <input type="number" id="vern-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
+    <label>Note</label>
+    <input type="text" id="vern-note" placeholder="">
+    <button class="btn btn-orange" onclick="salvaVerniciato()">SALVA VERNICIATO</button>
+  </div>
+  <div class="card">
+    <h2>Verniciato oggi</h2>
+    <button class="btn btn-red btn-sm" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
+    <br>
+    <div id="vern-lista"><div class="empty">Nessun articolo ancora</div></div>
   </div>
 </div>
 
@@ -498,6 +526,7 @@ function showPage(name,el){
     var is=document.getElementById('imb-sel');if(is)is.style.display='none';
     var it=document.getElementById('imb-tot');if(it)it.textContent='0';
   }
+  if(name==='verniciato')caricaVerniciato();
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='riepilogo-wa')caricaRiepilogoWA();
@@ -891,6 +920,55 @@ async function aggiornaConfronto(){
     :'<div class="warn-box">Ci sono differenze tra imballo e WA uscita — controlla sopra</div>';
 }
 
+
+
+// ── VERNICIATO ────────────────────────────────────────────────────────
+async function salvaVerniciato(){
+  var cod = document.getElementById('vern-cod').value;
+  var dsc = document.getElementById('vern-dsc').value;
+  var qty = parseInt(document.getElementById('vern-qty').value)||0;
+  var note = document.getElementById('vern-note').value;
+  if(!cod){showMsg('msg-verniciato','Seleziona un articolo!','err');return;}
+  if(!qty){showMsg('msg-verniciato','Inserisci la quantità!','err');return;}
+  var r = await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,note:note});
+  if(r){
+    showMsg('msg-verniciato','✅ '+qty+' x '+cod+' salvato!','ok');
+    document.getElementById('vern-cerca').value='';
+    document.getElementById('vern-cod').value='';
+    document.getElementById('vern-dsc').value='';
+    document.getElementById('vern-qty').value='';
+    document.getElementById('vern-note').value='';
+    document.getElementById('vern-sel').style.display='none';
+    caricaVerniciato();
+  }
+}
+
+async function caricaVerniciato(){
+  var d = await apiGet('verniciato');if(!d)return;
+  var l = document.getElementById('vern-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
+  // Raggruppa per codice
+  var map={};
+  d.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||'?';
+    if(!map[k])map[k]={cod:r.codice_articolo,desc:r.descrizione,tot:0};
+    map[k].tot+=(r.quantita||0);
+  });
+  l.innerHTML=Object.values(map).map(function(a){
+    return '<div class="row-item" style="border-left-color:#C55A11;">'
+      +'<div class="row-qty" style="color:#C55A11;">'+a.tot+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(a.cod?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div></div>'
+    +'</div>';
+  }).join('');
+}
+
+async function svuotaVerniciato(){
+  if(!confirm('Cancellare tutto il verniciato di oggi?'))return;
+  var oggi=new Date().toISOString().split('T')[0];
+  await apiDel('verniciato','data_inserimento=eq.'+oggi);
+  showMsg('msg-verniciato','Svuotato!','ok');
+  caricaVerniciato();
+}
 
 // ── IMBALLO ───────────────────────────────────────────────────────────
 async function salvaImballo(){
