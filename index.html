@@ -546,8 +546,8 @@ async function salvaUscitaMerce(){
   var dsc=document.getElementById('u-dsc').value;
   var qty=parseInt(document.getElementById('u-qty').value)||0;
   var note=document.getElementById('u-note').value;
-  if(!cod){showMsg('msg-wa','Seleziona un articolo!','err');return;}
-  if(!qty){showMsg('msg-wa','Inserisci la quantità!','err');return;}
+  if(!cod){alert('Seleziona un articolo!');return;}
+  if(!qty){alert('Inserisci la quantità!');return;}
   var r=await apiPost('whatsapp_uscita',{testo_riga:qty+' '+dsc,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
   if(r){showMsg('msg-wa','✅ '+qty+' x '+cod+' aggiunto!','ok');resetFormU();caricaUscite();}
 }
