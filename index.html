@@ -550,7 +550,7 @@ async function salvaUscitaMerce(){
   if(!cod){alert('Seleziona un articolo!');return;}
   if(!qty){alert('Inserisci la quantità!');return;}
   var r=await apiPost('whatsapp_uscita',{testo_riga:qty+' '+dsc,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
-  if(r){showMsg('msg-wa','✅ '+qty+' x '+cod+' aggiunto!','ok');resetFormU();caricaUscite();}
+  if(r){alert('✅ '+qty+' x '+cod+' aggiunto!');resetFormU();caricaUscite();}
 }
 
 async function aggiungiWAEntrata(){
