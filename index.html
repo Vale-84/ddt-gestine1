@@ -154,7 +154,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
   </div>
 
-  <!-- SEZIONE USCITA -->
+ <!-- SEZIONE USCITA -->
   <div id="wa-sezione-uscita" style="display:none">
     <div class="card">
       <h2 style="color:#1F6B75;">Come inserire uscita?</h2>
@@ -164,7 +164,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       </div>
     </div>
     <div id="u-sezione-manuale" class="card">
-      <h2>Inserisci imballo uscita</h2>
+      <h2>Inserisci articolo uscita</h2>
       <label>Cerca articolo</label>
       <div class="cerca-box">
         <input class="cerca-input" id="u-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('u')" autocomplete="off">
@@ -172,11 +172,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       </div>
       <div class="art-sel" id="u-sel"></div>
       <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
-      <label>Sequenza pezzi (es. 37+37+37)</label>
-      <div class="imb-row">
-        <input type="text" id="u-seq" placeholder="37+37+37" oninput="calcolaSeq('u-seq','u-tot')">
-        <div class="imb-tot" id="u-tot">0</div>
-      </div>
+      <label>Quantità</label>
+      <input type="number" id="u-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
       <label>Note</label><input type="text" id="u-note" placeholder="">
       <button class="btn btn-teal" onclick="salvaUscitaMerce()">AGGIUNGI</button>
     </div>
@@ -185,10 +182,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <textarea id="u-wa-text" placeholder="Incolla qui il messaggio..."></textarea>
       <button class="btn btn-teal" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
     </div>
-    <div id="u-confronto" style="display:none" class="card">
-      <h2>Confronto imballo</h2>
-      <div id="u-confronto-res"></div>
-    </div>
     <div class="card">
       <h2>Uscite registrate</h2>
       <button class="btn btn-red btn-sm" onclick="svuotaUscite()">SVUOTA TUTTO</button>
@@ -196,8 +189,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <div id="u-lista"><div class="empty">Nessuna uscita ancora</div></div>
     </div>
   </div>
-</div>
-
+  
 <!-- IMBALLO -->
 <div id="page-imballo" class="page">
   <div id="msg-imballo"></div>
@@ -549,15 +541,15 @@ function trovaArt(desc){
   return max>=2?best:null;
 }
 
-async function salvaEntrataMerce(){
-  var cod=document.getElementById('e-cod').value;
-  var dsc=document.getElementById('e-dsc').value;
-  var qty=parseInt(document.getElementById('e-qty').value)||0;
-  var note=document.getElementById('e-note').value;
-  if(!cod){showMsg('msg-entrata','Seleziona un articolo!','err');return;}
-  if(!qty){showMsg('msg-entrata','Inserisci la quantità!','err');return;}
-  var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
-  if(r){showMsg('msg-entrata','✅ '+qty+' x '+cod+' aggiunto!','ok');resetForm('e');caricaEntrate();}
+async function salvaUscitaMerce(){
+  var cod=document.getElementById('u-cod').value;
+  var dsc=document.getElementById('u-dsc').value;
+  var qty=parseInt(document.getElementById('u-qty').value)||0;
+  var note=document.getElementById('u-note').value;
+  if(!cod){showMsg('msg-wa','Seleziona un articolo!','err');return;}
+  if(!qty){showMsg('msg-wa','Inserisci la quantità!','err');return;}
+  var r=await apiPost('whatsapp_uscita',{testo_riga:qty+' '+dsc,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
+  if(r){showMsg('msg-wa','✅ '+qty+' x '+cod+' aggiunto!','ok');resetFormU();caricaUscite();}
 }
 
 async function aggiungiWAEntrata(){
@@ -636,6 +628,14 @@ async function salvaUscitaMerce(){
   var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc});
   if(r1&&r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
 }
+  function resetFormU(){
+  document.getElementById('u-cerca').value='';
+  document.getElementById('u-cod').value='';
+  document.getElementById('u-dsc').value='';
+  document.getElementById('u-qty').value='';
+  document.getElementById('u-note').value='';
+  var s=document.getElementById('u-sel');if(s)s.style.display='none';
+}
 
 async function aggiungiWAUscita(){
   var testo=document.getElementById('u-wa-text').value.trim();
@@ -655,7 +655,22 @@ async function caricaUscite(){
   if(document.getElementById('st-u'))document.getElementById('st-u').textContent=d.length;
   var l=document.getElementById('u-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
-  l.innerHTML=d.map(function(r){return'<div class="row-item teal"><div class="row-qty">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+'</div></div><button class="del-btn" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';}).join('');
+  l.innerHTML=d.map(function(r){
+    var badge=r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span>':'<span class="badge badge-warn">?</span>';
+    return '<div class="row-item teal"><div class="row-qty">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+' '+badge+'</div><div class="rsub">'+(r.descrizione_articolo||'')+'</div></div>'
+      +'<button class="edit-btn" onclick="apriModaleUscita('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\')" >✏️</button>'
+      +'<button class="del-btn" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';
+  }).join('');
+}
+  function apriModaleUscita(id,desc){
+  document.getElementById('modal-id').value=id;
+  document.getElementById('modal-desc').textContent=desc;
+  document.getElementById('mod-cerca').value='';
+  document.getElementById('mod-ris').style.display='none';
+  document.getElementById('mod-sel').style.display='none';
+  document.getElementById('mod-cod').value='';
+  document.getElementById('mod-dsc').value='';
+  document.getElementById('modal-wa').style.display='flex';
 }
 
 async function mostraConfronto(){
