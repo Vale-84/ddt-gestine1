@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F4E79">
+<title>DDT Gestione</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
+.header { background: #1F4E79; color: white; padding: 14px 16px; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 18px; font-weight: bold; }
+.header p { font-size: 12px; opacity: 0.7; }
+.tabs { display: flex; background: #163a5e; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { padding: 11px 13px; color: #aac4e0; font-size: 12px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; flex-shrink: 0; }
+.tab.active { color: white; border-bottom-color: #FFD966; }
+.page { display: none; padding: 14px; max-width: 600px; margin: 0 auto; }
+.page.active { display: block; }
+.card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.card h2 { font-size: 14px; color: #1F4E79; margin-bottom: 12px; font-weight: bold; }
+textarea { width: 100%; border: 2px solid #FFD966; border-radius: 8px; padding: 10px; font-size: 14px; min-height: 110px; resize: vertical; background: #FFFBEE; font-family: Arial; }
+input { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; background: white; }
+input:focus { outline: none; border-color: #1F4E79; }
+label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-weight: bold; }
+.btn { width: 100%; padding: 13px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; margin-bottom: 8px; }
+.btn-green { background: #217346; color: white; }
+.btn-red { background: #C00000; color: white; }
+.btn-blue { background: #1F4E79; color: white; }
+.btn-orange { background: #C55A11; color: white; }
+.btn-teal { background: #1F6B75; color: white; }
+.btn-purple { background: #5B2C8D; color: white; }
+.btn-gray { background: #aaa; color: white; }
+.btn-sm { padding: 10px; font-size: 13px; }
+.metodo-btns { display: flex; gap: 10px; margin-bottom: 0; }
+.metodo-btns .btn { flex: 1; margin-bottom: 0; }
+.cerca-box { position: relative; margin-bottom: 10px; }
+.cerca-input { width: 100%; border: 2px solid #1F4E79; border-radius: 8px; padding: 10px 12px; font-size: 14px; background: #EEF4FF; margin-bottom: 0; }
+.cerca-risultati { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; }
+.cerca-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.cerca-item:hover { background: #EEF4FF; }
+.cerca-codice { font-weight: bold; color: #1F4E79; font-size: 12px; }
+.art-sel { background: #E2EFDA; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; color: #375623; display: none; }
+.pdf-drop { border: 2px dashed #1F4E79; border-radius: 10px; padding: 24px; text-align: center; background: #EEF4FF; margin-bottom: 12px; cursor: pointer; }
+.pdf-drop p { color: #1F4E79; font-size: 14px; font-weight: bold; }
+.pdf-drop small { color: #888; font-size: 12px; }
+.pdf-input { display: none; }
+.pdf-preview { background: #f7f8fa; border-radius: 10px; padding: 14px; margin-bottom: 12px; border-left: 4px solid #C55A11; }
+.pdf-preview h3 { font-size: 13px; color: #C55A11; margin-bottom: 8px; }
+.pdf-info { font-size: 13px; color: #333; margin-bottom: 4px; }
+.pdf-item { background: white; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+.pdf-item .pdesc { font-size: 13px; color: #333; flex: 1; }
+.pdf-item .pqty { font-size: 16px; font-weight: bold; color: #1F4E79; min-width: 50px; text-align: right; }
+.row-item { background: #f7f8fa; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; border-left: 4px solid #1F4E79; gap: 8px; }
+.row-item.verde { border-left-color: #217346; }
+.row-item.viola { border-left-color: #5B2C8D; }
+.row-item.teal { border-left-color: #1F6B75; }
+.row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
+.row-info { flex: 1; }
+.row-info .rdesc { font-size: 13px; color: #222; }
+.row-info .rsub { font-size: 11px; color: #999; margin-top: 2px; }
+.del-btn { background: none; border: 1px solid #ffaaaa; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; color: #C00000; }
+.edit-btn { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; }
+.msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+.msg-ok { background: #E2EFDA; color: #375623; }
+.msg-err { background: #FCE4D6; color: #7B2C2C; }
+.config-box { background: #FFFBEE; border: 2px solid #FFD966; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+.config-box h3 { color: #7B4F00; margin-bottom: 10px; font-size: 14px; }
+.badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+.badge-ok { background: #E2EFDA; color: #375623; }
+.badge-warn { background: #FFF2CC; color: #7B4F00; }
+.badge-err { background: #FCE4D6; color: #7B2C2C; }
+.stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+.stat { background: #EEF4FF; border-radius: 8px; padding: 10px 6px; text-align: center; }
+.stat .n { font-size: 20px; font-weight: bold; color: #1F4E79; }
+.stat .l { font-size: 10px; color: #666; margin-top: 2px; }
+.empty { text-align: center; color: #bbb; font-size: 14px; padding: 20px 0; }
+.imb-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+.imb-row input { margin-bottom: 0; flex: 1; }
+.imb-tot { background: #E2EFDA; border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 18px; font-weight: bold; color: #217346; min-width: 65px; }
+.ok-box { background: #E2EFDA; border-radius: 8px; padding: 10px 14px; color: #375623; font-size: 13px; margin-top: 8px; }
+.warn-box { background: #FCE4D6; border-radius: 8px; padding: 10px 14px; color: #7B2C2C; font-size: 13px; margin-top: 8px; }
+.modal { display: none; position: fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; padding:16px; }
+.modal-box { background:white; border-radius:16px; padding:20px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
+.modal-box h3 { color:#1F4E79; margin-bottom:12px; font-size:15px; }
+.modal-desc { background:#f0f2f5; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:14px; color:#555; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DDT Gestione</h1>
+  <p id="conn-status">Configura Supabase nelle Impostazioni</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showPage('wa',this)">WA</div>
+  <div class="tab" onclick="showPage('imballo',this)">Imballo</div>
+  <div class="tab admin-tab" onclick="showPage('verniciato',this)" style="display:none">Verniciato</div>
+  <div class="tab admin-tab" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
+  <div class="tab admin-tab" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
+  <div class="tab admin-tab" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
+  <div class="tab admin-tab" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
+  <div class="tab admin-tab" onclick="showPage('riepilogo',this)" style="display:none">Riepilogo</div>
+  <div class="tab" onclick="showPage('cfg',this)">Config</div>
+</div>
+
+<!-- WA UNICA -->
+<div id="page-wa" class="page active">
+  <div id="msg-wa"></div>
+  <div class="card">
+    <h2>Cosa vuoi fare?</h2>
+    <div class="metodo-btns">
+      <button id="btn-wa-e" class="btn btn-green" onclick="setWAMode('entrata')">ENTRATA</button>
+      <button id="btn-wa-u" class="btn btn-gray" onclick="setWAMode('uscita')">USCITA</button>
+    </div>
+  </div>
+
+  <!-- SEZIONE ENTRATA -->
+  <div id="wa-sezione-entrata">
+    <div class="card">
+      <h2 style="color:#217346;">Come inserire entrata?</h2>
+      <div class="metodo-btns">
+        <button id="btn-e-man" class="btn btn-green" onclick="setMetodo('e','manuale')">INSERISCI MANUALE</button>
+        <button id="btn-e-wa" class="btn btn-gray" onclick="setMetodo('e','wa')">INCOLLA WHATSAPP</button>
+      </div>
+    </div>
+    <div id="e-sezione-manuale" class="card">
+      <h2>Inserisci articolo entrata</h2>
+      <label>Cerca articolo</label>
+      <div class="cerca-box">
+        <input class="cerca-input" id="e-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('e')" autocomplete="off">
+        <div class="cerca-risultati" id="e-ris"></div>
+      </div>
+      <div class="art-sel" id="e-sel"></div>
+      <input type="hidden" id="e-cod"><input type="hidden" id="e-dsc">
+      <label>Quantità</label>
+      <input type="number" id="e-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
+      <label>Note</label><input type="text" id="e-note" placeholder="">
+      <button class="btn btn-green" onclick="salvaEntrataMerce()">AGGIUNGI</button>
+    </div>
+    <div id="e-sezione-wa" class="card" style="display:none">
+      <h2>Incolla messaggio WhatsApp entrata</h2>
+      <textarea id="e-wa-text" placeholder="Incolla qui il messaggio WhatsApp..."></textarea>
+      <button class="btn btn-green" onclick="aggiungiWAEntrata()">AGGIUNGI RIGHE</button>
+    </div>
+    <div class="card">
+      <h2>Articoli entrati</h2>
+      <button class="btn btn-red btn-sm" onclick="svuota('whatsapp_righe','msg-wa')">SVUOTA TUTTO</button>
+      <br>
+      <div id="e-lista"><div class="empty">Nessun articolo ancora</div></div>
+    </div>
+  </div>
+
+  <!-- SEZIONE USCITA -->
+  <div id="wa-sezione-uscita" style="display:none">
+    <div id="msg-wa-u"></div>
+    <div class="card">
+      <h2 style="color:#1F6B75;">Come inserire uscita?</h2>
+      <div class="metodo-btns">
+        <button id="btn-u-man" class="btn btn-teal" onclick="setMetodo('u','manuale')">INSERISCI MANUALE</button>
+        <button id="btn-u-wa" class="btn btn-gray" onclick="setMetodo('u','wa')">INCOLLA WHATSAPP</button>
+      </div>
+    </div>
+    <div id="u-sezione-manuale" class="card">
+      <h2>Inserisci articolo uscita</h2>
+      <label>Cerca articolo</label>
+      <div class="cerca-box">
+        <input class="cerca-input" id="u-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('u')" autocomplete="off">
+        <div class="cerca-risultati" id="u-ris"></div>
+      </div>
+      <div class="art-sel" id="u-sel"></div>
+      <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
+      <label>Quantità</label>
+      <input type="number" id="u-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
+      <label>Note</label><input type="text" id="u-note" placeholder="">
+      <button class="btn btn-teal" onclick="salvaUscitaMerce()">AGGIUNGI</button>
+    </div>
+    <div id="u-sezione-wa" class="card" style="display:none">
+      <h2>Incolla messaggio WhatsApp uscita</h2>
+      <textarea id="u-wa-text" placeholder="Incolla qui il messaggio..."></textarea>
+      <button class="btn btn-teal" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
+    </div>
+    <div class="card">
+      <h2>Uscite registrate</h2>
+      <button class="btn btn-red btn-sm" onclick="svuotaUscite()">SVUOTA TUTTO</button>
+      <br>
+      <div id="u-lista"><div class="empty">Nessuna uscita ancora</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- IMBALLO -->
+<div id="page-imballo" class="page">
+  <div id="msg-imballo"></div>
+  <div class="card">
+    <h2>Registra imballo</h2>
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="imb-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('imb')" autocomplete="off">
+      <div class="cerca-risultati" id="imb-ris"></div>
+    </div>
+    <div class="art-sel" id="imb-sel"></div>
+    <input type="hidden" id="imb-cod"><input type="hidden" id="imb-dsc">
+    <label>Sequenza pezzi (es. 37+37+37+37)</label>
+    <div class="imb-row">
+      <input type="text" id="imb-seq" placeholder="37+37+37+37" oninput="calcolaSeq('imb-seq','imb-tot')">
+      <div class="imb-tot" id="imb-tot">0</div>
+    </div>
+    <label>Note</label>
+    <input type="text" id="imb-note" placeholder="">
+    <button class="btn btn-purple" onclick="salvaImballo()">SALVA IMBALLO</button>
+  </div>
+  <div class="card">
+    <h2>Imballi registrati</h2>
+    <button class="btn btn-red btn-sm" onclick="svuotaImballo()">SVUOTA TUTTO</button>
+    <br>
+    <div id="imb-lista"><div class="empty">Nessun imballo ancora</div></div>
+  </div>
+</div>
+
+<!-- VERNICIATO -->
+<div id="page-verniciato" class="page">
+  <div id="msg-verniciato"></div>
+  <div class="card">
+    <h2>Registra verniciato</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci gli articoli che hai verniciato oggi.</p>
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="vern-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('vern')" autocomplete="off">
+      <div class="cerca-risultati" id="vern-ris"></div>
+    </div>
+    <div class="art-sel" id="vern-sel"></div>
+    <input type="hidden" id="vern-cod"><input type="hidden" id="vern-dsc">
+    <label>Quantità verniciata</label>
+    <input type="number" id="vern-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;">
+    <label>Note</label>
+    <input type="text" id="vern-note" placeholder="">
+    <button class="btn btn-orange" onclick="salvaVerniciato()">SALVA VERNICIATO</button>
+  </div>
+  <div class="card">
+    <h2>Verniciato oggi</h2>
+    <button class="btn btn-red btn-sm" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
+    <br>
+    <div id="vern-lista"><div class="empty">Nessun articolo ancora</div></div>
+  </div>
+</div>
+
+<!-- DDT ENTRATA -->
+<div id="page-ddt-entrata" class="page">
+  <div id="msg-ddt-e"></div>
+  <div class="card">
+    <h2>Carica PDF DDT Entrata</h2>
+    <div class="pdf-drop" onclick="document.getElementById('pdf-inp').click()">
+      <p>Tocca qui per caricare il PDF</p>
+      <small>oppure trascinalo qui</small>
+    </div>
+    <input type="file" id="pdf-inp" class="pdf-input" accept=".pdf" onchange="leggiPDF(this)">
+    <div id="pdf-prev" style="display:none"></div>
+    <button class="btn btn-orange" id="btn-importa" style="display:none" onclick="importaDaPDF()">IMPORTA DAL PDF</button>
+  </div>
+  <div class="card">
+    <h2>Inserisci manualmente</h2>
+    <label>N. DDT</label><input type="text" id="de-nddt" placeholder="es. C6000756">
+    <label>Data</label><input type="date" id="de-data">
+    <label>Cliente</label><input type="text" id="de-cliente">
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="de-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('de')" autocomplete="off">
+      <div class="cerca-risultati" id="de-ris"></div>
+    </div>
+    <div class="art-sel" id="de-sel"></div>
+    <input type="hidden" id="de-cod"><input type="hidden" id="de-dsc">
+    <label>Quantita DDT</label><input type="number" id="de-qddt" placeholder="0">
+    <label>Quantita Entrata</label><input type="number" id="de-qwa" placeholder="0">
+    <label>Note</label><input type="text" id="de-note">
+    <button class="btn btn-blue" onclick="salvaDDTEntrata()">SALVA DDT ENTRATA</button>
+  </div>
+  <div class="card">
+    <h2>DDT Entrata salvati</h2>
+    <div id="de-lista"><div class="empty">Nessun record</div></div>
+  </div>
+</div>
+
+<!-- DDT USCITA -->
+<div id="page-ddt-uscita" class="page">
+  <div id="msg-ddt-u"></div>
+  <div class="card">
+    <h2>Nuovo DDT Uscita</h2>
+    <label>N. DDT</label><input type="text" id="du-nddt">
+    <label>Data</label><input type="date" id="du-data">
+    <label>Cliente</label><input type="text" id="du-cliente">
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="du-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('du')" autocomplete="off">
+      <div class="cerca-risultati" id="du-ris"></div>
+    </div>
+    <div class="art-sel" id="du-sel"></div>
+    <input type="hidden" id="du-cod"><input type="hidden" id="du-dsc">
+    <label>Q.ta Verniciato</label><input type="number" id="du-qvern" placeholder="0">
+    <label>Q.ta Imballato</label><input type="number" id="du-qimb" placeholder="0">
+    <label>Q.ta DDT Uscita</label><input type="number" id="du-qddt" placeholder="0">
+    <label>Note</label><input type="text" id="du-note">
+    <button class="btn btn-blue" onclick="salvaDDTUscita()">SALVA DDT USCITA</button>
+  </div>
+  <div class="card">
+    <h2>DDT Uscita salvati</h2>
+    <div id="du-lista"><div class="empty">Nessun record</div></div>
+  </div>
+</div>
+
+<!-- RIEPILOGO WA -->
+<div id="page-riepilogo-wa" class="page">
+  <div class="card">
+    <h2>Entrate e Uscite WA</h2>
+    <button class="btn btn-gray btn-sm" onclick="caricaRiepilogoWA()">AGGIORNA</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="card" style="margin-bottom:0">
+      <h2 style="color:#217346;">Entrate WA</h2>
+      <div id="rwa-entrate"><div class="empty">Nessuna entrata</div></div>
+      <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#217346;" id="rwa-tot-e"></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <h2 style="color:#1F6B75;">Uscite WA</h2>
+      <div id="rwa-uscite"><div class="empty">Nessuna uscita</div></div>
+      <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#1F6B75;" id="rwa-tot-u"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFRONTO -->
+<div id="page-confronto" class="page">
+  <div class="card">
+    <h2>Controllo generale</h2>
+    <button class="btn btn-blue" onclick="aggiornaConfronto()">AGGIORNA CONFRONTO</button>
+  </div>
+  <div id="cf-2" class="card" style="display:none">
+    <h2>1. WA Entrata vs WA Uscita — per articolo</h2>
+    <div id="cf-2-lista"></div>
+    <div id="cf-2-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
+  </div>
+  <div id="cf-3" class="card" style="display:none">
+    <h2>2. Imballo vs WA Uscita — per articolo</h2>
+    <div id="cf-3-lista"></div>
+    <div id="cf-3-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
+  </div>
+  <div id="cf-4" class="card" style="display:none">
+    <h2>3. DDT Entrata vs DDT Uscita — per articolo</h2>
+    <div id="cf-4-lista"></div>
+    <div id="cf-4-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
+  </div>
+</div>
+
+<!-- RIEPILOGO -->
+<div id="page-riepilogo" class="page">
+  <div class="card">
+    <h2>Statistiche</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="n" id="st-e">-</div><div class="l">Entrate</div></div>
+      <div class="stat"><div class="n" id="st-u">-</div><div class="l">Uscite</div></div>
+      <div class="stat"><div class="n" id="st-de">-</div><div class="l">DDT Entrata</div></div>
+      <div class="stat"><div class="n" id="st-du">-</div><div class="l">DDT Uscita</div></div>
+      <div class="stat"><div class="n" id="st-imb">-</div><div class="l">Imballo</div></div>
+    </div>
+    <button class="btn btn-gray btn-sm" onclick="caricaRiepilogo()">AGGIORNA</button>
+  </div>
+  <div class="card">
+    <h2>Ultimi DDT Entrata</h2>
+    <div id="riepilogo-lista"><div class="empty">Premi Aggiorna</div></div>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div id="page-cfg" class="page">
+  <div id="login-box" class="card" style="border:2px solid #1F4E79;">
+    <h2>Accesso Admin</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci la password per accedere a tutte le funzioni.</p>
+    <input type="password" id="admin-pwd" placeholder="Password admin..." style="margin-bottom:8px;">
+    <button class="btn btn-blue" onclick="loginAdmin()">ACCEDI</button>
+    <div id="msg-login"></div>
+    <div id="admin-logout" style="display:none;margin-top:8px;">
+      <span style="color:#375623;font-size:13px;">✅ Accesso admin attivo</span>
+      <button class="btn btn-gray btn-sm" onclick="logoutAdmin()" style="margin-top:8px;">ESCI DA ADMIN</button>
+    </div>
+  </div>
+  <div class="config-box">
+    <h3>Credenziali Supabase</h3>
+    <label>URL Progetto</label><input type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
+    <label>Chiave API (anon key)</label><input type="text" id="cfg-key" placeholder="eyJhbGci...">
+    <button class="btn btn-blue" onclick="salvaConfig()">SALVA</button>
+  </div>
+  <div id="msg-cfg"></div>
+  <div class="card" style="border: 2px solid #ffaaaa;">
+    <h2 style="color:#C00000;">Azzera tutto</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
+    <button class="btn btn-red" onclick="azzeraTutto()">🗑 AZZERA TUTTI I DATI</button>
+  </div>
+  <div class="card">
+    <h2>Stato connessione</h2>
+    <div id="stato-conn">Non configurato</div><br>
+    <button class="btn btn-gray btn-sm" onclick="testConn()">TESTA CONNESSIONE</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal-wa">
+  <div class="modal-box">
+    <h3>Correggi articolo</h3>
+    <div class="modal-desc" id="modal-desc"></div>
+    <input type="hidden" id="modal-id">
+    <input type="hidden" id="modal-tabella">
+    <label>Cerca articolo corretto</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="mod-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('mod')" autocomplete="off">
+      <div class="cerca-risultati" id="mod-ris"></div>
+    </div>
+    <div class="art-sel" id="mod-sel"></div>
+    <input type="hidden" id="mod-cod"><input type="hidden" id="mod-dsc">
+    <br>
+    <button class="btn btn-blue" onclick="salvaModifica()">SALVA</button>
+    <button class="btn btn-gray" onclick="document.getElementById('modal-wa').style.display='none'">ANNULLA</button>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+var pdfDati=null, artCache=[];
+
+function getConfig(){return{url:localStorage.getItem('ddt_url')||'',key:localStorage.getItem('ddt_key')||''};}
+
+function salvaConfig(){
+  var url=document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
+  var key=document.getElementById('cfg-key').value.trim();
+  if(!url||!key){showMsg('msg-cfg','Inserisci URL e chiave!','err');return;}
+  localStorage.setItem('ddt_url',url);localStorage.setItem('ddt_key',key);
+  showMsg('msg-cfg','Salvato!','ok');
+  document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Configurato</span>';
+  document.getElementById('conn-status').textContent='Connesso: '+url.replace('https://','').split('.')[0];
+  caricaArticoli();
+}
+
+function showMsg(id,txt,type){
+  var el=document.getElementById(id);if(!el)return;
+  el.innerHTML='<div class="msg msg-'+type+'">'+txt+'</div>';
+  setTimeout(function(){el.innerHTML='';},5000);
+}
+
+async function apiGet(t,p){
+  var c=getConfig();if(!c.url)return null;
+  try{var r=await fetch(c.url+'/rest/v1/'+t+'?'+(p||'order=created_at.desc&limit=200'),{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+  if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){console.error(e);return null;}
+}
+
+async function apiPost(t,b){
+  var c=getConfig();if(!c.url){alert('Configura Supabase!');return null;}
+  try{var r=await fetch(c.url+'/rest/v1/'+t,{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'},body:JSON.stringify(b)});
+  if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){alert('Errore: '+e.message);return null;}
+}
+
+async function apiDel(t,f){
+  var c=getConfig();if(!c.url)return;
+  await fetch(c.url+'/rest/v1/'+t+'?'+f,{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+}
+
+async function apiPatch(t,f,b){
+  var c=getConfig();if(!c.url)return false;
+  var r=await fetch(c.url+'/rest/v1/'+t+'?'+f,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key},body:JSON.stringify(b)});
+  return r.ok;
+}
+
+async function testConn(){var d=await apiGet('whatsapp_righe');if(d!==null){showMsg('msg-cfg','OK! '+d.length+' righe.','ok');document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Connesso</span>';}}
+
+async function caricaArticoli(){var d=await apiGet('articoli','order=descrizione.asc&limit=500');if(d)artCache=d;}
+
+function cerca(p){
+  var q=document.getElementById(p+'-cerca').value.trim().toUpperCase();
+  var el=document.getElementById(p+'-ris');
+  if(q.length<2){el.style.display='none';return;}
+  var f=artCache.filter(function(a){return a.codice_articolo.toUpperCase().includes(q)||a.descrizione.toUpperCase().includes(q);}).slice(0,8);
+  if(!f.length){el.style.display='none';return;}
+  el.innerHTML=f.map(function(a){return'<div class="cerca-item" onclick="selArt(\''+p+'\',\''+a.codice_articolo+'\',\''+a.descrizione.replace(/'/g,"\\'")+'\')"><div class="cerca-codice">'+a.codice_articolo+'</div><div>'+a.descrizione+'</div></div>';}).join('');
+  el.style.display='block';
+}
+
+function selArt(p,cod,desc){
+  if(document.getElementById(p+'-cod'))document.getElementById(p+'-cod').value=cod;
+  if(document.getElementById(p+'-dsc'))document.getElementById(p+'-dsc').value=desc;
+  document.getElementById(p+'-cerca').value=cod+' — '+desc;
+  document.getElementById(p+'-ris').style.display='none';
+  var s=document.getElementById(p+'-sel');s.textContent='✅ '+cod+' — '+desc;s.style.display='block';
+}
+
+document.addEventListener('click',function(e){document.querySelectorAll('.cerca-risultati').forEach(function(el){if(!el.contains(e.target))el.style.display='none';});});
+
+function calcolaSeq(sid,tid){
+  var seq=document.getElementById(sid).value.trim();
+  if(!seq){document.getElementById(tid).textContent='0';return;}
+  document.getElementById(tid).textContent=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
+}
+
+function setMetodo(pg,m){
+  var isM=m==='manuale';
+  var col=pg==='e'?'btn-green':'btn-teal';
+  document.getElementById(pg+'-sezione-manuale').style.display=isM?'block':'none';
+  document.getElementById(pg+'-sezione-wa').style.display=isM?'none':'block';
+  document.getElementById('btn-'+pg+'-man').className='btn '+(isM?col:'btn-gray');
+  document.getElementById('btn-'+pg+'-wa').className='btn '+(isM?'btn-gray':col);
+}
+
+function showPage(name,el){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('page-'+name).classList.add('active');
+  if(el)el.classList.add('active');
+  if(name==='wa'){setWAMode('entrata');}
+  if(name==='imballo'){
+    caricaImballo();
+    var ic=document.getElementById('imb-cerca');if(ic)ic.value='';
+    var is=document.getElementById('imb-sel');if(is)is.style.display='none';
+    var it=document.getElementById('imb-tot');if(it)it.textContent='0';
+  }
+  if(name==='verniciato')caricaVerniciato();
+  if(name==='ddt-entrata')caricaDDTE();
+  if(name==='ddt-uscita')caricaDDTU();
+  if(name==='riepilogo-wa')caricaRiepilogoWA();
+  if(name==='confronto')aggiornaConfronto();
+  if(name==='riepilogo')caricaRiepilogo();
+  if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
+}
+
+// ── TROVA ARTICOLO DA TESTO ───────────────────────────────────────────
+function trovaArt(desc){
+  if(!desc||!artCache.length)return null;
+  var abbr={TEST:'TESTATA',TESTA:'TESTATA',PED:'PEDIERA',RET:'RETE',SPO:'SPONDA',SPON:'SPONDA',BCO:'BIANCO',GR:'GRIGIO',NAT:'NATURALE',AV:'AVANA',PIC:'PICCOLA',PICC:'PICCOLA',CONT:'CONTACT',LET:'LETTINO',LETT:'LETTINO',INF:'INFINITO',INFI:'INFINITO',NOR:'NORMALE',SUP:'SUPERIORE',MDF:'MDF',GLAM:'GLAM',LUX:'LUX',FL:'FL'};
+  var parole=desc.toUpperCase().split(/\s+/).filter(function(p){return p.length>1;});
+  var best=null,max=0;
+  artCache.forEach(function(a){
+    var d=a.descrizione.toUpperCase(),p=0;
+    parole.forEach(function(w){var e=abbr[w]||w;if(d.includes(e))p++;});
+    if(p>max){max=p;best=a;}
+  });
+  return max>=2?best:null;
+}
+
+// ── ENTRATA ───────────────────────────────────────────────────────────
+async function salvaEntrataMerce(){
+  var cod=document.getElementById('e-cod').value;
+  var dsc=document.getElementById('e-dsc').value;
+  var qty=parseInt(document.getElementById('e-qty').value)||0;
+  var note=document.getElementById('e-note').value;
+  if(!cod){showMsg('msg-wa','Seleziona un articolo!','err');return;}
+  if(!qty){showMsg('msg-wa','Inserisci la quantità!','err');return;}
+  var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
+  if(r){showMsg('msg-wa','✅ '+qty+' x '+cod+' aggiunto!','ok');resetFormE();caricaEntrate();}
+}
+
+function resetFormE(){
+  document.getElementById('e-cerca').value='';
+  document.getElementById('e-cod').value='';
+  document.getElementById('e-dsc').value='';
+  document.getElementById('e-qty').value='';
+  document.getElementById('e-note').value='';
+  var s=document.getElementById('e-sel');if(s)s.style.display='none';
+}
+
+async function aggiungiWAEntrata(){
+  var testo=document.getElementById('e-wa-text').value.trim();
+  if(!testo){showMsg('msg-wa','Incolla prima un messaggio!','err');return;}
+  var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
+  var n=0;
+  for(var i=0;i<righe.length;i++){
+    var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
+    var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
+    var art=trovaArt(desc);
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
+    if(res)n++;
+  }
+  if(n>0){showMsg('msg-wa',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
+}
+
+async function caricaEntrate(){
+  var d=await apiGet('whatsapp_righe');if(!d)return;
+  if(document.getElementById('st-e'))document.getElementById('st-e').textContent=d.length;
+  var l=document.getElementById('e-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
+  l.innerHTML=d.map(function(r){
+    var badge=r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span>':'<span class="badge badge-warn">?</span>';
+    return '<div class="row-item"><div class="row-qty">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+' '+badge+'</div><div class="rsub">'+(r.descrizione_articolo||'')+'</div></div>'
+      +'<button class="edit-btn" onclick="apriModale(\'whatsapp_righe\','+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\')">✏️</button>'
+      +'<button class="del-btn" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">🗑</button></div>';
+  }).join('');
+}
+
+async function svuota(table,msgId){
+  if(!confirm('Svuotare tutto?'))return;
+  var oggi=new Date().toISOString().split('T')[0];
+  await apiDel(table,'data_inserimento=eq.'+oggi);
+  showMsg(msgId,'Svuotato!','ok');
+  if(table==='whatsapp_righe'){caricaEntrate();if(document.getElementById('st-e'))document.getElementById('st-e').textContent='0';}
+}
+
+async function eliminaRiga(table,id,callback){
+  if(!confirm('Eliminare questa riga?'))return;
+  await apiDel(table,'id=eq.'+id);
+  if(callback)callback();
+}
+
+function apriModale(tabella,id,desc){
+  document.getElementById('modal-id').value=id;
+  document.getElementById('modal-tabella').value=tabella;
+  document.getElementById('modal-desc').textContent=desc;
+  document.getElementById('mod-cerca').value='';
+  document.getElementById('mod-ris').style.display='none';
+  document.getElementById('mod-sel').style.display='none';
+  document.getElementById('mod-cod').value='';
+  document.getElementById('mod-dsc').value='';
+  document.getElementById('modal-wa').style.display='flex';
+}
+
+async function salvaModifica(){
+  var id=document.getElementById('modal-id').value;
+  var tabella=document.getElementById('modal-tabella').value||'whatsapp_righe';
+  var cod=document.getElementById('mod-cod').value;
+  var dsc=document.getElementById('mod-dsc').value;
+  if(!cod){alert('Seleziona un articolo!');return;}
+  await apiPatch(tabella,'id=eq.'+id,{codice_articolo:cod,descrizione_articolo:dsc});
+  document.getElementById('modal-wa').style.display='none';
+  if(tabella==='whatsapp_uscita') caricaUscite(); else caricaEntrate();
+}
+
+// ── USCITA ────────────────────────────────────────────────────────────
+async function salvaUscitaMerce(){
+  var cod=document.getElementById('u-cod').value;
+  var dsc=document.getElementById('u-dsc').value;
+  var qty=parseInt(document.getElementById('u-qty').value)||0;
+  var note=document.getElementById('u-note').value;
+  if(!cod){showMsg('msg-wa-u','Seleziona un articolo!','err');return;}
+  if(!qty){showMsg('msg-wa-u','Inserisci la quantità!','err');return;}
+  var r=await apiPost('whatsapp_uscita',{testo_riga:qty+' '+dsc,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
+  if(r){showMsg('msg-wa-u','✅ '+qty+' x '+cod+' aggiunto!','ok');resetFormU();caricaUscite();}
+}
+
+function resetFormU(){
+  document.getElementById('u-cerca').value='';
+  document.getElementById('u-cod').value='';
+  document.getElementById('u-dsc').value='';
+  document.getElementById('u-qty').value='';
+  document.getElementById('u-note').value='';
+  var s=document.getElementById('u-sel');if(s)s.style.display='none';
+}
+
+async function aggiungiWAUscita(){
+  var testo=document.getElementById('u-wa-text').value.trim();
+  if(!testo){showMsg('msg-wa-u','Incolla prima un messaggio!','err');return;}
+  var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
+  var n=0;
+  for(var i=0;i<righe.length;i++){
+    var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
+    var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
+    var art=trovaArt(desc);
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
+    if(res)n++;
+  }
+  if(n>0){showMsg('msg-wa-u',n+' righe aggiunte!','ok');document.getElementById('u-wa-text').value='';caricaUscite();}
+}
+
+async function caricaUscite(){
+  var d=await apiGet('whatsapp_uscita');if(!d)return;
+  if(document.getElementById('st-u'))document.getElementById('st-u').textContent=d.length;
+  var l=document.getElementById('u-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
+  l.innerHTML=d.map(function(r){
+    var badge=r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span>':'<span class="badge badge-warn">?</span>';
+    return '<div class="row-item teal"><div class="row-qty">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+' '+badge+'</div><div class="rsub">'+(r.descrizione_articolo||'')+'</div></div>'
+      +'<button class="edit-btn" onclick="apriModale(\'whatsapp_uscita\','+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\')">✏️</button>'
+      +'<button class="del-btn" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';
+  }).join('');
+}
+
+async function svuotaUscite(){
+  if(!confirm('Svuotare tutte le uscite di oggi?'))return;
+  var oggi=new Date().toISOString().split('T')[0];
+  await apiDel('whatsapp_uscita','data_inserimento=eq.'+oggi);
+  showMsg('msg-wa-u','Svuotato!','ok');caricaUscite();
+}
+
+// ── DDT ENTRATA ───────────────────────────────────────────────────────
+async function leggiPDF(input){
+  var file=input.files[0];if(!file)return;
+  var prev=document.getElementById('pdf-prev');
+  prev.style.display='block';prev.innerHTML='<div style="padding:16px;text-align:center;color:#1F4E79;">Lettura PDF...</div>';
+  try{
+    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=c.items.map(function(s){return s.str;}).join(' ')+'\n';}
+    var nddt='',data='',cliente='',articoli=[];
+    var mN=testo.match(/([A-Z]\d{7})/);if(mN)nddt=mN[1];
+    var mD=testo.match(/(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s*(\d{4})/i);
+    if(mD){var mesi={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};data=mD[3]+'-'+mesi[mD[2].toLowerCase()]+'-'+(mD[1].length===1?'0':'')+mD[1];}
+    var mC=testo.match(/([A-Z][a-zA-Z\s]+(?:srl|spa|snc|sas))/i);if(mC)cliente=mC[1].trim();
+    var descs=[...testo.matchAll(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,]+)/g)];
+    descs.forEach(function(m){articoli.push({desc:m[1].trim().replace(/\s+/g,' '),qty:parseFloat(m[2].replace(',','.'))});});
+    pdfDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
+    var html='<div class="pdf-preview"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info"><strong>Cliente:</strong> '+(cliente||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Articoli ('+articoli.length+'):</strong></div>';
+    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
+    prev.innerHTML=html;
+    if(articoli.length){document.getElementById('btn-importa').style.display='block';showMsg('msg-ddt-e',articoli.length+' articoli trovati!','ok');}
+    if(nddt)document.getElementById('de-nddt').value=nddt;
+    if(data)document.getElementById('de-data').value=data;
+    if(cliente)document.getElementById('de-cliente').value=cliente;
+  }catch(e){prev.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+}
+
+async function importaDaPDF(){
+  if(!pdfDati||!pdfDati.articoli.length)return;
+  var n=0;
+  for(var i=0;i<pdfDati.articoli.length;i++){
+    var a=pdfDati.articoli[i];
+    var r=await apiPost('ddt_entrata',{numero_ddt:pdfDati.nddt,data_ddt:pdfDati.data||null,cliente:pdfDati.cliente,codice_articolo:'',descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF'});
+    if(r)n++;
+  }
+  showMsg('msg-ddt-e',n+' articoli importati!','ok');
+  document.getElementById('pdf-prev').style.display='none';document.getElementById('btn-importa').style.display='none';
+  document.getElementById('pdf-inp').value='';pdfDati=null;caricaDDTE();
+}
+
+async function salvaDDTEntrata(){
+  var b={numero_ddt:document.getElementById('de-nddt').value,data_ddt:document.getElementById('de-data').value||null,cliente:document.getElementById('de-cliente').value,codice_articolo:document.getElementById('de-cod').value,descrizione:document.getElementById('de-dsc').value,quantita_ddt:parseInt(document.getElementById('de-qddt').value)||0,quantita_whatsapp:parseInt(document.getElementById('de-qwa').value)||0,note:document.getElementById('de-note').value};
+  var r=await apiPost('ddt_entrata',b);if(r){showMsg('msg-ddt-e','Salvato!','ok');caricaDDTE();}
+}
+
+async function caricaDDTE(){
+  var d=await apiGet('ddt_entrata');if(!d)return;
+  if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
+  var l=document.getElementById('de-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';return'<div class="row-item"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span></div>';}).join('');
+}
+
+async function salvaDDTUscita(){
+  var b={numero_ddt:document.getElementById('du-nddt').value,data_ddt:document.getElementById('du-data').value||null,cliente:document.getElementById('du-cliente').value,codice_articolo:document.getElementById('du-cod').value,descrizione:document.getElementById('du-dsc').value,quantita_verniciato:parseInt(document.getElementById('du-qvern').value)||0,quantita_imballato:parseInt(document.getElementById('du-qimb').value)||0,quantita_ddt:parseInt(document.getElementById('du-qddt').value)||0,note:document.getElementById('du-note').value};
+  var r=await apiPost('ddt_uscita',b);if(r){showMsg('msg-ddt-u','Salvato!','ok');caricaDDTU();}
+}
+
+async function caricaDDTU(){
+  var d=await apiGet('ddt_uscita');if(!d)return;
+  if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
+  var l=document.getElementById('du-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span></div>';}).join('');
+}
+
+// ── RIEPILOGO WA ──────────────────────────────────────────────────────
+async function caricaRiepilogoWA(){
+  var we=await apiGet('whatsapp_righe');
+  var wu=await apiGet('whatsapp_uscita');
+  if(!we||!wu)return;
+  var mapE={};
+  we.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||'?';
+    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
+    if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0};
+    mapE[k].tot+=(r.quantita||0);
+  });
+  var totE=we.reduce(function(a,r){return a+(r.quantita||0);},0);
+  var lE=document.getElementById('rwa-entrate');
+  lE.innerHTML=Object.values(mapE).map(function(a){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+      +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
+      +'<div style="font-size:16px;font-weight:bold;color:#217346;min-width:40px;text-align:right;">'+a.tot+'</div>'
+    +'</div>';
+  }).join('');
+  document.getElementById('rwa-tot-e').textContent='Totale: '+totE+' pz';
+  var mapU={};
+  wu.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
+    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
+    if(!mapU[k])mapU[k]={cod:r.codice_articolo,desc:desc,tot:0};
+    mapU[k].tot+=(r.quantita||0);
+  });
+  var totU=wu.reduce(function(a,r){return a+(r.quantita||0);},0);
+  var lU=document.getElementById('rwa-uscite');
+  lU.innerHTML=Object.values(mapU).map(function(a){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+      +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
+      +'<div style="font-size:16px;font-weight:bold;color:#1F6B75;min-width:40px;text-align:right;">'+a.tot+'</div>'
+    +'</div>';
+  }).join('');
+  document.getElementById('rwa-tot-u').textContent='Totale: '+totU+' pz';
+}
+
+// ── CONFRONTO ─────────────────────────────────────────────────────────
+async function aggiornaConfronto(){
+  var wa=await apiGet('whatsapp_righe');
+  var imb=await apiGet('imballo');var wau=await apiGet('whatsapp_uscita');
+  if(!wa||!imb||!wau)return;
+  var entMap={};
+  wa.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||'?';
+    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
+    if(!entMap[k])entMap[k]={cod:k,desc:desc,entrata:0,uscita:0};
+    entMap[k].entrata+=(r.quantita||0);
+  });
+  wau.forEach(function(r){
+    var k=r.codice_articolo||null;
+    var trovato=null;
+    if(k&&entMap[k]) trovato=k;
+    if(!trovato){
+      var dU=(r.descrizione||r.testo_riga||'').toUpperCase();
+      Object.keys(entMap).forEach(function(ek){if(entMap[ek].desc.toUpperCase()===dU) trovato=ek;});
+    }
+    if(!trovato){
+      var dU2=(r.descrizione||r.testo_riga||'').toUpperCase();
+      var parole=dU2.split(' ').filter(function(p){return p.length>3;});
+      var bestK=null,bestScore=0;
+      Object.keys(entMap).forEach(function(ek){
+        var dE=entMap[ek].desc.toUpperCase();
+        var score=parole.filter(function(p){return dE.includes(p);}).length;
+        if(score>bestScore){bestScore=score;bestK=ek;}
+      });
+      if(bestScore>=2) trovato=bestK;
+    }
+    if(trovato){
+      entMap[trovato].uscita+=(r.quantita||0);
+    } else {
+      var kk='_nc_'+(r.descrizione||r.testo_riga||'?');
+      if(!entMap[kk])entMap[kk]={cod:'?',desc:r.descrizione||r.testo_riga,entrata:0,uscita:0};
+      entMap[kk].uscita+=(r.quantita||0);
+    }
+  });
+  document.getElementById('cf-2').style.display='block';
+  var html2='',totRim=0;
+  Object.values(entMap).forEach(function(a){
+    var rim=a.entrata-a.uscita;totRim+=rim;
+    var bordo=rim===0?'#217346':rim>0?'#C55A11':'#C00000';
+    var badge=rim===0?'<span class="badge badge-ok">OK</span>':rim>0?'<span class="badge badge-warn">'+rim+' pz</span>':'<span class="badge badge-err">'+rim+' pz</span>';
+    html2+='<div class="row-item" style="border-left-color:'+bordo+';">'
+      +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
+      +'<div class="rsub">Entrato: '+a.entrata+' &nbsp;Uscito: '+a.uscita+' &nbsp;Rimanenza: <strong>'+rim+'</strong></div>'
+      +'</div>'+badge+'</div>';
+  });
+  document.getElementById('cf-2-lista').innerHTML=html2||'<div class="empty">Nessun dato</div>';
+  document.getElementById('cf-2-res').innerHTML=totRim===0?'<div class="ok-box">Tutto uscito!</div>':totRim>0?'<div class="warn-box">In lavorazione: <strong>'+totRim+' pz</strong></div>':'<div class="warn-box">Uscito più del dovuto: '+Math.abs(totRim)+' pz in eccesso</div>';
+  document.getElementById('cf-3').style.display='block';
+  var imbMap={};
+  imb.forEach(function(r){
+    var k=r.codice_articolo||r.articolo||'?';
+    if(!imbMap[k])imbMap[k]={cod:r.codice_articolo,desc:r.articolo||'',imb:0,wau:0};
+    imbMap[k].imb+=(r.totale||0);
+  });
+  wau.forEach(function(r){
+    var k=r.codice_articolo||null;
+    var trovato=null;
+    if(k&&imbMap[k]) trovato=k;
+    if(!trovato){
+      var dU=(r.descrizione||r.testo_riga||'').toUpperCase();
+      Object.keys(imbMap).forEach(function(ik){if(imbMap[ik].desc.toUpperCase()===dU) trovato=ik;});
+    }
+    if(!trovato){
+      var dU2=(r.descrizione||r.testo_riga||'').toUpperCase();
+      var parole=dU2.split(' ').filter(function(p){return p.length>3;});
+      var bestK=null,bestScore=0;
+      Object.keys(imbMap).forEach(function(ik){
+        var dE=imbMap[ik].desc.toUpperCase();
+        var score=parole.filter(function(p){return dE.includes(p);}).length;
+        if(score>bestScore){bestScore=score;bestK=ik;}
+      });
+      if(bestScore>=2) trovato=bestK;
+    }
+    if(trovato){imbMap[trovato].wau+=(r.quantita||0);}
+    else{var kk='_wa_'+(r.descrizione||r.testo_riga||'?');if(!imbMap[kk])imbMap[kk]={cod:'?',desc:r.descrizione||r.testo_riga,imb:0,wau:0};imbMap[kk].wau+=(r.quantita||0);}
+  });
+  var html3='',tuttoOk=true;
+  Object.values(imbMap).forEach(function(a){
+    var diff=a.imb-a.wau,ok=diff===0;if(!ok)tuttoOk=false;
+    var bordo=ok?'#217346':diff>0?'#C55A11':'#C00000';
+    var badge=ok?'<span class="badge badge-ok">OK</span>':diff>0?'<span class="badge badge-warn">'+diff+' pz</span>':'<span class="badge badge-err">'+diff+' pz</span>';
+    html3+='<div class="row-item" style="border-left-color:'+bordo+';">'
+      +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
+      +'<div class="rsub">Imballo: '+a.imb+' &nbsp;WA uscita: '+a.wau+' &nbsp;Diff: <strong>'+diff+'</strong></div>'
+      +'</div>'+badge+'</div>';
+  });
+  document.getElementById('cf-3-lista').innerHTML=html3||'<div class="empty">Nessun dato</div>';
+  document.getElementById('cf-3-res').innerHTML=tuttoOk?'<div class="ok-box">Imballo e WA uscita coincidono!</div>':'<div class="warn-box">Ci sono differenze — controlla sopra</div>';
+
+  // CF4: DDT Entrata vs DDT Uscita per articolo
+  var de=await apiGet('ddt_entrata');
+  var du=await apiGet('ddt_uscita');
+  if(!de||!du){document.getElementById('cf-4').style.display='none';return;}
+  document.getElementById('cf-4').style.display='block';
+  var ddtMap={};
+  de.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||'?';
+    if(!ddtMap[k])ddtMap[k]={cod:r.codice_articolo,desc:r.descrizione,entrata:0,uscita:0};
+    ddtMap[k].entrata+=(r.quantita_ddt||0);
+  });
+  du.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||'?';
+    if(!ddtMap[k])ddtMap[k]={cod:r.codice_articolo,desc:r.descrizione,entrata:0,uscita:0};
+    ddtMap[k].uscita+=(r.quantita_ddt||0);
+  });
+  var html4='',tuttoOk4=true;
+  Object.values(ddtMap).forEach(function(a){
+    var diff=a.entrata-a.uscita,ok=diff===0;if(!ok)tuttoOk4=false;
+    var bordo=ok?'#217346':diff>0?'#C55A11':'#C00000';
+    var badge=ok?'<span class="badge badge-ok">OK</span>':diff>0?'<span class="badge badge-warn">'+diff+' pz</span>':'<span class="badge badge-err">'+diff+' pz</span>';
+    html4+='<div class="row-item" style="border-left-color:'+bordo+';">'
+      +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
+      +'<div class="rsub">DDT Entrata: '+a.entrata+' &nbsp;DDT Uscita: '+a.uscita+' &nbsp;Diff: <strong>'+diff+'</strong></div>'
+      +'</div>'+badge+'</div>';
+  });
+  document.getElementById('cf-4-lista').innerHTML=html4||'<div class="empty">Nessun dato DDT</div>';
+  document.getElementById('cf-4-res').innerHTML=tuttoOk4?'<div class="ok-box">DDT Entrata e DDT Uscita coincidono!</div>':'<div class="warn-box">Ci sono differenze tra DDT — controlla sopra</div>';
+}
+
+// ── VERNICIATO ────────────────────────────────────────────────────────
+async function salvaVerniciato(){
+  var cod=document.getElementById('vern-cod').value;
+  var dsc=document.getElementById('vern-dsc').value;
+  var qty=parseInt(document.getElementById('vern-qty').value)||0;
+  var note=document.getElementById('vern-note').value;
+  if(!cod){showMsg('msg-verniciato','Seleziona un articolo!','err');return;}
+  if(!qty){showMsg('msg-verniciato','Inserisci la quantità!','err');return;}
+  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,note:note});
+  if(r){
+    showMsg('msg-verniciato','✅ '+qty+' x '+cod+' salvato!','ok');
+    document.getElementById('vern-cerca').value='';document.getElementById('vern-cod').value='';
+    document.getElementById('vern-dsc').value='';document.getElementById('vern-qty').value='';
+    document.getElementById('vern-note').value='';document.getElementById('vern-sel').style.display='none';
+    caricaVerniciato();
+  }
+}
+
+async function caricaVerniciato(){
+  var d=await apiGet('verniciato');if(!d)return;
+  var l=document.getElementById('vern-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
+  var map={};
+  d.forEach(function(r){var k=r.codice_articolo||r.descrizione||'?';if(!map[k])map[k]={cod:r.codice_articolo,desc:r.descrizione,tot:0};map[k].tot+=(r.quantita||0);});
+  l.innerHTML=Object.values(map).map(function(a){
+    return '<div class="row-item" style="border-left-color:#C55A11;"><div class="row-qty" style="color:#C55A11;">'+a.tot+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(a.cod?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div></div></div>';
+  }).join('');
+}
+
+async function svuotaVerniciato(){
+  if(!confirm('Cancellare tutto il verniciato di oggi?'))return;
+  var oggi=new Date().toISOString().split('T')[0];
+  await apiDel('verniciato','data_inserimento=eq.'+oggi);
+  showMsg('msg-verniciato','Svuotato!','ok');caricaVerniciato();
+}
+
+// ── IMBALLO ───────────────────────────────────────────────────────────
+async function salvaImballo(){
+  var cod=document.getElementById('imb-cod').value;
+  var dsc=document.getElementById('imb-dsc').value;
+  var seq=document.getElementById('imb-seq').value.trim();
+  var note=document.getElementById('imb-note').value;
+  if(!cod){showMsg('msg-imballo','Seleziona un articolo!','err');return;}
+  if(!seq){showMsg('msg-imballo','Inserisci la sequenza!','err');return;}
+  var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
+  var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note});
+  if(r){
+    showMsg('msg-imballo','Salvato! Totale: '+tot+' pz','ok');
+    document.getElementById('imb-cerca').value='';document.getElementById('imb-cod').value='';
+    document.getElementById('imb-dsc').value='';document.getElementById('imb-seq').value='';
+    document.getElementById('imb-tot').textContent='0';document.getElementById('imb-sel').style.display='none';
+    document.getElementById('imb-note').value='';caricaImballo();
+  }
+}
+
+async function svuotaImballo(){
+  if(!confirm('Cancellare tutti gli imballi?'))return;
+  var oggi=new Date().toISOString().split('T')[0];
+  await apiDel('imballo','data_inserimento=eq.'+oggi);
+  showMsg('msg-imballo','Svuotato!','ok');caricaImballo();
+}
+
+async function caricaImballo(){
+  var d=await apiGet('imballo');if(!d)return;
+  if(document.getElementById('st-imb'))document.getElementById('st-imb').textContent=d.length;
+  var l=document.getElementById('imb-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun imballo ancora</div>';return;}
+  var map={};
+  d.forEach(function(r){var k=r.codice_articolo||r.articolo||'?';if(!map[k])map[k]={cod:r.codice_articolo,desc:r.articolo,tot:0,righe:[]};map[k].tot+=r.totale||0;map[k].righe.push(r);});
+  l.innerHTML=Object.values(map).map(function(a){
+    var righe=a.righe.map(function(r){return'<div class="rsub" style="padding:4px 0;">'+r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+'</div>';}).join('');
+    return '<div class="row-item viola" style="flex-direction:column;align-items:flex-start;gap:4px;">'
+      +'<div style="display:flex;width:100%;align-items:center;gap:8px;"><div class="row-qty" style="color:#5B2C8D;">'+a.tot+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(a.cod?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div></div></div>'
+      +'<div style="padding-left:56px;width:100%;">'+righe+'</div></div>';
+  }).join('');
+}
+
+// ── RIEPILOGO ─────────────────────────────────────────────────────────
+async function caricaRiepilogo(){
+  await caricaEntrate();await caricaUscite();await caricaDDTE();await caricaDDTU();
+  var imb=await apiGet('imballo');if(imb&&document.getElementById('st-imb'))document.getElementById('st-imb').textContent=imb.length;
+  var d=await apiGet('ddt_entrata');if(!d)return;
+  var l=document.getElementById('riepilogo-lista');
+  if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
+  l.innerHTML=d.slice(0,10).map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';return'<div class="row-item"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span></div>';}).join('');
+}
+
+// ── AZZERA TUTTO ─────────────────────────────────────────────────────
+async function azzeraTutto(){
+  if(!confirm('⚠️ Sei sicura di voler cancellare TUTTI i dati?\nQuesta operazione non può essere annullata!'))return;
+  if(!confirm('Ultima conferma: cancellare tutto?'))return;
+  var tables=['whatsapp_righe','whatsapp_uscita','imballo','ddt_entrata','ddt_uscita'];
+  var cfg=getConfig();
+  if(!cfg.url){alert('Configura Supabase prima!');return;}
+  var ok=true;
+  for(var i=0;i<tables.length;i++){
+    try{await fetch(cfg.url+'/rest/v1/'+tables[i]+'?id=gte.0',{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});}catch(e){ok=false;}
+  }
+  if(ok){showMsg('msg-cfg','✅ Tutti i dati cancellati!','ok');['st-e','st-u','st-de','st-du','st-imb'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});}
+  else{showMsg('msg-cfg','Errore durante la cancellazione.','err');}
+}
+
+// ── LOGIN ADMIN ───────────────────────────────────────────────────────
+var ADMIN_PWD='vale8479';
+
+function loginAdmin(){
+  var pwd=document.getElementById('admin-pwd').value;
+  if(pwd===ADMIN_PWD){localStorage.setItem('ddt_admin','1');mostraAdmin();document.getElementById('admin-pwd').value='';document.getElementById('msg-login').innerHTML='';}
+  else{document.getElementById('msg-login').innerHTML='<div class="msg msg-err">Password errata!</div>';}
+}
+
+function logoutAdmin(){localStorage.removeItem('ddt_admin');nascondiAdmin();}
+
+function mostraAdmin(){
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.style.display='block';});
+  document.getElementById('admin-logout').style.display='block';
+  document.getElementById('login-box').style.borderColor='#217346';
+}
+
+function nascondiAdmin(){
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.style.display='none';});
+  document.getElementById('admin-logout').style.display='none';
+  document.getElementById('login-box').style.borderColor='#1F4E79';
+}
+
+function setWAMode(mode){
+  var isE=mode==='entrata';
+  document.getElementById('wa-sezione-entrata').style.display=isE?'block':'none';
+  document.getElementById('wa-sezione-uscita').style.display=isE?'none':'block';
+  document.getElementById('btn-wa-e').className='btn '+(isE?'btn-green':'btn-gray');
+  document.getElementById('btn-wa-u').className='btn '+(isE?'btn-gray':'btn-teal');
+  if(isE) caricaEntrate(); else caricaUscite();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+window.onload=function(){
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.style.display='none';});
+  if(localStorage.getItem('ddt_admin')==='1') mostraAdmin();
+  setWAMode('entrata');
+  setMetodo('e','manuale');
+  setMetodo('u','manuale');
+  var c=getConfig();
+  if(c.url){
+    document.getElementById('conn-status').textContent='Connesso: '+c.url.replace('https://','').split('.')[0];
+    caricaArticoli();
+    caricaEntrate();
+  }
+};
+
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+</script>
+</body>
+</html>
