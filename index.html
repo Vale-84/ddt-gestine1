@@ -617,18 +617,7 @@ async function salvaModifica(){
 }
 
 // ── USCITA ────────────────────────────────────────────────────────────
-async function salvaUscitaMerce(){
-  var cod=document.getElementById('u-cod').value;
-  var dsc=document.getElementById('u-dsc').value;
-  var seq=document.getElementById('u-seq').value.trim();
-  var note=document.getElementById('u-note').value;
-  if(!cod){showMsg('msg-uscita','Seleziona un articolo!','err');return;}
-  if(!seq){showMsg('msg-uscita','Inserisci la sequenza!','err');return;}
-  var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
-  var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note});
-  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc});
-  if(r1&&r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
-}
+
   function resetFormU(){
   document.getElementById('u-cerca').value='';
   document.getElementById('u-cod').value='';
@@ -640,15 +629,19 @@ async function salvaUscitaMerce(){
 
 async function aggiungiWAUscita(){
   var testo=document.getElementById('u-wa-text').value.trim();
-  if(!testo){showMsg('msg-uscita','Incolla prima un messaggio!','err');return;}
+  if(!testo){alert('Incolla prima un messaggio!');return;}
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,quantita:m?parseInt(m[1]):null,descrizione:m?m[2]:r});
+    var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
+    var art=trovaArt(desc);
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
     if(res)n++;
   }
-  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-wa-text').value='';caricaUscite();mostraConfronto();}
+  if(n>0){alert(n+' righe aggiunte!');document.getElementById('u-wa-text').value='';caricaUscite();}
+}
+ if(n>0){alert(n+' righe aggiunte!');document.getElementById('u-wa-text').value='';caricaUscite();}'';caricaUscite();mostraConfronto();}
 }
 
 async function caricaUscite(){
