@@ -580,6 +580,14 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <label>Chiave API (anon key)</label><input type="text" id="cfg-key" placeholder="eyJhbGci...">
     <button class="btn btn-blue" onclick="salvaConfig()">SALVA</button>
   </div>
+  <div class="card">
+    <h2>Aggiungi nuovo articolo</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci il codice articolo e la descrizione, poi salva su Supabase.</p>
+    <label>Codice articolo</label><input type="text" id="new-art-code" placeholder="es. ABC123">
+    <label>Descrizione</label><input type="text" id="new-art-desc" placeholder="Descrizione articolo...">
+    <button class="btn btn-green" onclick="salvaArticolo()">SALVA ARTICOLO</button>
+    <div id="msg-articolo"></div>
+  </div>
   <div id="msg-cfg"></div>
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
@@ -689,6 +697,18 @@ async function apiPatch(t,f,b){
 async function testConn(){var d=await apiGet('whatsapp_righe');if(d!==null){showMsg('msg-cfg','OK! '+d.length+' righe.','ok');document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Connesso</span>';}}
 
 async function caricaArticoli(){var d=await apiGet('articoli','order=descrizione.asc&limit=500');if(d)artCache=d;}
+
+async function salvaArticolo(){
+  var codice=document.getElementById('new-art-code').value.trim();
+  var desc=document.getElementById('new-art-desc').value.trim();
+  if(!codice||!desc){showMsg('msg-articolo','Inserisci codice articolo e descrizione!','err');return;}
+  var r=await apiPost('articoli',{codice_articolo:codice,descrizione:desc});
+  if(r===null) return;
+  showMsg('msg-articolo','Articolo salvato correttamente.','ok');
+  document.getElementById('new-art-code').value='';
+  document.getElementById('new-art-desc').value='';
+  await caricaArticoli();
+}
 
 async function cerca(p){
   var q=document.getElementById(p+'-cerca').value.trim();
