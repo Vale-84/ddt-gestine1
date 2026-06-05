@@ -432,7 +432,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </label>
     <input type="file" id="pdf-usc-inp" class="pdf-input" accept=".pdf" onchange="leggiPDFUscita(this)">
     <div id="pdf-usc-prev" style="display:none"></div>
-    <button class="btn btn-green" id="btn-importa-usc" style="display:none" onclick="importaPDFUscita()">IMPORTA DAL PDF</button>
+    <div id="usc-nddt-box" style="display:none;margin-bottom:8px;"><label style="font-size:12px;color:#666;">N° DDT (modificabile prima di importare)</label><input type="text" id="usc-nddt-edit" style="margin-bottom:4px;" placeholder="es. BVC6000167"></div><button class="btn btn-green" id="btn-importa-usc" style="display:none" onclick="importaPDFUscita()">IMPORTA DAL PDF</button>
   </div>
   <div class="card">
     <h2>Nuovo DDT Uscita</h2>
@@ -1585,13 +1585,7 @@ async function leggiPDF(input){
         if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
       }
     }
-    testo.split('\n').forEach(function(riga){
-      riga=riga.trim();
-      var m3=riga.match(/^([A-Z0-9]{5,12})\s+([A-Z][A-Z\s]{5,60})\s+PZ\.\s+([\d,.]+)/);
-      if(m3){var cod=m3[1].trim();if(!/^A/.test(cod))cod='A0'+cod;var desc=m3[2].trim().replace(/\s+/g,' ');var qty=parseFloat(m3[3].replace(',','.'));if(qty>0&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/)){articoli.push({cod:cod,desc:desc,qty:qty});return;}}
-      var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
-      if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}
-    });
+    testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
         riga=riga.trim();
@@ -1731,7 +1725,7 @@ async function caricaDDTU(){
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
-  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);var eid=r.id;var edsc=(r.descrizione||'').replace(/'/g,"'");return'<div class="row-item verde"><div class="row-qty">'+(r.quantita_ddt||0)+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+' | '+(r.cliente||'')+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span><button class="edit-btn" onclick="apriModale('+eid+',this.closest(\'.row-item\').querySelector(\'.rdesc\').textContent,\'ddt_uscita\')">✏️</button><button class="del-btn" onclick="eliminaRiga(\'ddt_uscita\','+eid+',caricaDDTU)">🗑</button></div>';}).join('');
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span></div>';}).join('');
 }
 
 async function leggiPDFUscita(input){
@@ -1763,13 +1757,7 @@ async function leggiPDFUscita(input){
         if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
       }
     }
-    testo.split('\n').forEach(function(riga){
-      riga=riga.trim();
-      var m3=riga.match(/^([A-Z0-9]{5,12})\s+([A-Z][A-Z\s]{5,60})\s+PZ\.\s+([\d,.]+)/);
-      if(m3){var cod=m3[1].trim();if(!/^A/.test(cod))cod='A0'+cod;var desc=m3[2].trim().replace(/\s+/g,' ');var qty=parseFloat(m3[3].replace(',','.'));if(qty>0&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/)){articoli.push({cod:cod,desc:desc,qty:qty});return;}}
-      var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
-      if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}
-    });
+    testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
         riga=riga.trim();
@@ -1781,8 +1769,8 @@ async function leggiPDFUscita(input){
     var html='<div class="pdf-preview" style="border-left-color:#217346;"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info"><strong>Cliente:</strong> '+(cliente||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Articoli ('+articoli.length+'):</strong></div>';
     articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
     prev.innerHTML=html;
-    if(articoli.length){document.getElementById('btn-importa-usc').style.display='block';showMsg('msg-ddt-u',articoli.length+' articoli trovati!','ok');}
-    if(nddt)document.getElementById('du-nddt').value=nddt;
+    if(articoli.length){document.getElementById('btn-importa-usc').style.display='block';document.getElementById('usc-nddt-box').style.display='block';showMsg('msg-ddt-u',articoli.length+' articoli trovati!','ok');}
+    if(nddt){document.getElementById('du-nddt').value=nddt;document.getElementById('usc-nddt-edit').value=nddt;document.getElementById('usc-nddt-box').style.display='block';}
     if(data)document.getElementById('du-data').value=data;
     if(cliente)document.getElementById('du-cliente').value=cliente;
   }catch(e){prev.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
@@ -1795,7 +1783,7 @@ async function importaPDFUscita(){
   var n=0;
   for(var i=0;i<pdfUscDati.articoli.length;i++){
     var a=pdfUscDati.articoli[i];
-    var r=await apiPost('ddt_uscita',{numero_ddt:pdfUscDati.nddt,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente,codice_articolo:'',descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF'});
+    var ndttVal=document.getElementById('usc-nddt-edit').value||pdfUscDati.nddt;var r=await apiPost('ddt_uscita',{numero_ddt:ndttVal,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente,codice_articolo:a.cod||'',descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF'});
     if(r)n++;
   }
   showMsg('msg-ddt-u',n+' articoli importati!','ok');
