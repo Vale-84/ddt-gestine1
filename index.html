@@ -584,6 +584,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
     <div class="art-sel" id="mod-sel"></div>
     <input type="hidden" id="mod-cod"><input type="hidden" id="mod-dsc">
+    <label style="margin-top:8px;">Inserisci codice manuale (se non trovi l'articolo)</label>
+    <input type="text" id="mod-cod-man" placeholder="Codice articolo (manuale)" style="margin-bottom:6px;">
+    <label style="font-size:12px;color:#666;margin-top:4px;">Descrizione (opzionale)</label>
+    <input type="text" id="mod-dsc-man" placeholder="Descrizione articolo (opzionale)" style="margin-bottom:10px;">
     <label id="mod-qty-label" style="display:none;">Quantità DDT</label>
     <input type="number" id="mod-qty" placeholder="0" style="display:none;margin-bottom:10px;" min="0" step="0.01">
     <br>
@@ -897,6 +901,8 @@ function apriModale(id,desc,table){
   document.getElementById('mod-sel').style.display='none';
   document.getElementById('mod-cod').value='';
   document.getElementById('mod-dsc').value='';
+  document.getElementById('mod-cod-man').value='';
+  document.getElementById('mod-dsc-man').value='';
   document.getElementById('mod-qty').value='';
   var showQtyField=(table==='ddt_entrata' || table==='ddt_uscita' || table==='whatsapp_righe' || table==='whatsapp_uscita');
   document.getElementById('mod-qty-label').style.display=showQtyField?'block':'none';
@@ -907,10 +913,12 @@ function apriModale(id,desc,table){
 async function salvaModifica(){
   var id=document.getElementById('modal-id').value;
   var table=document.getElementById('modal-table').value||'whatsapp_righe';
-  var cod=document.getElementById('mod-cod').value;
-  var dsc=document.getElementById('mod-dsc').value;
+  var manualCod=(document.getElementById('mod-cod-man')?document.getElementById('mod-cod-man').value.trim():'');
+  var manualDsc=(document.getElementById('mod-dsc-man')?document.getElementById('mod-dsc-man').value.trim():'');
+  var cod=manualCod||document.getElementById('mod-cod').value;
+  var dsc=manualDsc||document.getElementById('mod-dsc').value;
   var qty=document.getElementById('mod-qty').value;
-  if(!cod){alert('Seleziona un articolo!');return;}
+  if(!cod){alert('Inserisci o seleziona un articolo!');return;}
   var payload={codice_articolo:cod};
   if(table==='ddt_entrata' || table==='ddt_uscita'){
     payload.descrizione=dsc;
