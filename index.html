@@ -1403,6 +1403,14 @@ function aggiornaScarto(key,inputId){
 }
 
 // (caricaRiepilogo removed)
+async function caricaRwa(){
+  var we=await apiGet('whatsapp_righe');
+  var wu=await apiGet('whatsapp_uscita');
+  if(!we||!wu) return;
+  var mapE={};
+  we.forEach(function(r){
+    var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
+    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
     if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0};
     mapE[k].tot+=(r.quantita||0);
   });
