@@ -132,7 +132,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div id="msg-entrata"></div>
   <div id="msg-uscita"></div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
 
     <!-- COLONNA 1: WA ENTRATA + USCITA -->
     <div>
@@ -250,34 +250,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <h2 style="color:#C55A11;">Verniciato oggi</h2>
         <button class="btn btn-red btn-sm" onclick="svuotaVerniciato()">SVUOTA</button>
         <div id="vern-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
-      </div>
-    </div>
-
-    <!-- COLONNA 3: IMBALLO -->
-    <div>
-      <div class="card" style="margin-bottom:10px;">
-        <h2 style="color:#5B2C8D;">Imballo</h2>
-        <label>Cerca articolo</label>
-        <div class="cerca-box">
-          <input class="cerca-input" id="imb-cerca" placeholder="Codice o descrizione..." oninput="cerca('imb')" autocomplete="off">
-          <div class="cerca-risultati" id="imb-ris"></div>
-        </div>
-        <div class="art-sel" id="imb-sel"></div>
-        <input type="hidden" id="imb-cod"><input type="hidden" id="imb-dsc">
-        <label>Sequenza (es. 37+37+37+37)</label>
-        <div class="imb-row">
-          <input type="text" id="imb-seq" placeholder="37+37+37+37" oninput="calcolaSeq('imb-seq','imb-tot')">
-          <div class="imb-tot" id="imb-tot">0</div>
-        </div>
-        <label>Note</label>
-        <input type="text" id="imb-note" placeholder="">
-        <button class="btn btn-purple btn-sm" onclick="salvaImballo()">SALVA</button>
-        <div id="msg-imballo" style="margin-top:6px;"></div>
-      </div>
-      <div class="card">
-        <h2 style="color:#5B2C8D;">Imballi oggi</h2>
-        <button class="btn btn-red btn-sm" onclick="svuotaImballo()">SVUOTA</button>
-        <div id="imb-lista" style="margin-top:8px;"><div class="empty">Nessun imballo</div></div>
       </div>
     </div>
 
@@ -874,11 +846,11 @@ async function caricaEntrate(){
   var l=document.getElementById('e-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
   l.innerHTML=d.map(function(r){
-    var badge=r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span>':'<span class="badge badge-warn">?</span>';
+    var codice=r.codice_articolo?'<div class="rsub" style="font-size:12px;color:#1F4E79;">Codice: '+r.codice_articolo+'</div>':'<div class="rsub" style="font-size:12px;color:#C00000;">Codice: ?</div>';
     var orig=r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'';
     return '<div class="row-item"><div class="row-qty">'+(r.quantita||'?')+'</div>'
-      +'<div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+' '+badge+'</div>'
-      +(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+orig+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+'</div>'
+      +codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+orig+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✏️</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">🗑</button></div>';
   }).join('');
@@ -989,11 +961,11 @@ async function caricaUscite(){
   var l=document.getElementById('u-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
   l.innerHTML=d.map(function(r){
-    var badge=r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span>':'<span class="badge badge-warn">?</span>';
+    var codice=r.codice_articolo?'<div class="rsub" style="font-size:12px;color:#1F6B75;">Codice: '+r.codice_articolo+'</div>':'<div class="rsub" style="font-size:12px;color:#C00000;">Codice: ?</div>';
     var orig=r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'';
     return '<div class="row-item teal"><div class="row-qty" style="color:#1F6B75;">'+(r.quantita||'?')+'</div>'
-      +'<div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+' '+badge+'</div>'
-      +'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+orig+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+'</div>'
+      +codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+orig+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✏️</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';
   }).join('');
