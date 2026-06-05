@@ -916,9 +916,9 @@ function apriModale(id,desc,table){
   document.getElementById('mod-cod').value='';
   document.getElementById('mod-dsc').value='';
   document.getElementById('mod-qty').value='';
-  var isDataTable=(table==='ddt_entrata' || table==='ddt_uscita');
-  document.getElementById('mod-qty-label').style.display=isDataTable?'block':'none';
-  document.getElementById('mod-qty').style.display=isDataTable?'block':'none';
+  var showQtyField=(table==='ddt_entrata' || table==='ddt_uscita' || table==='whatsapp_righe' || table==='whatsapp_uscita');
+  document.getElementById('mod-qty-label').style.display=showQtyField?'block':'none';
+  document.getElementById('mod-qty').style.display=showQtyField?'block':'none';
   document.getElementById('modal-wa').style.display='flex';
 }
 
@@ -933,6 +933,9 @@ async function salvaModifica(){
   if(table==='ddt_entrata' || table==='ddt_uscita'){
     payload.descrizione=dsc;
     if(qty){payload.quantita_ddt=parseFloat(qty);}
+  } else if(table==='whatsapp_righe' || table==='whatsapp_uscita'){
+    payload.descrizione_articolo=dsc;
+    if(qty){payload.quantita=parseFloat(qty);}
   } else {
     payload.descrizione_articolo=dsc;
   }
