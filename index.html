@@ -128,7 +128,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
   <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
-  <div class="tab admin-tab" data-page="riepilogo" onclick="showPage('riepilogo',this)" style="display:none">Riepilogo</div>
   <div class="tab" data-page="cfg" onclick="showPage('cfg',this)">Config</div>
 </div>
 
@@ -507,23 +506,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 </div>
 
 <!-- RIEPILOGO -->
-<div id="page-riepilogo" class="page">
-  <div class="card">
-    <h2>Statistiche</h2>
-    <div class="stat-grid">
-      <div class="stat"><div class="n" id="st-e">-</div><div class="l">Entrate</div></div>
-      <div class="stat"><div class="n" id="st-u">-</div><div class="l">Uscite</div></div>
-      <div class="stat"><div class="n" id="st-de">-</div><div class="l">DDT Entrata</div></div>
-      <div class="stat"><div class="n" id="st-du">-</div><div class="l">DDT Uscita</div></div>
-      <div class="stat"><div class="n" id="st-imb">-</div><div class="l">Imballo</div></div>
-    </div>
-    <button class="btn btn-gray btn-sm" onclick="caricaRiepilogo()">AGGIORNA</button>
-  </div>
-  <div class="card">
-    <h2>Ultimi DDT Entrata</h2>
-    <div id="riepilogo-lista"><div class="empty">Premi Aggiorna</div></div>
-  </div>
-</div>
+<!-- (Riepilogo page removed) -->
 
 <!-- MAGAZZINO -->
 <div id="page-magazzino" class="page">
@@ -794,7 +777,6 @@ function showPage(name,el){
   if(name==='magazzino')caricaMagazzino();
   if(name==='riepilogo-ber')caricaRiepilogoBer();
   if(name==='confronto')aggiornaConfronto();
-  if(name==='riepilogo')caricaRiepilogo();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
 
@@ -1420,15 +1402,7 @@ function aggiornaScarto(key,inputId){
   scartoBer[key]=val;caricaRiepilogoBer();
 }
 
-// ── RIEPILOGO WA ──────────────────────────────────────────────────────
-async function caricaRiepilogoWA(){
-  var we=await apiGet('whatsapp_righe');
-  var wu=await apiGet('whatsapp_uscita');
-  if(!we||!wu)return;
-  var mapE={};
-  we.forEach(function(r){
-    var k=r.codice_articolo||r.descrizione||'?';
-    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
+// (caricaRiepilogo removed)
     if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0};
     mapE[k].tot+=(r.quantita||0);
   });
@@ -1899,15 +1873,7 @@ async function salvaImballo2(){
   }
 }
 
-// ── RIEPILOGO ─────────────────────────────────────────────────────────
-async function caricaRiepilogo(){
-  await caricaEntrate();await caricaUscite();await caricaDDTE();await caricaDDTU();
-  var imb=await apiGet('imballo');if(imb&&document.getElementById('st-imb'))document.getElementById('st-imb').textContent=imb.length;
-  var d=await apiGet('ddt_entrata');if(!d)return;
-  var l=document.getElementById('riepilogo-lista');
-  if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
-  l.innerHTML=d.slice(0,10).map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';return'<div class="row-item"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span></div>';}).join('');
-}
+// (caricaRiepilogo removed)
 
 // ── MAGAZZINO ─────────────────────────────────────────────────────────
 var magCache=[];
@@ -2130,7 +2096,7 @@ function setWAMode(mode){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-wa','confronto','riepilogo','cfg'],
+  AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-wa','confronto','cfg'],
   BERGAMASCO:['imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-ber','cfg']
 };
 
@@ -2171,7 +2137,7 @@ function cambiaCliente(){
     if(name==='magazzino')caricaMagazzino();
     if(name==='riepilogo-wa')caricaRiepilogoWA();
     if(name==='confronto')aggiornaConfronto();
-    if(name==='riepilogo')caricaRiepilogo();
+    
   }
 }
 
