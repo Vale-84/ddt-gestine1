@@ -995,10 +995,10 @@ async function caricaUscite(){
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
   l.innerHTML=d.map(function(r){
     var codice=r.codice_articolo?'<div class="rsub" style="font-size:12px;color:#1F6B75;">Codice: '+r.codice_articolo+'</div>':'<div class="rsub" style="font-size:12px;color:#C00000;">Codice: ?</div>';
+    var descrizione='<div class="rdesc">'+(r.descrizione||r.testo_riga)+'</div>';
     var orig=r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'';
     return '<div class="row-item teal"><div class="row-qty" style="color:#1F6B75;">'+(r.quantita||'?')+'</div>'
-      +'<div class="row-info"><div class="rdesc">'+(r.descrizione||r.testo_riga)+'</div>'
-      +codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+orig+'</div>'
+      +'<div class="row-info">'+codice+descrizione+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+orig+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✏️</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';
   }).join('');
