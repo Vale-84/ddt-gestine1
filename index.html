@@ -1821,7 +1821,7 @@ async function caricaImballo(){
   var html=Object.values(map).map(function(a){
     var righe=a.righe.map(function(r){
       return '<div class="rsub" style="padding:4px 0;display:flex;align-items:center;gap:8px;">'
-        +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')
+        +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')" style="margin-left:auto;">🗑</button>'
       +'</div>';
     }).join('');
