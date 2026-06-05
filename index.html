@@ -596,9 +596,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <!-- MODAL MODIFICA QUANTITÀ VERNICIATO -->
 <div class="modal" id="modal-vern">
   <div class="modal-box">
-    <h3 style="color:#C55A11;">Modifica verniciato</h3>
+    <h3 id="modal-vern-title" style="color:#C55A11;">Modifica sequenza</h3>
     <div class="modal-desc" id="modal-vern-desc"></div>
     <input type="hidden" id="modal-vern-id">
+    <input type="hidden" id="modal-vern-table" value="verniciato">
     <label>Nuova sequenza (es. 10+10+10)</label>
     <div class="imb-row">
       <input type="text" id="modal-vern-seq" placeholder="es. 10+10+10" oninput="calcolaSeq('modal-vern-seq','modal-vern-tot')" style="margin-bottom:0;">
@@ -1108,7 +1109,7 @@ async function caricaVerniciato(){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
         +'<span>'+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
-        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\')">✏️</button>'
+        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✏️</button>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciato)">🗑</button>'
       +'</div>';
     }).join('');
@@ -1132,8 +1133,10 @@ async function svuotaVerniciato(){
 }
 
 // ── VERNICIATO MODAL ──────────────────────────────────────────────────
-function apriModaleVern(id,desc,seq,note){
+function apriModaleVern(id,desc,seq,note,table,title){
   document.getElementById('modal-vern-id').value=id;
+  document.getElementById('modal-vern-table').value=table||'verniciato';
+  document.getElementById('modal-vern-title').textContent=title||'Modifica sequenza';
   document.getElementById('modal-vern-desc').textContent=desc;
   document.getElementById('modal-vern-seq').value=seq;
   document.getElementById('modal-vern-note').value=note||'';
@@ -1143,14 +1146,24 @@ function apriModaleVern(id,desc,seq,note){
 
 async function salvaModificaVern(){
   var id=document.getElementById('modal-vern-id').value;
+  var table=document.getElementById('modal-vern-table').value||'verniciato';
   var seq=document.getElementById('modal-vern-seq').value.trim();
   var note=document.getElementById('modal-vern-note').value;
   if(!seq){alert('Inserisci la sequenza!');return;}
-  var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
-  await apiPatch('verniciato','id=eq.'+id,{quantita:qty,sequenza:seq,note:note});
+  var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
+  if(table==='verniciato'){
+    await apiPatch('verniciato','id=eq.'+id,{quantita:tot,sequenza:seq,note:note});
+  } else if(table==='imballo'){
+    await apiPatch('imballo','id=eq.'+id,{totale:tot,sequenza:seq,note:note});
+  }
   document.getElementById('modal-vern').style.display='none';
-  caricaVerniciato();
-  if(document.getElementById('imb2-vern-lista'))caricaVerniciato2();
+  if(table==='verniciato'){
+    caricaVerniciato();
+    if(document.getElementById('imb2-vern-lista'))caricaVerniciato2();
+  } else if(table==='imballo'){
+    caricaImballo();
+    caricaRiepilogoBer();
+  }
 }
 
 // ── VERNICIATO SCHEDA ADMIN (page-verniciato) ─────────────────────────
@@ -1206,7 +1219,7 @@ async function caricaVerniciatoP(){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
         +'<span>'+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
-        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\')">✏️</button>'
+        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✏️</button>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciatoP)">🗑</button>'
       +'</div>';
     }).join('');
@@ -1273,7 +1286,7 @@ async function caricaVerniciato2(){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
         +'<span>'+seqStr+' = <strong>'+r.quantita+'</strong></span>'
-        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\')">✏️</button>'
+        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✏️</button>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRiga2('+r.id+')">🗑</button>'
       +'</div>';
     }).join('');
@@ -1794,7 +1807,10 @@ async function caricaImballo(){
     var righe=a.righe.map(function(r){
       return '<div class="rsub" style="padding:4px 0;display:flex;align-items:center;gap:8px;">'
         +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'
-        +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')" style="margin-left:auto;">🗑</button>'
+        +'<span style="margin-left:auto;display:flex;gap:4px;">'
+          +'<button class="edit-btn" title="Modifica" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||a.desc).replace(/'/g,"\\'")+'\',\''+String(r.sequenza||'').replace(/'/g,"\\'")+'\',\''+String(r.note||'').replace(/'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✏️</button>'
+          +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')">🗑</button>'
+        +'</span>'
       +'</div>';
     }).join('');
     return '<div class="row-item viola" style="flex-direction:column;align-items:flex-start;gap:4px;">'
