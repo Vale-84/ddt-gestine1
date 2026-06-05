@@ -1585,7 +1585,15 @@ async function leggiPDF(input){
         if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
       }
     }
-    testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});
+    testo.split('\n').forEach(function(riga){
+      riga=riga.trim();
+      // Formato ART COLOR: A0REPIINFBI RETE PICCOLA LETTINO INFINITO BIANCO PZ. 150,00
+      var m3=riga.match(/^([A-Z0-9]{6,20})\s+([A-Z][A-Z\s\d]{4,80})\s+PZ\.\s+([\d,.]+)/);
+      if(m3){var cod=m3[1].trim();var desc=m3[2].trim().replace(/\s+/g,' ');var qty=parseFloat(m3[3].replace(',','.'));if(qty>0&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:cod,desc:desc,qty:qty});return;}
+      // Formato senza codice
+      var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
+      if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}
+    });
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
         riga=riga.trim();
@@ -1757,7 +1765,13 @@ async function leggiPDFUscita(input){
         if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
       }
     }
-    testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});
+    testo.split('\n').forEach(function(riga){
+      riga=riga.trim();
+      var m3=riga.match(/^([A-Z0-9]{6,20})\s+([A-Z][A-Z\s\d]{4,80})\s+PZ\.\s+([\d,.]+)/);
+      if(m3){var cod=m3[1].trim();var desc=m3[2].trim().replace(/\s+/g,' ');var qty=parseFloat(m3[3].replace(',','.'));if(qty>0&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:cod,desc:desc,qty:qty});return;}
+      var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
+      if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}
+    });
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
         riga=riga.trim();
