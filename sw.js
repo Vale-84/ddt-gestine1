@@ -1,4 +1,4 @@
-var CACHE = 'ddt-v1';
+var CACHE = 'ddt-v3';
 var FILES = ['/', '/index.html'];
 
 self.addEventListener('install', function(e) {
