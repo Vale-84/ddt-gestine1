@@ -601,6 +601,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
     <div class="art-sel" id="mod-sel"></div>
     <input type="hidden" id="mod-cod"><input type="hidden" id="mod-dsc">
+    <label id="mod-qty-label" style="display:none;">Quantità DDT</label>
+    <input type="number" id="mod-qty" placeholder="0" style="display:none;margin-bottom:10px;" min="0" step="0.01">
     <br>
     <button class="btn btn-blue" onclick="salvaModifica()">SALVA</button>
     <button class="btn btn-gray" onclick="document.getElementById('modal-wa').style.display='none'">ANNULLA</button>
@@ -913,6 +915,10 @@ function apriModale(id,desc,table){
   document.getElementById('mod-sel').style.display='none';
   document.getElementById('mod-cod').value='';
   document.getElementById('mod-dsc').value='';
+  document.getElementById('mod-qty').value='';
+  var isDataTable=(table==='ddt_entrata' || table==='ddt_uscita');
+  document.getElementById('mod-qty-label').style.display=isDataTable?'block':'none';
+  document.getElementById('mod-qty').style.display=isDataTable?'block':'none';
   document.getElementById('modal-wa').style.display='flex';
 }
 
@@ -921,10 +927,15 @@ async function salvaModifica(){
   var table=document.getElementById('modal-table').value||'whatsapp_righe';
   var cod=document.getElementById('mod-cod').value;
   var dsc=document.getElementById('mod-dsc').value;
+  var qty=document.getElementById('mod-qty').value;
   if(!cod){alert('Seleziona un articolo!');return;}
   var payload={codice_articolo:cod};
-  if(table==='ddt_entrata' || table==='ddt_uscita') payload.descrizione=dsc;
-  else payload.descrizione_articolo=dsc;
+  if(table==='ddt_entrata' || table==='ddt_uscita'){
+    payload.descrizione=dsc;
+    if(qty){payload.quantita_ddt=parseFloat(qty);}
+  } else {
+    payload.descrizione_articolo=dsc;
+  }
   await apiPatch(table,'id=eq.'+id,payload);
   document.getElementById('modal-wa').style.display='none';
   if(table==='whatsapp_uscita')caricaUscite(); else if(table==='ddt_entrata')caricaDDTE(); else caricaEntrate();
