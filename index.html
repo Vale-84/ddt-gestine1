@@ -155,6 +155,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <div class="metodo-btns" style="margin-bottom:8px;">
             <button id="btn-e-man" class="btn btn-green btn-sm" onclick="setMetodo('e','manuale')">MANUALE</button>
             <button id="btn-e-wa" class="btn btn-gray btn-sm" onclick="setMetodo('e','wa')">WHATSAPP</button>
+            <button id="btn-e-lib" class="btn btn-gray btn-sm" onclick="setMetodo('e','libero')">TESTO LIBERO</button>
+          </div>
+          <div id="e-sezione-libero" style="display:none">
+            <label>Data</label><input type="date" id="e-lib-date" style="margin-bottom:6px;">
+            <textarea id="e-lib-text" placeholder="es. 190 testate glam bianco&#10;25 sponde lettino web bianco" style="min-height:80px;"></textarea>
+            <button class="btn btn-green btn-sm" onclick="aggiungiTestoLiberoEntrata()">AGGIUNGI RIGHE</button>
           </div>
           <div id="e-sezione-manuale">
             <label>Cerca articolo</label>
@@ -194,6 +200,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <div class="metodo-btns" style="margin-bottom:8px;">
             <button id="btn-u-man" class="btn btn-teal btn-sm" onclick="setMetodo('u','manuale')">MANUALE</button>
             <button id="btn-u-wa" class="btn btn-gray btn-sm" onclick="setMetodo('u','wa')">WHATSAPP</button>
+            <button id="btn-u-lib" class="btn btn-gray btn-sm" onclick="setMetodo('u','libero')">TESTO LIBERO</button>
+          </div>
+          <div id="u-sezione-libero" style="display:none">
+            <label>Data</label><input type="date" id="u-lib-date" style="margin-bottom:6px;">
+            <textarea id="u-lib-text" placeholder="es. 37+37+37 testate glam bianco&#10;25 sponde lettino" style="min-height:80px;"></textarea>
+            <button class="btn btn-teal btn-sm" onclick="aggiungiTestoLiberoUscita()">AGGIUNGI RIGHE</button>
           </div>
           <div id="u-sezione-manuale">
             <label>Cerca articolo</label>
@@ -760,12 +772,16 @@ function calcolaSeq(sid,tid){
 }
 
 function setMetodo(pg,m){
-  var isM=m==='manuale';
   var col=pg==='e'?'btn-green':'btn-teal';
-  document.getElementById(pg+'-sezione-manuale').style.display=isM?'block':'none';
-  document.getElementById(pg+'-sezione-wa').style.display=isM?'none':'block';
-  document.getElementById('btn-'+pg+'-man').className='btn '+(isM?col:'btn-gray');
-  document.getElementById('btn-'+pg+'-wa').className='btn '+(isM?'btn-gray':col);
+  document.getElementById(pg+'-sezione-manuale').style.display=m==='manuale'?'block':'none';
+  document.getElementById(pg+'-sezione-wa').style.display=m==='wa'?'block':'none';
+  document.getElementById(pg+'-sezione-libero').style.display=m==='libero'?'block':'none';
+  document.getElementById('btn-'+pg+'-man').className='btn '+(m==='manuale'?col:'btn-gray');
+  document.getElementById('btn-'+pg+'-wa').className='btn '+(m==='wa'?col:'btn-gray');
+  document.getElementById('btn-'+pg+'-lib').className='btn '+(m==='libero'?col:'btn-gray');
+  // imposta data di default
+  var today=oggiISO();
+  var dl=document.getElementById(pg+'-lib-date');if(dl&&!dl.value)dl.value=today;
 }
 
 function showPage(name,el){
@@ -1456,6 +1472,42 @@ async function caricaRwa(){
   document.getElementById('rwa-tot-u').textContent='Totale: '+totU+' pz';
 }
 
+
+// ── TESTO LIBERO ENTRATA ─────────────────────────────────────────────
+async function aggiungiTestoLiberoEntrata(){
+  var testo=document.getElementById('e-lib-text').value.trim();
+  if(!testo){showMsg('msg-entrata','Scrivi qualcosa!','err');return;}
+  var dataSel=document.getElementById('e-lib-date').value||oggiISO();
+  var righe=testo.split('\n').map(function(r){return r.trim();}).filter(Boolean);
+  var n=0;
+  for(var i=0;i<righe.length;i++){
+    var r=righe[i];
+    var m=r.match(/^(\d+)\s+(.+)$/);
+    var qty=m?parseInt(m[1]):null;
+    var desc=m?m[2]:r;
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:null,descrizione_articolo:null,data_inserimento:dataSel});
+    if(res)n++;
+  }
+  if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
+}
+
+// ── TESTO LIBERO USCITA ───────────────────────────────────────────────
+async function aggiungiTestoLiberoUscita(){
+  var testo=document.getElementById('u-lib-text').value.trim();
+  if(!testo){showMsg('msg-uscita','Scrivi qualcosa!','err');return;}
+  var dataSel=document.getElementById('u-lib-date').value||oggiISO();
+  var righe=testo.split('\n').map(function(r){return r.trim();}).filter(Boolean);
+  var n=0;
+  for(var i=0;i<righe.length;i++){
+    var r=righe[i];
+    var m=r.match(/^(\d+)\s+(.+)$/);
+    var qty=m?parseInt(m[1]):null;
+    var desc=m?m[2]:r;
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:null,descrizione_articolo:null,data_inserimento:dataSel});
+    if(res)n++;
+  }
+  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
+}
 // ── CONFRONTO ─────────────────────────────────────────────────────────
 async function aggiornaConfronto(){
   var wa=await apiGet('whatsapp_righe');
@@ -1967,7 +2019,7 @@ async function esportaImballoExcel(){
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
   var bom='\uFEFF';
-  var intestazioneCols='TDOC, ANNO, SDOC, NDOC, DDOC, DATA_DOC, DATAREG, CPROWNUM, CODART, DESART, UMART, QUANT1, PREZZO, SCONTO1, SCONTO2, SCONTO3, SCONTO4, SCO_TOT, IMP_TOT_RE, CONS_RICH, DATA_CON, NUM_FAT, SEZ_FATT, DATA_FATT, ARTCSOTT ,,,,,,,,';
+  var intestazione='DATA; TDOC; ANNO; SDOC; NDOC; DDOC; DATA_DOC; DATAREG; CPROWNUM; CODART; DESART; UMART; QUANT1; PREZZO; SCONTO1; SCONTO2; SCONTO3; SCONTO4; SCO_TOT; IMP_TOT_RE; CONS_RICH; DATA_CON; NUM_FAT; SEZ_FATT; DATA_FATT; ARTCSOTT \r\n';
   function parseDate(value){
     if(!value) return null;
     var dt=new Date(value);
@@ -1977,37 +2029,31 @@ async function esportaImballoExcel(){
       var day=parseInt(parts[0],10);
       var month=parseInt(parts[1],10);
       var year=parseInt(parts[2],10);
-      if(!isNaN(day) && !isNaN(month) && !isNaN(year)) return new Date(year, month-1, day);
+      if(!isNaN(day) && !isNaN(month) && !isNaN(year)){
+        return new Date(year, month-1, day);
+      }
     }
     return null;
   }
   function fmtData(dt){
-    if(!(dt instanceof Date)||isNaN(dt)) return dataOggi;
+    if(!(dt instanceof Date) || isNaN(dt)) return dataOggi;
     return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
   }
   d.forEach(function(r){
-    var dt=parseDate(r.data_inserimento||r.created_at||r.data)||new Date();
+    var dt=parseDate(r.data_inserimento||r.created_at||r.data) || new Date();
     r._sortDate=dt;
     r._exportDate=fmtData(dt);
-    r._dateKey=(r.data_inserimento||r.created_at||'').slice(0,10);
   });
-  d.sort(function(a,b){return a._sortDate-b._sortDate;});
-  var righe=[intestazioneCols];
+  d.sort(function(a,b){return a._sortDate - b._sortDate;});
   var num=1;
-  var dataPrec='';
-  d.forEach(function(r){
-    if(dataPrec&&r._dateKey!==dataPrec){
-      righe.push('');
-      righe.push('');
-      righe.push(intestazioneCols);
-    }
-    dataPrec=r._dateKey;
+  var righe=d.map(function(r){
     var qty=String(Number(r.totale||0).toFixed(3)).replace('.',',');
-    var cod=String(r.codice_articolo||'').padEnd(16);
-    var desc=String(r.articolo||'').padEnd(35);
-    righe.push('TDDDT,'+anno+',  ,'+String(num++).padStart(3,' ')+', ,'+r._exportDate+','+r._exportDate+','+String(num-1)+','+cod+','+desc+',n ,'+qty+',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /  /    ,  /  /    ,0,  /  /    ,  ,                    ');
-  });
-  var csv=bom+righe.join('\r\n')+'\r\n';
+    return r._exportDate+';TDDDT;'+anno+';  ;      1; ;'+r._exportDate+';'+r._exportDate+';    '+num+++';'
+      +String(r.codice_articolo||'').padEnd(16)+';'
+      +String(r.articolo||'').padEnd(35)+';'
+      +'n ;     '+qty+';          0,000; 0,00; 0,00; 0,00; 0,00; 0,00;           0,00;  /  /    ;  /  /    ;      0;  /  /    ;  ;                    ';
+  }).join('\r\n');
+  var csv=bom+intestazione+righe+'\r\n';
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');a.href=url;
