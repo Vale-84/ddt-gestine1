@@ -298,9 +298,14 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div id="imb2-lista" style="margin-top:8px;"><div class="empty">Nessun imballo</div></div>
       </div>
-      <div class="card">
-        <h2 style="color:#5B2C8D;">Verifica WA vs Imballo</h2>
-        <button class="btn btn-orange btn-sm" onclick="verificaWAImballo()">VERIFICA WA vs IMBALLO</button>
+      <div class="card" id="imb2-verifica-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
+          <h2 style="color:#5B2C8D;margin:0;">Verifica WA vs Imballo</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-orange btn-sm" onclick="verificaWAImballo()">VERIFICA WA vs IMBALLO</button>
+            <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
+          </div>
+        </div>
         <div id="imb2-verifica-res" style="margin-top:8px;"><div class="empty">Premi Verifica</div></div>
       </div>
     </div>
