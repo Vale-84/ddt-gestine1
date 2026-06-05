@@ -164,6 +164,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             </div>
             <div class="art-sel" id="e-sel"></div>
             <input type="hidden" id="e-cod"><input type="hidden" id="e-dsc">
+            <label>Data</label><input type="date" id="e-date" style="margin-bottom:6px;">
             <label>Quantità</label>
             <div class="imb-row">
               <input type="text" id="e-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('e-qty','e-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
@@ -202,6 +203,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             </div>
             <div class="art-sel" id="u-sel"></div>
             <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
+            <label>Data</label><input type="date" id="u-date" style="margin-bottom:6px;">
             <label>Sequenza (es. 37+37+37)</label>
             <div class="imb-row">
               <input type="text" id="u-seq" placeholder="37+37+37" oninput="calcolaSeq('u-seq','u-tot')">
@@ -241,6 +243,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div class="art-sel" id="vern-sel"></div>
         <input type="hidden" id="vern-cod"><input type="hidden" id="vern-dsc">
+        <label>Data</label><input type="date" id="vern-date" style="margin-bottom:6px;">
         <label>Quantità (es. 10+10+10)</label>
         <div class="imb-row">
           <input type="text" id="vern-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('vern-qty','vern-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
@@ -279,6 +282,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div class="art-sel" id="imb2-sel"></div>
         <input type="hidden" id="imb2-cod"><input type="hidden" id="imb2-dsc">
+        <label>Data</label><input type="date" id="imb2-date" style="margin-bottom:6px;">
         <label>Sequenza (es. 37+37+37+37)</label>
         <div class="imb-row">
           <input type="text" id="imb2-seq" placeholder="37+37+37+37" oninput="calcolaSeq('imb2-seq','imb2-tot')">
@@ -351,6 +355,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
     <div class="art-sel" id="vernp-sel"></div>
     <input type="hidden" id="vernp-cod"><input type="hidden" id="vernp-dsc">
+    <label>Data</label><input type="date" id="vernp-date" style="margin-bottom:6px;">
     <label>Quantità (es. 10+10+10)</label>
     <div class="imb-row">
       <input type="text" id="vernp-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('vernp-qty','vernp-tot')" style="font-size:20px;text-align:center;font-weight:bold;margin-bottom:0;">
@@ -812,13 +817,13 @@ async function salvaEntrataMerce(){
   if(!seq){showMsg('msg-entrata','Inserisci la quantità!','err');return;}
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   if(!qty){showMsg('msg-entrata','Quantità non valida!','err');return;}
-  // Controlla se stesso articolo stesso giorno → unisci
+  // Controlla se stesso articolo stessa data selezionata → unisci
   var esistenti=await apiGet('whatsapp_righe','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
+  var dataSel=(document.getElementById('e-date')&&document.getElementById('e-date').value)?document.getElementById('e-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
       var dataR=(r.created_at||'').slice(0,10);
-      return dataR===oggi && r.codice_articolo===cod;
+      return dataR===dataSel && r.codice_articolo===cod;
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+qty;
@@ -828,7 +833,7 @@ async function salvaEntrataMerce(){
       resetForm('e');caricaEntrate();return;
     }
   }
-  var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,testo_seq:seq,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note});
+  var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,testo_seq:seq,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note,data_inserimento:dataSel});
   if(r){showMsg('msg-entrata','✅ '+qty+' x '+cod+' aggiunto!','ok');resetForm('e');caricaEntrate();}
 }
 
@@ -945,23 +950,23 @@ async function salvaUscitaMerce(){
   var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   // Controlla unione
   var esistenti=await apiGet('whatsapp_uscita','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
+  var dataSel=(document.getElementById('u-date')&&document.getElementById('u-date').value)?document.getElementById('u-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
       var dataR=(r.created_at||'').slice(0,10);
-      return dataR===oggi && r.codice_articolo===cod;
+      return dataR===dataSel && r.codice_articolo===cod;
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+tot;
       await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+dsc});
       // Aggiorna anche imballo
-      var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note});
+      var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
       showMsg('msg-uscita','✅ Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
       resetForm('u');caricaUscite();mostraConfronto();return;
     }
   }
-  var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note});
-  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc});
+  var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
+  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel});
   if(r1&&r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
 }
 
@@ -1088,6 +1093,7 @@ function resetForm(p){
   document.getElementById(p+'-cerca').value='';
   var s=document.getElementById(p+'-sel');if(s)s.style.display='none';
   var t=document.getElementById(p+'-tot');if(t)t.textContent='0';
+  var d=document.getElementById(p+'-date');if(d)d.value=oggiISO();
 }
 
 // ── VERNICIATO (nella scheda WA colonna 2) ────────────────────────────
@@ -1102,11 +1108,11 @@ async function salvaVerniciato(){
   if(!qty){showMsg('msg-verniciato','Quantità non valida!','err');return;}
   // Unione stesso articolo stesso giorno
   var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
+  var dataSel=(document.getElementById('vern-date')&&document.getElementById('vern-date').value)?document.getElementById('vern-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
       var dataR=(r.created_at||'').slice(0,10);
-      return dataR===oggi && r.codice_articolo===cod;
+      return dataR===dataSel && r.codice_articolo===cod;
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+qty;
@@ -1120,7 +1126,7 @@ async function salvaVerniciato(){
       caricaVerniciato();return;
     }
   }
-  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note});
+  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
   if(r){
     showMsg('msg-verniciato','✅ '+qty+' x '+cod+' salvato!','ok');
     document.getElementById('vern-cerca').value='';document.getElementById('vern-cod').value='';
@@ -1214,10 +1220,10 @@ async function salvaVerniciatoP(){
   if(!seq){showMsg('msg-verniciato-p','Inserisci la quantità!','err');return;}
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
+  var dataSel=(document.getElementById('vernp-date')&&document.getElementById('vernp-date').value)?document.getElementById('vernp-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return (r.created_at||'').slice(0,10)===oggi && r.codice_articolo===cod;
+      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod;
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -1231,7 +1237,7 @@ async function salvaVerniciatoP(){
       caricaVerniciatoP();return;
     }
   }
-  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note});
+  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
   if(r){
     showMsg('msg-verniciato-p','✅ '+qty+' x '+cod+' salvato!','ok');
     document.getElementById('vernp-cerca').value='';document.getElementById('vernp-cod').value='';
@@ -1281,10 +1287,10 @@ async function salvaVerniciato2(){
   if(!seq){showMsg('msg-verniciato2','Inserisci la quantità!','err');return;}
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
+  var dataSel=(document.getElementById('imb2-vern-date')&&document.getElementById('imb2-vern-date').value)?document.getElementById('imb2-vern-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return (r.created_at||'').slice(0,10)===oggi && r.codice_articolo===cod;
+      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod;
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -1298,7 +1304,7 @@ async function salvaVerniciato2(){
       caricaVerniciato2();caricaRiepilogoBer();return;
     }
   }
-  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note});
+  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
   if(r){
     showMsg('msg-verniciato2','✅ '+qty+' x '+cod+' salvato!','ok');
     document.getElementById('imb2-vern-cerca').value='';document.getElementById('imb2-vern-cod').value='';
@@ -1795,7 +1801,8 @@ async function salvaImballo(){
   if(!cod){showMsg('msg-imballo','Seleziona un articolo!','err');return;}
   if(!seq){showMsg('msg-imballo','Inserisci la sequenza!','err');return;}
   var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
-  var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note});
+  var dataSel=(document.getElementById('imb-date')&&document.getElementById('imb-date').value)?document.getElementById('imb-date').value:oggiISO();
+  var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
   if(r){
     showMsg('msg-imballo','Salvato! Totale: '+tot+' pz','ok');
     document.getElementById('imb-cerca').value='';document.getElementById('imb-cod').value='';
@@ -1817,7 +1824,7 @@ async function svuotaImballo(){
     }
   }
   await apiDel('imballo','data_inserimento=eq.'+oggi);
-  ['imb-cerca','imb-seq','imb-note','imb2-cerca','imb2-seq','imb2-note'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['imb-cerca','imb-seq','imb-note','imb2-cerca','imb2-seq','imb2-note','imb-date','imb2-date'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   ['imb-cod','imb-dsc','imb2-cod','imb2-dsc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   ['imb-sel','imb2-sel'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   ['imb-tot','imb2-tot'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
@@ -1879,7 +1886,8 @@ async function salvaImballo2(){
   if(!cod){alert('Seleziona un articolo!');return;}
   if(!seq){alert('Inserisci la sequenza!');return;}
   var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
-  var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note});
+  var dataSel=(document.getElementById('imb2-date')&&document.getElementById('imb2-date').value)?document.getElementById('imb2-date').value:oggiISO();
+  var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
   if(r){
     document.getElementById('imb2-cerca').value='';document.getElementById('imb2-cod').value='';
     document.getElementById('imb2-dsc').value='';document.getElementById('imb2-seq').value='';
@@ -2169,6 +2177,9 @@ window.onload=function(){
     document.getElementById('conn-status').textContent='Connesso: '+c.url.replace('https://','').split('.')[0];
     caricaArticoli();caricaEntrate();caricaVerniciato();caricaImballo();
   }
+  // Imposta le date di default a oggi per i campi nuova inserzione
+  var today=oggiISO();
+  ['e-date','u-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
 };
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
