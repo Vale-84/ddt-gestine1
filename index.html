@@ -653,9 +653,19 @@ function showMsg(id,txt,type){
 function printSection(id){
   var el=document.getElementById(id);
   if(!el) return;
-  el.classList.add('print-section');
-  window.print();
-  setTimeout(function(){el.classList.remove('print-section');}, 1000);
+  var html = '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Stampa</title>' +
+             '<style>body{font-family:Arial,sans-serif;color:#222;padding:16px;} .card{background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:16px;} h2{font-size:16px;color:#1F4E79;margin-bottom:12px;} .ok-box{background:#E2EFDA;border-radius:8px;padding:10px 14px;color:#375623;font-size:13px;margin-top:8px;} .warn-box{background:#FCE4D6;border-radius:8px;padding:10px 14px;color:#7B2C2C;font-size:13px;margin-top:8px;} .empty{color:#999;font-size:14px;padding:10px 0;} </style></head><body>' +
+             el.innerHTML + '</body></html>';
+  var printWindow = window.open('', '_blank');
+  if(!printWindow){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.onload = function(){
+    printWindow.print();
+    setTimeout(function(){printWindow.close();}, 100);
+  };
 }
 
 async function apiGet(t,p){
