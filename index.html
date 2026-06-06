@@ -24,6 +24,9 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
   #page-wa > div { grid-template-columns: 1fr !important; }
   #page-imballo > div { grid-template-columns: 1fr !important; }
 }
+@media (max-width: 1100px) and (min-width: 901px) {
+  #page-imballo > div { grid-template-columns: 1fr 1fr !important; }
+}
 .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .card h2 { font-size: 14px; color: #1F4E79; margin-bottom: 12px; font-weight: bold; }
 textarea { width: 100%; border: 2px solid #FFD966; border-radius: 8px; padding: 10px; font-size: 14px; min-height: 110px; resize: vertical; background: #FFFBEE; font-family: Arial; }
@@ -282,9 +285,39 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <!-- IMBALLO -->
 <div id="page-imballo" class="page">
   <div id="msg-imballo2"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start;">
 
-    
+    <!-- COLONNA 1: VERNICIATO (nella scheda imballo) -->
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2 style="color:#C55A11;">Verniciato</h2>
+        <div id="msg-imb2-vern" style="margin-bottom:6px;"></div>
+        <label>Cerca articolo</label>
+        <div class="cerca-box">
+          <input class="cerca-input" id="imb2vern-cerca" placeholder="Codice o descrizione..." oninput="cerca('imb2vern')" autocomplete="off">
+          <div class="cerca-risultati" id="imb2vern-ris"></div>
+        </div>
+        <div class="art-sel" id="imb2vern-sel"></div>
+        <input type="hidden" id="imb2vern-cod"><input type="hidden" id="imb2vern-dsc">
+        <label>Data</label><input type="date" id="imb2-vern-date" style="margin-bottom:6px;">
+        <label>Quantità (es. 10+10+10)</label>
+        <div class="imb-row">
+          <input type="text" id="imb2-vern-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('imb2-vern-qty','imb2-vern-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
+          <div class="imb-tot" id="imb2-vern-tot">0</div>
+        </div>
+        <label>Note</label>
+        <input type="text" id="imb2-vern-note" placeholder="">
+        <button class="btn btn-orange btn-sm" onclick="salvaVernBer()">SALVA</button>
+      </div>
+      <div class="card">
+        <h2 style="color:#C55A11;">Verniciato oggi</h2>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button class="btn btn-blue btn-sm" style="flex:1;" onclick="caricaVernBer()">↻</button>
+          <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaVerniciato()">SVUOTA</button>
+        </div>
+        <div id="imb2-vern-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
+      </div>
+    </div>
 
     <!-- COLONNA 2: IMBALLO -->
     <div>
@@ -318,9 +351,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       </div>
       <div class="card" id="imb2-verifica-card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
-          <h2 style="color:#5B2C8D;margin:0;">Verifica WA vs Imballo</h2>
+          <h2 style="color:#5B2C8D;margin:0;">Verifica Verniciato vs Imballo</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-orange btn-sm" onclick="verificaWAImballo()">VERIFICA WA vs IMBALLO</button>
+            <button class="btn btn-orange btn-sm" onclick="verificaWAImballo()">VERIFICA VERNICIATO vs IMBALLO</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
         </div>
@@ -793,7 +826,7 @@ function showPage(name,el){
   if(el)el.classList.add('active');
   if(name==='wa'){setWAMode('entrata');caricaVerniciato();caricaImballo();}
   if(name==='imballo'){
-    caricaImballo();caricaRiepilogoBer();
+    caricaImballo();caricaRiepilogoBer();caricaVernBer();
     var ic=document.getElementById('imb-cerca');if(ic)ic.value='';
     var is=document.getElementById('imb-sel');if(is)is.style.display='none';
     var it=document.getElementById('imb-tot');if(it)it.textContent='0';
@@ -1118,6 +1151,60 @@ function resetForm(p){
   var s=document.getElementById(p+'-sel');if(s)s.style.display='none';
   var t=document.getElementById(p+'-tot');if(t)t.textContent='0';
   var d=document.getElementById(p+'-date');if(d)d.value=oggiISO();
+}
+
+// ── VERNICIATO BERGAMASCO (nella scheda Imballo colonna 1) ────────────
+async function salvaVernBer(){
+  var cod=document.getElementById('imb2vern-cod').value;
+  var dsc=document.getElementById('imb2vern-dsc').value;
+  var seq=document.getElementById('imb2-vern-qty').value.trim();
+  var note=document.getElementById('imb2-vern-note').value;
+  if(!cod){showMsg('msg-imb2-vern','Seleziona un articolo!','err');return;}
+  if(!seq){showMsg('msg-imb2-vern','Inserisci la quantità!','err');return;}
+  var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
+  if(!qty){showMsg('msg-imb2-vern','Quantità non valida!','err');return;}
+  var dataSel=(document.getElementById('imb2-vern-date')&&document.getElementById('imb2-vern-date').value)?document.getElementById('imb2-vern-date').value:oggiISO();
+  var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
+  if(esistenti){
+    var dup=esistenti.find(function(r){
+      var dataR=(r.data_inserimento||r.created_at||'').slice(0,10);
+      return dataR===dataSel && r.codice_articolo===cod;
+    });
+    if(dup){
+      var nuovaQty=(dup.quantita||0)+qty;
+      var nuovaSeq=(dup.sequenza?dup.sequenza+'+':'')+seq;
+      await apiPatch('verniciato','id=eq.'+dup.id,{quantita:nuovaQty,sequenza:nuovaSeq});
+      showMsg('msg-imb2-vern','✅ Aggiunto: tot '+nuovaQty+' x '+cod,'ok');
+      resetVernBer();caricaVernBer();return;
+    }
+  }
+  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
+  if(r){showMsg('msg-imb2-vern','✅ '+qty+' x '+cod+' salvato!','ok');resetVernBer();caricaVernBer();}
+}
+
+function resetVernBer(){
+  document.getElementById('imb2vern-cod').value='';
+  document.getElementById('imb2vern-dsc').value='';
+  document.getElementById('imb2-vern-qty').value='';
+  document.getElementById('imb2-vern-tot').textContent='0';
+  document.getElementById('imb2-vern-note').value='';
+  document.getElementById('imb2vern-cerca').value='';
+  var s=document.getElementById('imb2vern-sel');if(s)s.style.display='none';
+}
+
+async function caricaVernBer(){
+  var d=await apiGet('verniciato');if(!d)return;
+  var l=document.getElementById('imb2-vern-lista');if(!l)return;
+  if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
+  l.innerHTML=d.map(function(r){
+    return '<div class="row-item" style="border-left-color:#C55A11;">'
+      +'<div class="row-qty" style="color:#C55A11;">'+(r.quantita||0)+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'')+r.descrizione+'</div>'
+      +(r.sequenza?'<div class="rsub">'+r.sequenza+'</div>':'')
+      +'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div></div>'
+      +'<button class="del-btn" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVernBer)">✕</button>'
+      +'</div>';
+  }).join('');
 }
 
 // ── VERNICIATO (nella scheda WA colonna 2) ────────────────────────────
@@ -2252,7 +2339,7 @@ function cambiaCliente(){
   if(active){
     var name=active.id.replace('page-','');
     if(name==='wa'){caricaEntrate();caricaUscite();}
-    if(name==='imballo')caricaImballo();
+    if(name==='imballo'){caricaImballo();caricaVernBer();}
     if(name==='verniciato')caricaVerniciatoP();
     if(name==='ddt-entrata')caricaDDTE();
     if(name==='ddt-uscita')caricaDDTU();
@@ -2284,4 +2371,3 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(
 </script>
 </body>
 </html>
-
