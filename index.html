@@ -578,6 +578,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div id="msg-articolo"></div>
   </div>
   <div id="msg-cfg"></div>
+  <div class="card" style="border: 2px solid #1F6B75;">
+    <h2 style="color:#1F6B75;">Chiudi mese</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Salva tutto nell'archivio e cancella WA, Imballo e Verniciato. I DDT rimangono visibili nel Confronto finché non sei sicura di aver fatturato tutto.</p>
+    <button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button>
+  </div>
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
@@ -894,7 +899,7 @@ async function caricaEntrate(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F4E79;">'+codiceDesc+'</div>';
-    var isLibE=!r.codice_articolo;
+    var isLibE=!!r.da_testo_libero;
     var libBadgeE=isLibE?'<span class="badge-libero">✎ Da convertire</span>':'';
     return '<div class="row-item'+(isLibE?' libero':'')+'"><div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
@@ -1029,7 +1034,7 @@ async function caricaUscite(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>';
-    var isLibU=(!r.codice_articolo&&!!r.testo_originale);
+    var isLibU=!!r.da_testo_libero;
     var libBadgeU=isLibU?'<span class="badge-libero">✎ Da convertire</span>':'';
     return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
@@ -1496,7 +1501,8 @@ async function aggiungiTestoLiberoEntrata(){
     var m=r.match(/^(\d+)\s+(.+)$/);
     var qty=m?parseInt(m[1]):null;
     var desc=m?m[2]:r;
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:null,descrizione_articolo:null,data_inserimento:dataSel});
+    var art=trovaArt(desc);
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
@@ -1514,7 +1520,8 @@ async function aggiungiTestoLiberoUscita(){
     var m=r.match(/^(\d+)\s+(.+)$/);
     var qty=m?parseInt(m[1]):null;
     var desc=m?m[2]:r;
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:null,descrizione_articolo:null,data_inserimento:dataSel});
+    var art=trovaArt(desc);
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
@@ -2010,6 +2017,36 @@ function renderMagazzino(){
 }
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
+async function chiudiMese(){
+  if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati. I DDT restano.'))return;
+  var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
+  var cl=getCliente();
+  // Archive WA entrate
+  var we=await apiGet('whatsapp_righe');
+  if(we&&we.length){
+    for(var i=0;i<we.length;i++){
+      var r=we[i];
+      await apiPost('archivio',{tabella_origine:'whatsapp_righe',descrizione:r.descrizione||r.testo_riga,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
+    }
+  }
+  // Archive WA uscite
+  var wu=await apiGet('whatsapp_uscita');
+  if(wu&&wu.length){
+    for(var i=0;i<wu.length;i++){
+      var r=wu[i];
+      await apiPost('archivio',{tabella_origine:'whatsapp_uscita',descrizione:r.descrizione||r.testo_riga,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
+    }
+  }
+  // Delete WA, imballo, verniciato (NOT DDT)
+  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato'];
+  try{
+    for(var i=0;i<tables.length;i++){
+      await fetch(cfg.url+'/rest/v1/'+tables[i]+'?cliente=eq.'+encodeURIComponent(cl),{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});
+    }
+    showMsg('msg-cfg','✓ Mese chiuso! DDT ancora visibili nel Confronto.','ok');
+  }catch(e){showMsg('msg-cfg','Errore: '+e.message,'err');}
+}
+
 async function azzeraTutto(){
   if(!confirm('(!) Sei sicura di voler cancellare TUTTI i dati?\nQuesta operazione non può essere annullata!'))return;
   if(!confirm('Ultima conferma: cancellare tutto?'))return;
