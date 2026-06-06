@@ -191,7 +191,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <h2 style="color:#217346;">Articoli entrati</h2>
           <div style="display:flex;gap:6px;margin-bottom:8px;">
             <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuota('whatsapp_righe','msg-wa')">SVUOTA</button>
-            <button class="btn btn-blue btn-sm" style="flex:1;" onclick="unisciDuplicatiEntrata()">­ƒöù UNISCI</button>
+            <button class="btn btn-blue btn-sm" style="flex:1;" onclick="unisciDuplicatiEntrata()">🔗 UNISCI</button>
           </div>
           <div id="e-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
         </div>
@@ -240,7 +240,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <h2 style="color:#1F6B75;">Uscite registrate</h2>
           <div style="display:flex;gap:6px;margin-bottom:8px;">
             <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaUscite()">SVUOTA</button>           
-            <button class="btn btn-teal btn-sm" style="flex:1;" onclick="unisciDuplicatiUscita()">­ƒöù UNISCI</button><button class="btn btn-blue btn-sm" style="flex:1;" onclick="associaCodiciUscita()">­ƒÅÀ´©Å ASSOCIA</button>
+            <button class="btn btn-teal btn-sm" style="flex:1;" onclick="unisciDuplicatiUscita()">🔗 UNISCI</button><button class="btn btn-blue btn-sm" style="flex:1;" onclick="associaCodiciUscita()">🖊️ ASSOCIA</button>
           </div>
           <div id="u-lista" style="margin-top:8px;"><div class="empty">Nessuna uscita</div></div>
         </div>
@@ -310,9 +310,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <div class="card">
         <h2 style="color:#5B2C8D;">Imballi oggi</h2>
         <div style="display:flex;gap:6px;margin-bottom:8px;">
-          <button class="btn btn-blue btn-sm" style="flex:1;" onclick="caricaImballo()">­↻</button>
+          <button class="btn btn-blue btn-sm" style="flex:1;" onclick="caricaImballo()">↻</button>
           <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaImballo()">SVUOTA</button>
-          <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaImballoExcel()">­ƒôÑ</button>
+          <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaImballoExcel()">📥</button>
         </div>
         <div id="imb2-lista" style="margin-top:8px;"><div class="empty">Nessun imballo</div></div>
       </div>
@@ -332,8 +332,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div>
       <div class="card" style="margin-bottom:10px;">
         <h2 style="color:#1F4E79;">Scarto e Rimanenza</h2>
-        <p style="font-size:12px;color:#666;margin-bottom:10px;">Verniciato ÔêÆ Imballo ÔêÆ Scarto = Rimanenza</p>
-        <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBer()">­↻ AGGIORNA</button>
+        <p style="font-size:12px;color:#666;margin-bottom:10px;">Verniciato → Imballo → Scarto = Rimanenza</p>
+        <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBer()">↻ AGGIORNA</button>
       </div>
       <div class="card">
         <div id="ber-riepilogo-lista"><div class="empty">Premi Aggiorna</div></div>
@@ -348,8 +348,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div id="page-riepilogo-ber" class="page">
   <div class="card">
     <h2>Riepilogo Lavorazione</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Verniciato ÔêÆ Imballo ÔêÆ Scarto = Rimanenza in magazzino</p>
-    <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBer()">­↻ AGGIORNA</button>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Verniciato → Imballo → Scarto = Rimanenza in magazzino</p>
+    <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBer()">↻ AGGIORNA</button>
   </div>
   <div class="card">
     <div id="ber-riepilogo-lista2"><div class="empty">Premi Aggiorna</div></div>
@@ -400,7 +400,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="file" id="pdf-inp" class="pdf-input" accept=".pdf" onchange="leggiPDF(this)">
     <div id="pdf-prev" style="display:none"></div>
     <button class="btn btn-orange" id="btn-importa" style="display:none" onclick="importaDaPDF()">IMPORTA DAL PDF</button>
-<button class="btn btn-blue" id="btn-associa-ddt" style="display:none" onclick="associaCodiciDDT()">­ƒÅÀ´©Å ASSOCIA CODICI</button>
+<button class="btn btn-blue" id="btn-associa-ddt" style="display:none" onclick="associaCodiciDDT()">🖊️ ASSOCIA CODICI</button>
   </div>
   <div class="card">
     <h2>Carica Excel DDT Entrata</h2>
@@ -500,9 +500,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-blue" onclick="aggiornaConfronto()">AGGIORNA CONFRONTO</button>
     <div style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
       <strong>Leggenda colori:</strong><br>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E2EFDA;border-radius:4px;margin-right:6px;">Ô£à Verde = OK, coincide</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFF3CD;border-radius:4px;margin-right:6px;">­ƒƒí Giallo = hai pi├╣ pezzi di quelli attesi</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFE8E8;border-radius:4px;">­ƒö┤ Rosso = mancano pezzi</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E2EFDA;border-radius:4px;margin-right:6px;">✅ Verde = OK, coincide</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFF3CD;border-radius:4px;margin-right:6px;">⚠️ Giallo = hai pi├╣ pezzi di quelli attesi</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFE8E8;border-radius:4px;">🔴 Rosso = mancano pezzi</span>
     </div>
   </div>
   <div id="cf-2" class="card" style="display:none">
@@ -533,7 +533,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div id="msg-magazzino"></div>
   <div class="card">
     <h2>Giacenza magazzino</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Cosa hai in casa adesso: Ricevuto (DDT Entrata) ÔêÆ Spedito (DDT Uscita), articolo per articolo.</p>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Cosa hai in casa adesso: Ricevuto (DDT Entrata) → Spedito (DDT Uscita), articolo per articolo.</p>
     <input class="cerca-input" id="mag-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderMagazzino()" autocomplete="off" style="margin-bottom:10px;">
     <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;margin-bottom:12px;">
       <input type="checkbox" id="mag-solo-giacenza" onchange="renderMagazzino()" style="width:auto;margin-bottom:0;"> Mostra solo articoli con pezzi in casa
@@ -559,7 +559,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-blue" onclick="loginAdmin()">ACCEDI</button>
     <div id="msg-login"></div>
     <div id="admin-logout" style="display:none;margin-top:8px;">
-      <span style="color:#375623;font-size:13px;">Ô£à Accesso admin attivo</span>
+      <span style="color:#375623;font-size:13px;">✅ Accesso admin attivo</span>
       <button class="btn btn-gray btn-sm" onclick="logoutAdmin()" style="margin-top:8px;">ESCI DA ADMIN</button>
     </div>
   </div>
@@ -581,7 +581,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
-    <button class="btn btn-red" title="Elimina" onclick="azzeraTutto()">­ƒùæ AZZERA TUTTI I DATI</button>
+    <button class="btn btn-red" title="Elimina" onclick="azzeraTutto()">🗑️ AZZERA TUTTI I DATI</button>
   </div>
   <div class="card">
     <h2>Stato connessione</h2>
@@ -760,9 +760,9 @@ async function cerca(p){
 function selArt(p,cod,desc){
   if(document.getElementById(p+'-cod'))document.getElementById(p+'-cod').value=cod;
   if(document.getElementById(p+'-dsc'))document.getElementById(p+'-dsc').value=desc;
-  document.getElementById(p+'-cerca').value=cod+' ÔÇö '+desc;
+  document.getElementById(p+'-cerca').value=cod+' — '+desc;
   document.getElementById(p+'-ris').style.display='none';
-  var s=document.getElementById(p+'-sel');s.textContent='Ô£à '+cod+' ÔÇö '+desc;s.style.display='block';
+  var s=document.getElementById(p+'-sel');s.textContent='✅ '+cod+' — '+desc;s.style.display='block';
 }
 
 document.addEventListener('click',function(e){document.querySelectorAll('.cerca-risultati').forEach(function(el){if(!el.contains(e.target))el.style.display='none';});});
@@ -807,11 +807,11 @@ function showPage(name,el){
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
 
-// ÔöÇÔöÇ HELPERS ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── HELPERS ──────────────────────────────────────────────────────────
 function oggiISO(){return new Date().toISOString().split('T')[0];}
 function fmtData(s){if(!s)return'';var d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('it-IT');}
 
-// ÔöÇÔöÇ TROVA ARTICOLO DA TESTO WA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── TROVA ARTICOLO DA TESTO WA ────────────────────────────────────────
 function trovaArt(desc){
   if(!desc||!artCache.length)return null;
   var abbr={TEST:'TESTATA',TESTA:'TESTATA',PED:'PEDIERA',RET:'RETE',SPO:'SPONDA',SPON:'SPONDA',BCO:'BIANCO',GR:'GRIGIO',NAT:'NATURALE',AV:'AVANA',PIC:'PICCOLA',PICC:'PICCOLA',CONT:'CONTACT',LET:'LETTINO',LETT:'LETTINO',INF:'INFINITO',INFI:'INFINITO',NOR:'NORMALE',SUP:'SUPERIORE',MDF:'MDF',GLAM:'GLAM',LUX:'LUX',FL:'FL'};
@@ -825,7 +825,7 @@ function trovaArt(desc){
   return max>=2?best:null;
 }
 
-// ÔöÇÔöÇ WA ENTRATA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── WA ENTRATA ────────────────────────────────────────────────────────
 async function salvaEntrataMerce(){
   var cod=document.getElementById('e-cod').value;
   var dsc=document.getElementById('e-dsc').value;
@@ -835,7 +835,7 @@ async function salvaEntrataMerce(){
   if(!seq){showMsg('msg-entrata','Inserisci la quantit├á!','err');return;}
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   if(!qty){showMsg('msg-entrata','Quantit├á non valida!','err');return;}
-  // Controlla se stesso articolo stessa data selezionata ÔåÆ unisci
+  // Controlla se stesso articolo stessa data selezionata → unisci
   var esistenti=await apiGet('whatsapp_righe','order=created_at.desc&limit=200');
   var dataSel=(document.getElementById('e-date')&&document.getElementById('e-date').value)?document.getElementById('e-date').value:oggiISO();
   if(esistenti){
@@ -847,12 +847,12 @@ async function salvaEntrataMerce(){
       var nuovaQty=(dup.quantita||0)+qty;
       var nuovaSeq=(dup.testo_seq?dup.testo_seq+'+':'')+seq;
       await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:nuovaSeq,testo_riga:nuovaQty+' '+dsc});
-      showMsg('msg-entrata','Ô£à Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
+      showMsg('msg-entrata','✅ Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
       resetForm('e');caricaEntrate();return;
     }
   }
   var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,testo_seq:seq,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note,data_inserimento:dataSel});
-  if(r){showMsg('msg-entrata','Ô£à '+qty+' x '+cod+' aggiunto!','ok');resetForm('e');caricaEntrate();}
+  if(r){showMsg('msg-entrata','✅ '+qty+' x '+cod+' aggiunto!','ok');resetForm('e');caricaEntrate();}
 }
 
 async function aggiungiWAEntrata(){
@@ -891,13 +891,13 @@ async function caricaEntrate(){
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
   l.innerHTML=d.map(function(r){
     var waText = r.testo_originale? r.testo_originale : (r.descrizione||r.testo_riga||'');
-    var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ÔÇö ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
+    var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F4E79;">'+codiceDesc+'</div>';
     return '<div class="row-item"><div class="row-qty">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
-      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">Ô£Å´©Å</button>'
-      +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">­ƒùæ</button></div>';
+      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✏️</button>'
+      +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">🗑️</button></div>';
   }).join('');
 }
 
@@ -957,7 +957,7 @@ async function salvaModifica(){
   if(table==='whatsapp_uscita')caricaUscite(); else if(table==='ddt_entrata')caricaDDTE(); else caricaEntrate();
 }
 
-// ÔöÇÔöÇ WA USCITA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── WA USCITA ─────────────────────────────────────────────────────────
 async function salvaUscitaMerce(){
   var cod=document.getElementById('u-cod').value;
   var dsc=document.getElementById('u-dsc').value;
@@ -979,13 +979,13 @@ async function salvaUscitaMerce(){
       await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+dsc});
       // Aggiorna anche imballo
       var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
-      showMsg('msg-uscita','Ô£à Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
+      showMsg('msg-uscita','✅ Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
       resetForm('u');caricaUscite();mostraConfronto();return;
     }
   }
   var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
   var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel});
-  if(r1&&r2){showMsg('msg-uscita','Ô£à '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
+  if(r1&&r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
 }
 
 async function aggiungiWAUscita(){
@@ -1023,16 +1023,16 @@ async function caricaUscite(){
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
   l.innerHTML=d.map(function(r){
     var waText = r.testo_originale? r.testo_originale : (r.descrizione||r.testo_riga||'');
-    var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ÔÇö ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
+    var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>';
     var isLibU=(!r.codice_articolo&&!!r.testo_originale);
-    var libBadgeU=isLibU?'<span class="badge-libero">Ô£ì´©Å Da convertire</span>':'';
+    var libBadgeU=isLibU?'<span class="badge-libero">✏️ Da convertire</span>':'';
     return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
-      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">Ô£Å´©Å</button>'
+      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✏️</button>'
       +libBadgeU
-      +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">­ƒùæ</button></div>';
+      +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑️</button></div>';
   }).join('');
 }
 
@@ -1044,7 +1044,7 @@ async function mostraConfronto(){
   if(!tI&&!tW){box.style.display='none';return;}
   box.style.display='block';
   var ok=tI===tW;
-  res.innerHTML=ok?'<div class="ok-box">Ô£à Coincidono! Totale: '+tI+' pz</div>':'<div class="warn-box">ÔÜá´©Å Imballo: '+tI+' pz ÔÇö WA Uscita: '+tW+' pz (differenza: '+(tI-tW)+')</div>';
+  res.innerHTML=ok?'<div class="ok-box">✅ Coincidono! Totale: '+tI+' pz</div>':'<div class="warn-box">⚠️ Imballo: '+tI+' pz — WA Uscita: '+tW+' pz (differenza: '+(tI-tW)+')</div>';
 }
 
 async function verificaWAImballo(){
@@ -1078,7 +1078,7 @@ async function verificaWAImballo(){
     }
   });
   if(!missing.length && !diff.length){
-    res.innerHTML='<div class="ok-box">Ô£à WA Uscita e Imballo coincidono per gli articoli registrati.</div>';
+    res.innerHTML='<div class="ok-box">✅ WA Uscita e Imballo coincidono per gli articoli registrati.</div>';
     return;
   }
   var html='';
@@ -1094,7 +1094,7 @@ async function verificaWAImballo(){
     html+='<div>'
       +'<h3 style="margin-bottom:8px;">Articoli con quantit├á diverse tra WA uscita e Imballo</h3>'
       +diff.map(function(a){
-        return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">WA: '+a.wau+' pz ÔÇö Imballo: '+a.imb+' pz</div></div></div>';
+        return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">WA: '+a.wau+' pz — Imballo: '+a.imb+' pz</div></div></div>';
       }).join('')
     +'</div>';
   }
@@ -1117,7 +1117,7 @@ function resetForm(p){
   var d=document.getElementById(p+'-date');if(d)d.value=oggiISO();
 }
 
-// ÔöÇÔöÇ VERNICIATO (nella scheda WA colonna 2) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── VERNICIATO (nella scheda WA colonna 2) ────────────────────────────
 async function salvaVerniciato(){
   var cod=document.getElementById('vern-cod').value;
   var dsc=document.getElementById('vern-dsc').value;
@@ -1139,7 +1139,7 @@ async function salvaVerniciato(){
       var nuovaQty=(dup.quantita||0)+qty;
       var nuovaSeq=(dup.sequenza?dup.sequenza+'+':'')+seq;
       await apiPatch('verniciato','id=eq.'+dup.id,{quantita:nuovaQty,sequenza:nuovaSeq});
-      showMsg('msg-verniciato','Ô£à Aggiunto: tot '+nuovaQty+' x '+cod,'ok');
+      showMsg('msg-verniciato','✅ Aggiunto: tot '+nuovaQty+' x '+cod,'ok');
       document.getElementById('vern-cerca').value='';document.getElementById('vern-cod').value='';
       document.getElementById('vern-dsc').value='';document.getElementById('vern-qty').value='';
       document.getElementById('vern-tot').textContent='0';document.getElementById('vern-note').value='';
@@ -1149,7 +1149,7 @@ async function salvaVerniciato(){
   }
   var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
   if(r){
-    showMsg('msg-verniciato','Ô£à '+qty+' x '+cod+' salvato!','ok');
+    showMsg('msg-verniciato','✅ '+qty+' x '+cod+' salvato!','ok');
     document.getElementById('vern-cerca').value='';document.getElementById('vern-cod').value='';
     document.getElementById('vern-dsc').value='';document.getElementById('vern-qty').value='';
     document.getElementById('vern-tot').textContent='0';document.getElementById('vern-note').value='';
@@ -1174,8 +1174,8 @@ async function caricaVerniciato(){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
         +'<span>'+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
-        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">Ô£Å´©Å</button>'
-        +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciato)">­ƒùæ</button>'
+        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✏️</button>'
+        +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciato)">🗑️</button>'
       +'</div>';
     }).join('');
     return '<div class="row-item" style="border-left-color:#C55A11;flex-direction:column;align-items:flex-start;gap:4px;">'
@@ -1197,7 +1197,7 @@ async function svuotaVerniciato(){
   if(document.getElementById('imb2-vern-lista'))caricaVerniciato2();
 }
 
-// ÔöÇÔöÇ VERNICIATO MODAL ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── VERNICIATO MODAL ──────────────────────────────────────────────────
 function apriModaleVern(id,desc,seq,note,table,title){
   document.getElementById('modal-vern-id').value=id;
   document.getElementById('modal-vern-table').value=table||'verniciato';
@@ -1231,7 +1231,7 @@ async function salvaModificaVern(){
   }
 }
 
-// ÔöÇÔöÇ VERNICIATO SCHEDA ADMIN (page-verniciato) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── VERNICIATO SCHEDA ADMIN (page-verniciato) ─────────────────────────
 async function salvaVerniciatoP(){
   var cod=document.getElementById('vernp-cod').value;
   var dsc=document.getElementById('vernp-dsc').value;
@@ -1250,7 +1250,7 @@ async function salvaVerniciatoP(){
       var nq=(dup.quantita||0)+qty;
       var ns=(dup.sequenza?dup.sequenza+'+':'')+seq;
       await apiPatch('verniciato','id=eq.'+dup.id,{quantita:nq,sequenza:ns});
-      showMsg('msg-verniciato-p','Ô£à Aggiunto: tot '+nq+' x '+cod,'ok');
+      showMsg('msg-verniciato-p','✅ Aggiunto: tot '+nq+' x '+cod,'ok');
       document.getElementById('vernp-cerca').value='';document.getElementById('vernp-cod').value='';
       document.getElementById('vernp-dsc').value='';document.getElementById('vernp-qty').value='';
       document.getElementById('vernp-tot').textContent='0';document.getElementById('vernp-note').value='';
@@ -1260,7 +1260,7 @@ async function salvaVerniciatoP(){
   }
   var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
   if(r){
-    showMsg('msg-verniciato-p','Ô£à '+qty+' x '+cod+' salvato!','ok');
+    showMsg('msg-verniciato-p','✅ '+qty+' x '+cod+' salvato!','ok');
     document.getElementById('vernp-cerca').value='';document.getElementById('vernp-cod').value='';
     document.getElementById('vernp-dsc').value='';document.getElementById('vernp-qty').value='';
     document.getElementById('vernp-tot').textContent='0';document.getElementById('vernp-note').value='';
@@ -1284,8 +1284,8 @@ async function caricaVerniciatoP(){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
         +'<span>'+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
-        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">Ô£Å´©Å</button>'
-        +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciatoP)">­ƒùæ</button>'
+        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✏️</button>'
+        +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciatoP)">🗑️</button>'
       +'</div>';
     }).join('');
     return '<div class="row-item" style="border-left-color:#C55A11;flex-direction:column;align-items:flex-start;gap:4px;">'
@@ -1298,7 +1298,7 @@ async function caricaVerniciatoP(){
   }).join('');
 }
 
-// ÔöÇÔöÇ VERNICIATO BERGAMASCO (scheda Imballo col 1) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── VERNICIATO BERGAMASCO (scheda Imballo col 1) ──────────────────────
 async function salvaVerniciato2(){
   var cod=document.getElementById('imb2-vern-cod').value;
   var dsc=document.getElementById('imb2-vern-dsc').value;
@@ -1317,7 +1317,7 @@ async function salvaVerniciato2(){
       var nq=(dup.quantita||0)+qty;
       var ns=(dup.sequenza?dup.sequenza+'+':'')+seq;
       await apiPatch('verniciato','id=eq.'+dup.id,{quantita:nq,sequenza:ns});
-      showMsg('msg-verniciato2','Ô£à Aggiunto: tot '+nq,'ok');
+      showMsg('msg-verniciato2','✅ Aggiunto: tot '+nq,'ok');
       document.getElementById('imb2-vern-cerca').value='';document.getElementById('imb2-vern-cod').value='';
       document.getElementById('imb2-vern-dsc').value='';document.getElementById('imb2-vern-qty').value='';
       document.getElementById('imb2-vern-tot').textContent='0';document.getElementById('imb2-vern-note').value='';
@@ -1327,7 +1327,7 @@ async function salvaVerniciato2(){
   }
   var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:dsc,quantita:qty,sequenza:seq,note:note,data_inserimento:dataSel});
   if(r){
-    showMsg('msg-verniciato2','Ô£à '+qty+' x '+cod+' salvato!','ok');
+    showMsg('msg-verniciato2','✅ '+qty+' x '+cod+' salvato!','ok');
     document.getElementById('imb2-vern-cerca').value='';document.getElementById('imb2-vern-cod').value='';
     document.getElementById('imb2-vern-dsc').value='';document.getElementById('imb2-vern-qty').value='';
     document.getElementById('imb2-vern-tot').textContent='0';document.getElementById('imb2-vern-note').value='';
@@ -1351,8 +1351,8 @@ async function caricaVerniciato2(){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
         +'<span>'+seqStr+' = <strong>'+r.quantita+'</strong></span>'
-        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">Ô£Å´©Å</button>'
-        +'<button class="del-btn" title="Elimina" onclick="eliminaRiga2('+r.id+')">­ƒùæ</button>'
+        +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✏️</button>'
+        +'<button class="del-btn" title="Elimina" onclick="eliminaRiga2('+r.id+')">🗑️</button>'
       +'</div>';
     }).join('');
     return '<div class="row-item" style="border-left-color:#C55A11;flex-direction:column;align-items:flex-start;gap:4px;">'
@@ -1382,11 +1382,11 @@ async function svuotaVerniciato2(){
   }
   var oggi=oggiISO();
   await apiDel('verniciato','data_inserimento=eq.'+oggi);
-  showMsg('msg-verniciato2','Ô£à Svuotato!','ok');
+  showMsg('msg-verniciato2','✅ Svuotato!','ok');
   caricaVerniciato2();caricaRiepilogoBer();
 }
 
-// ÔöÇÔöÇ RIEPILOGO BERGAMASCO ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── RIEPILOGO BERGAMASCO ──────────────────────────────────────────────
 var scartoBer={};
 
 async function caricaRiepilogoBer(){
@@ -1426,7 +1426,7 @@ async function caricaRiepilogoBer(){
       +'</div>';
     }).join('');
     var tEl=document.getElementById(totId);
-    if(tEl)tEl.innerHTML='<div class="'+(totRim===0?'ok-box':'warn-box')+'">Totale ÔÇö Verniciato: '+totVern+' &nbsp;Imballo: '+totImb+' &nbsp;Scarto: '+totScarto+' &nbsp;Rimanenza: <strong>'+totRim+'</strong></div>';
+    if(tEl)tEl.innerHTML='<div class="'+(totRim===0?'ok-box':'warn-box')+'">Totale — Verniciato: '+totVern+' &nbsp;Imballo: '+totImb+' &nbsp;Scarto: '+totScarto+' &nbsp;Rimanenza: <strong>'+totRim+'</strong></div>';
   }
   renderList('ber-riepilogo-lista','ber-riepilogo-tot');
   renderList('ber-riepilogo-lista2','ber-riepilogo-tot2');
@@ -1478,7 +1478,7 @@ async function caricaRwa(){
 }
 
 
-// ÔöÇÔöÇ TESTO LIBERO ENTRATA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── TESTO LIBERO ENTRATA ─────────────────────────────────────────────
 async function aggiungiTestoLiberoEntrata(){
   var testo=document.getElementById('e-lib-text').value.trim();
   if(!testo){showMsg('msg-entrata','Scrivi qualcosa!','err');return;}
@@ -1496,7 +1496,7 @@ async function aggiungiTestoLiberoEntrata(){
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
 }
 
-// ÔöÇÔöÇ TESTO LIBERO USCITA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── TESTO LIBERO USCITA ───────────────────────────────────────────────
 async function aggiungiTestoLiberoUscita(){
   var testo=document.getElementById('u-lib-text').value.trim();
   if(!testo){showMsg('msg-uscita','Scrivi qualcosa!','err');return;}
@@ -1513,7 +1513,7 @@ async function aggiungiTestoLiberoUscita(){
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
 }
-// ÔöÇÔöÇ CONFRONTO ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── CONFRONTO ─────────────────────────────────────────────────────────
 async function aggiornaConfronto(){
   var wa=await apiGet('whatsapp_righe');
   var ddte=await apiGet('ddt_entrata');
@@ -1549,8 +1549,8 @@ async function aggiornaConfronto(){
   document.getElementById('cf-2-lista').innerHTML=html2||'<div class="empty">Nessun dato</div>';
   var diff1=totWA-totDDT;
   document.getElementById('cf-2-res').innerHTML=diff1===0
-    ?'<div class="ok-box">Ô£à WA Entrata e DDT Entrata coincidono! Totale: '+totWA+' pz</div>'
-    :'<div class="warn-box">ÔÜá´©Å WA Entrata: '+totWA+' pz ÔÇö DDT Entrata: '+totDDT+' pz ÔÇö Differenza: '+(diff1>0?'+':'')+diff1+' pz</div>';
+    ?'<div class="ok-box">✅ WA Entrata e DDT Entrata coincidono! Totale: '+totWA+' pz</div>'
+    :'<div class="warn-box">⚠️ WA Entrata: '+totWA+' pz — DDT Entrata: '+totDDT+' pz — Differenza: '+(diff1>0?'+':'')+diff1+' pz</div>';
 
   var uscMap={};
   wau.forEach(function(r){
@@ -1579,8 +1579,8 @@ async function aggiornaConfronto(){
   });
   document.getElementById('cf-3-lista').innerHTML=html3||'<div class="empty">Nessun dato</div>';
   document.getElementById('cf-3-res').innerHTML=tuttoOk
-    ?'<div class="ok-box">Ô£à WA Uscita e Imballo coincidono per tutti gli articoli!</div>'
-    :'<div class="warn-box">ÔÜá´©Å WA Uscita: '+totWAU+' pz ÔÇö Imballo: '+totIMB+' pz ÔÇö controlla sopra</div>';
+    ?'<div class="ok-box">✅ WA Uscita e Imballo coincidono per tutti gli articoli!</div>'
+    :'<div class="warn-box">⚠️ WA Uscita: '+totWAU+' pz — Imballo: '+totIMB+' pz — controlla sopra</div>';
 
   var ddtu=await apiGet('ddt_uscita');
   if(ddtu){
@@ -1610,12 +1610,12 @@ async function aggiornaConfronto(){
     });
     document.getElementById('cf-4-lista').innerHTML=html4||'<div class="empty">Nessun dato</div>';
     document.getElementById('cf-4-res').innerHTML=tuttoOk4
-      ?'<div class="ok-box">Ô£à Verniciato e DDT Uscita coincidono!</div>'
-      :'<div class="warn-box">ÔÜá´©Å Verniciato: '+totV+' pz ÔÇö DDT Uscita: '+totDU+' pz ÔÇö controlla sopra</div>';
+      ?'<div class="ok-box">✅ Verniciato e DDT Uscita coincidono!</div>'
+      :'<div class="warn-box">⚠️ Verniciato: '+totV+' pz — DDT Uscita: '+totDU+' pz — controlla sopra</div>';
   }
 }
 
-// ÔöÇÔöÇ DDT ENTRATA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── DDT ENTRATA ───────────────────────────────────────────────────────
 async function leggiPDF(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('pdf-prev');
@@ -1692,15 +1692,15 @@ async function caricaDDTE(){
     var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);
     var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';
     return '<div class="row-item">'
-      +'<div class="row-qty">'+(r.quantita_ddt||'ÔÇö')+'</div>'
-      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'ÔÇö')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+' | '+(r.cliente||'')+'</div></div>'
+      +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
+      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+' | '+(r.cliente||'')+'</div></div>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
-      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">Ô£Å´©Å</button>'
+      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">✏️</button>'
       +'</div>';
   }).join('');
 }
 
-// ÔöÇÔöÇ DDT ENTRATA: IMPORT EXCEL ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── DDT ENTRATA: IMPORT EXCEL ─────────────────────────────────────────
 var excelDati=null;
 
 function convData(v){
@@ -1774,7 +1774,7 @@ async function importaDaExcel(){
   document.getElementById('xls-inp').value='';excelDati=null;caricaDDTE();
 }
 
-// ÔöÇÔöÇ DDT USCITA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── DDT USCITA ────────────────────────────────────────────────────────
 async function salvaDDTUscita(){
   var b={numero_ddt:document.getElementById('du-nddt').value,data_ddt:document.getElementById('du-data').value||null,cliente:document.getElementById('du-cliente').value,codice_articolo:document.getElementById('du-cod').value,descrizione:document.getElementById('du-dsc').value,quantita_verniciato:parseInt(document.getElementById('du-qvern').value)||0,quantita_imballato:parseInt(document.getElementById('du-qimb').value)||0,quantita_ddt:parseInt(document.getElementById('du-qddt').value)||0,note:document.getElementById('du-note').value};
   var r=await apiPost('ddt_uscita',b);if(r){showMsg('msg-ddt-u','Salvato!','ok');caricaDDTU();}
@@ -1785,7 +1785,7 @@ async function caricaDDTU(){
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
-  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'ÔÇö')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span></div>';}).join('');
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span></div>';}).join('');
 }
 
 async function leggiPDFUscita(input){
@@ -1852,7 +1852,7 @@ async function importaPDFUscita(){
   document.getElementById('pdf-usc-inp').value='';pdfUscDati=null;caricaDDTU();
 }
 
-// ÔöÇÔöÇ IMBALLO ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── IMBALLO ───────────────────────────────────────────────────────────
 async function salvaImballo(){
   var cod=document.getElementById('imb-cod').value;
   var dsc=document.getElementById('imb-dsc').value;
@@ -1888,7 +1888,7 @@ async function svuotaImballo(){
   ['imb-cod','imb-dsc','imb2-cod','imb2-dsc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   ['imb-sel','imb2-sel'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   ['imb-tot','imb2-tot'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
-  showMsg('msg-imballo','Ô£à Archiviato e svuotato!','ok');
+  showMsg('msg-imballo','✅ Archiviato e svuotato!','ok');
   caricaImballo();caricaRiepilogoBer();
 }
 
@@ -1913,8 +1913,8 @@ async function caricaImballo(){
       return '<div class="rsub" style="padding:4px 0;display:flex;align-items:center;gap:8px;">'
         +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'
         +'<span style="margin-left:auto;display:flex;gap:4px;">'
-          +'<button class="edit-btn" title="Modifica" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||a.desc).replace(/'/g,"\\'")+'\',\''+String(r.sequenza||'').replace(/'/g,"\\'")+'\',\''+String(r.note||'').replace(/'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">Ô£Å´©Å</button>'
-          +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')">­ƒùæ</button>'
+          +'<button class="edit-btn" title="Modifica" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||a.desc).replace(/'/g,"\\'")+'\',\''+String(r.sequenza||'').replace(/'/g,"\\'")+'\',\''+String(r.note||'').replace(/'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✏️</button>'
+          +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')">🗑️</button>'
         +'</span>'
       +'</div>';
     }).join('');
@@ -1959,7 +1959,7 @@ async function salvaImballo2(){
 
 // (caricaRiepilogo removed)
 
-// ÔöÇÔöÇ MAGAZZINO ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── MAGAZZINO ─────────────────────────────────────────────────────────
 var magCache=[];
 
 async function caricaMagazzino(){
@@ -2003,9 +2003,9 @@ function renderMagazzino(){
   }).join('');
 }
 
-// ÔöÇÔöÇ AZZERA TUTTO ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── AZZERA TUTTO ──────────────────────────────────────────────────────
 async function azzeraTutto(){
-  if(!confirm('ÔÜá´©Å Sei sicura di voler cancellare TUTTI i dati?\nQuesta operazione non pu├▓ essere annullata!'))return;
+  if(!confirm('⚠️ Sei sicura di voler cancellare TUTTI i dati?\nQuesta operazione non pu├▓ essere annullata!'))return;
   if(!confirm('Ultima conferma: cancellare tutto?'))return;
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','ddt_entrata','ddt_uscita'];
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
@@ -2015,12 +2015,12 @@ async function azzeraTutto(){
     catch(e){ok=false;}
   }
   if(ok){
-    showMsg('msg-cfg','Ô£à Tutti i dati cancellati!','ok');
+    showMsg('msg-cfg','✅ Tutti i dati cancellati!','ok');
     ['st-e','st-u','st-de','st-du','st-imb'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
   }else{showMsg('msg-cfg','Errore durante la cancellazione.','err');}
 }
 
-// ÔöÇÔöÇ ESPORTA IMBALLO EXCEL ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── ESPORTA IMBALLO EXCEL ─────────────────────────────────────────────
 async function esportaImballoExcel(){
   var d=await apiGet('imballo');
   if(!d||!d.length){alert('Nessun imballo da esportare!');return;}
@@ -2070,7 +2070,7 @@ async function esportaImballoExcel(){
 }
 
 
-// ÔöÇÔöÇ UNISCI DUPLICATI ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── UNISCI DUPLICATI ─────────────────────────────────────────────────
 async function unisciDuplicatiEntrata(){
   if(!confirm('Unire gli articoli duplicati della stessa data?'))return;
   var d=await apiGet('whatsapp_righe','order=created_at.asc&limit=500');
@@ -2128,7 +2128,7 @@ async function associaCodiciUscita(){
   var n=d.filter(function(r){return !r.codice_articolo;});
   var ok=0;
   for(var i=0;i<n.length;i++){var art=trovaArt(n[i].descrizione||n[i].testo_riga||'');if(art){await apiPatch('whatsapp_uscita','id=eq.'+n[i].id,{codice_articolo:art.codice_articolo,descrizione_articolo:art.descrizione});ok++;}}
-  showMsg('msg-uscita',ok>0?'Ô£à Associati '+ok+' codici!':'Nessun codice trovato, usa Ô£Å´©Å','ok');
+  showMsg('msg-uscita',ok>0?'✅ Associati '+ok+' codici!':'Nessun codice trovato, usa ✏️','ok');
   caricaUscite();
 }
 async function associaCodiciDDT(){
@@ -2140,11 +2140,11 @@ async function associaCodiciDDT(){
     var art=trovaArt(senza[i].descrizione||'');
     if(art){await apiPatch('ddt_entrata','id=eq.'+senza[i].id,{codice_articolo:art.codice_articolo});ok++;}
   }
-  showMsg('msg-ddt-e',ok>0?'Ô£à Associati '+ok+' codici!':'Nessun codice trovato automaticamente.','ok');
+  showMsg('msg-ddt-e',ok>0?'✅ Associati '+ok+' codici!':'Nessun codice trovato automaticamente.','ok');
   caricaDDTE();
   document.getElementById('btn-associa-ddt').style.display='block';
 }
-// ÔöÇÔöÇ LOGIN ADMIN ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── LOGIN ADMIN ───────────────────────────────────────────────────────
 var ADMIN_PWD='vale8479';
 
 function loginAdmin(){
@@ -2178,7 +2178,7 @@ function setWAMode(mode){
   if(isE)caricaEntrate(); else caricaUscite();
 }
 
-// ÔöÇÔöÇ MULTI CLIENTE ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
   AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-wa','confronto','cfg'],
   BERGAMASCO:['imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-ber','cfg']
@@ -2225,7 +2225,7 @@ function cambiaCliente(){
   }
 }
 
-// ÔöÇÔöÇ INIT ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── INIT ──────────────────────────────────────────────────────────────
 window.onload=function(){
   document.getElementById('cliente-selector').style.display='block';
   var savedCliente=localStorage.getItem('ddt_cliente');
