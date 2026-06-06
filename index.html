@@ -93,6 +93,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .modal-desc { background:#f0f2f5; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:14px; color:#555; }
 /* WA testo originale */
 .wa-orig { font-size:11px; color:#888; font-style:italic; margin-top:2px; border-left:2px solid #FFD966; padding-left:6px; }
+/* Testo libero fratello */
+.row-item.libero { border-left-color: #E8A000; background: #FFFBEE; }
+.badge-libero { background: #FFD966; color: #7B4F00; font-size:11px; font-weight:bold; padding:2px 7px; border-radius:20px; display:inline-block; }
 @media print {
   body * { visibility: hidden !important; }
   .print-section, .print-section * { visibility: visible !important; }
@@ -155,6 +158,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <div class="metodo-btns" style="margin-bottom:8px;">
             <button id="btn-e-man" class="btn btn-green btn-sm" onclick="setMetodo('e','manuale')">MANUALE</button>
             <button id="btn-e-wa" class="btn btn-gray btn-sm" onclick="setMetodo('e','wa')">WHATSAPP</button>
+            <button id="btn-e-lib" class="btn btn-gray btn-sm" onclick="setMetodo('e','libero')">TESTO LIBERO</button>
+          </div>
+          <div id="e-sezione-libero" style="display:none;margin-top:8px;">
+            <label>Data</label><input type="date" id="e-lib-date" style="margin-bottom:6px;">
+            <textarea id="e-lib-text" placeholder="es. 190 testate glam bianco&#10;25 sponde lettino web bianco" style="min-height:80px;"></textarea>
+            <button class="btn btn-green btn-sm" onclick="aggiungiTestoLiberoEntrata()">AGGIUNGI RIGHE</button>
           </div>
           <div id="e-sezione-manuale">
             <label>Cerca articolo</label>
@@ -194,6 +203,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <div class="metodo-btns" style="margin-bottom:8px;">
             <button id="btn-u-man" class="btn btn-teal btn-sm" onclick="setMetodo('u','manuale')">MANUALE</button>
             <button id="btn-u-wa" class="btn btn-gray btn-sm" onclick="setMetodo('u','wa')">WHATSAPP</button>
+            <button id="btn-u-lib" class="btn btn-gray btn-sm" onclick="setMetodo('u','libero')">TESTO LIBERO</button>
+          </div>
+          <div id="u-sezione-libero" style="display:none;margin-top:8px;">
+            <label>Data</label><input type="date" id="u-lib-date" style="margin-bottom:6px;">
+            <textarea id="u-lib-text" placeholder="es. 37+37+37 testate glam bianco&#10;25 sponde lettino" style="min-height:80px;"></textarea>
+            <button class="btn btn-teal btn-sm" onclick="aggiungiTestoLiberoUscita()">AGGIUNGI RIGHE</button>
           </div>
           <div id="u-sezione-manuale">
             <label>Cerca articolo</label>
@@ -760,12 +775,15 @@ function calcolaSeq(sid,tid){
 }
 
 function setMetodo(pg,m){
-  var isM=m==='manuale';
   var col=pg==='e'?'btn-green':'btn-teal';
-  document.getElementById(pg+'-sezione-manuale').style.display=isM?'block':'none';
-  document.getElementById(pg+'-sezione-wa').style.display=isM?'none':'block';
-  document.getElementById('btn-'+pg+'-man').className='btn '+(isM?col:'btn-gray');
-  document.getElementById('btn-'+pg+'-wa').className='btn '+(isM?'btn-gray':col);
+  document.getElementById(pg+'-sezione-manuale').style.display=m==='manuale'?'block':'none';
+  document.getElementById(pg+'-sezione-wa').style.display=m==='wa'?'block':'none';
+  document.getElementById(pg+'-sezione-libero').style.display=m==='libero'?'block':'none';
+  document.getElementById('btn-'+pg+'-man').className='btn '+(m==='manuale'?col:'btn-gray');
+  document.getElementById('btn-'+pg+'-wa').className='btn '+(m==='wa'?col:'btn-gray');
+  document.getElementById('btn-'+pg+'-lib').className='btn '+(m==='libero'?col:'btn-gray');
+  var today=oggiISO();
+  var dl=document.getElementById(pg+'-lib-date');if(dl&&!dl.value)dl.value=today;
 }
 
 function showPage(name,el){
@@ -876,11 +894,8 @@ async function caricaEntrate(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F4E79;">'+codiceDesc+'</div>';
-    var isLib=(!r.codice_articolo&&!!r.testo_originale);
-    var libBadge=isLib?'<span class="badge badge-libero">✍️ Da convertire</span>':'';
-    return '<div class="row-item'+(isLib?' libero':'')+'"><div class="row-qty">'+(r.quantita||'?')+'</div>'
+    return '<div class="row-item"><div class="row-qty">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
-      +libBadge
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✏️</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">🗑</button></div>';
   }).join('');
@@ -1011,9 +1026,12 @@ async function caricaUscite(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>';
-    return '<div class="row-item teal"><div class="row-qty" style="color:#1F6B75;">'+(r.quantita||'?')+'</div>'
-      +'<div class="row-info">'+orig+'<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>'+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+    var isLibU=(!r.codice_articolo&&!!r.testo_originale);
+    var libBadgeU=isLibU?'<span class="badge-libero">✍️ Da convertire</span>':'';
+    return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
+      +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✏️</button>'
+      +libBadgeU
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';
   }).join('');
 }
@@ -1459,6 +1477,42 @@ async function caricaRwa(){
   document.getElementById('rwa-tot-u').textContent='Totale: '+totU+' pz';
 }
 
+
+// ── TESTO LIBERO ENTRATA ─────────────────────────────────────────────
+async function aggiungiTestoLiberoEntrata(){
+  var testo=document.getElementById('e-lib-text').value.trim();
+  if(!testo){showMsg('msg-entrata','Scrivi qualcosa!','err');return;}
+  var dataSel=document.getElementById('e-lib-date').value||oggiISO();
+  var righe=testo.split('\n').map(function(r){return r.trim();}).filter(Boolean);
+  var n=0;
+  for(var i=0;i<righe.length;i++){
+    var r=righe[i];
+    var m=r.match(/^(\d+)\s+(.+)$/);
+    var qty=m?parseInt(m[1]):null;
+    var desc=m?m[2]:r;
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:null,descrizione_articolo:null,data_inserimento:dataSel});
+    if(res)n++;
+  }
+  if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
+}
+
+// ── TESTO LIBERO USCITA ───────────────────────────────────────────────
+async function aggiungiTestoLiberoUscita(){
+  var testo=document.getElementById('u-lib-text').value.trim();
+  if(!testo){showMsg('msg-uscita','Scrivi qualcosa!','err');return;}
+  var dataSel=document.getElementById('u-lib-date').value||oggiISO();
+  var righe=testo.split('\n').map(function(r){return r.trim();}).filter(Boolean);
+  var n=0;
+  for(var i=0;i<righe.length;i++){
+    var r=righe[i];
+    var m=r.match(/^(\d+)\s+(.+)$/);
+    var qty=m?parseInt(m[1]):null;
+    var desc=m?m[2]:r;
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:null,descrizione_articolo:null,data_inserimento:dataSel});
+    if(res)n++;
+  }
+  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
+}
 // ── CONFRONTO ─────────────────────────────────────────────────────────
 async function aggiornaConfronto(){
   var wa=await apiGet('whatsapp_righe');
