@@ -93,9 +93,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .modal-desc { background:#f0f2f5; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:14px; color:#555; }
 /* WA testo originale */
 .wa-orig { font-size:11px; color:#888; font-style:italic; margin-top:2px; border-left:2px solid #FFD966; padding-left:6px; }
-/* Testo libero fratello */
-.row-item.libero { border-left-color: #E8A000; background: #FFFBEE; }
-.badge-libero { background: #FFD966; color: #7B4F00; font-size:11px; }
 @media print {
   body * { visibility: hidden !important; }
   .print-section, .print-section * { visibility: visible !important; }
@@ -879,11 +876,14 @@ async function caricaEntrate(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F4E79;">'+codiceDesc+'</div>';
-    var isLib=(!r.codice_articolo&&!!r.testo_originale);var libBadge=isLib?'<span class="badge badge-libero">✍️ Da convertire</span>':'';
+    var isLib=(!r.codice_articolo&&!!r.testo_originale);
+    var libBadge=isLib?'<span class="badge badge-libero">✍️ Da convertire</span>':'';
     return '<div class="row-item'+(isLib?' libero':'')+'"><div class="row-qty">'+(r.quantita||'?')+'</div>'
-      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✏️</button>'
+      +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadge
+      +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✏️</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">🗑</button></div>';
+  }).join('');
 }
 
 async function svuota(table,msgId){
@@ -1010,11 +1010,10 @@ async function caricaUscite(){
     var waText = r.testo_originale? r.testo_originale : (r.descrizione||r.testo_riga||'');
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
-    var isLibU=(!r.codice_articolo&&!!r.testo_originale);var libBadgeU=isLibU?'<span class="badge badge-libero">✍️ Da convertire</span>':'';
-    return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
-      +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+    var codice = '<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>';
+    return '<div class="row-item teal"><div class="row-qty" style="color:#1F6B75;">'+(r.quantita||'?')+'</div>'
+      +'<div class="row-info">'+orig+'<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>'+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✏️</button>'
-      +libBadgeU
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">🗑</button></div>';
   }).join('');
 }
