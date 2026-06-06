@@ -1536,7 +1536,8 @@ async function aggiornaConfronto(){
   });
   document.getElementById('cf-2').style.display='block';
   var html2='',totWA=0,totDDT=0;
-  Object.values(waMap).forEach(function(a){
+  var waArr=Object.values(waMap).sort(function(a,b){var da=Math.abs(a.wa-a.ddt),db=Math.abs(b.wa-b.ddt);return db-da;});
+  waArr.forEach(function(a){
     var diff=a.wa-a.ddt;totWA+=a.wa;totDDT+=a.ddt;
     var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
     var bg=diff===0?'':'background-color:'+(diff>0?'#FFF3CD':'#FFE8E8')+';';
@@ -1565,7 +1566,8 @@ async function aggiornaConfronto(){
   });
   document.getElementById('cf-3').style.display='block';
   var html3='',tuttoOk=true,totWAU=0,totIMB=0;
-  Object.values(uscMap).forEach(function(a){
+  var uscArr=Object.values(uscMap).sort(function(a,b){var da=Math.abs(a.wau-a.imb),db=Math.abs(b.wau-b.imb);return db-da;});
+  uscArr.forEach(function(a){
     var diff=a.wau-a.imb;totWAU+=a.wau;totIMB+=a.imb;
     if(diff!==0)tuttoOk=false;
     var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
@@ -1595,7 +1597,8 @@ async function aggiornaConfronto(){
     });
     document.getElementById('cf-4').style.display='block';
     var html4='',tuttoOk4=true,totV=0,totDU=0;
-    Object.values(vernMap).forEach(function(a){
+    var vernArr=Object.values(vernMap).sort(function(a,b){var da=Math.abs(a.vern-a.ddt),db=Math.abs(b.vern-b.ddt);return db-da;});
+    vernArr.forEach(function(a){
       var diff=a.vern-a.ddt;totV+=a.vern;totDU+=a.ddt;
       if(diff!==0)tuttoOk4=false;
       var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
