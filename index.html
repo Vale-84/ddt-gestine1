@@ -1439,9 +1439,12 @@ function aggiornaScarto(key,inputId){
 
 async function caricaRiepilogoWA(){await caricaRwa();}
 async function caricaRwa(){
-  var we=await apiGet('whatsapp_righe');
-  var wu=await apiGet('whatsapp_uscita');
-  if(!we||!wu) return;
+  var we=await apiGet('whatsapp_righe','order=created_at.desc&limit=500');
+  var wu=await apiGet('whatsapp_uscita','order=created_at.desc&limit=500');
+  var lE=document.getElementById('rwa-entrate');
+  var lU=document.getElementById('rwa-uscite');
+  if(!we||!wu){if(lE)lE.innerHTML='<div class="empty">Errore connessione</div>';return;}
+  if(we.length===0&&wu.length===0){if(lE)lE.innerHTML='<div class="empty">Nessun dato trovato</div>';return;}
   var mapE={};
   we.forEach(function(r){
     var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
@@ -1957,7 +1960,7 @@ async function salvaImballo2(){
   }
 }
 
-async function caricaRiepilogoWA(){await caricaRwa();}
+
 
 // ── MAGAZZINO ─────────────────────────────────────────────────────────
 var magCache=[];
