@@ -396,9 +396,19 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <!-- SOSTITUZIONI BERGAMASCO -->
 <div id="page-sost-ber" class="page">
   <div id="msg-sost-ber"></div>
+
+  <!-- MODALITÀ INCOLLA MAIL -->
   <div class="card">
-    <h2 style="color:#5B2C8D;">Sostituzioni Bergamasco</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci gli articoli da sostituire (dalla mail). L'app controlla se hai disponibilità in magazzino.</p>
+    <h2 style="color:#5B2C8D;">Incolla mail</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Copia tutto il testo della mail e incollalo qui. L'app estrae automaticamente gli articoli (formato: <strong>N. 5 0090343110 RETE BCO...</strong>)</p>
+    <textarea id="sost-mail-text" rows="6" placeholder="Incolla qui il testo della mail..." style="width:100%;font-size:13px;padding:10px;border:1px solid #ccc;border-radius:8px;resize:vertical;box-sizing:border-box;"></textarea>
+    <button class="btn btn-purple" style="margin-top:8px;" onclick="parseMail()">ESTRAI ARTICOLI DALLA MAIL</button>
+    <div id="sost-mail-res" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- MODALITÀ MANUALE -->
+  <div class="card">
+    <h2 style="color:#5B2C8D;">Aggiungi manuale</h2>
     <label>Cerca articolo</label>
     <div class="cerca-box">
       <input class="cerca-input" id="sost-cerca" placeholder="Codice o descrizione..." oninput="cerca('sost')" autocomplete="off">
@@ -1588,6 +1598,41 @@ function aggiornaScarto(key,inputId){
 
 // ── SOSTITUZIONI BERGAMASCO ───────────────────────────────────────────
 var sostCache=[];
+
+// ── PARSE MAIL SOSTITUZIONI ───────────────────────────────────────────
+async function parseMail(){
+  var testo=document.getElementById('sost-mail-text').value;
+  var res=document.getElementById('sost-mail-res');
+  if(!testo.trim()){res.innerHTML='<div class="warn-box">Incolla prima il testo della mail!</div>';return;}
+  // Cerca righe tipo: N. 5 0090343110 RETE MOD.CULLA BCO
+  var righe=testo.split('\n');
+  var trovati=[];
+  var regex=/^[Nn]\.?\s*(\d+)\s+(\d{7,13})\s+(.+)$/;
+  righe.forEach(function(riga){
+    riga=riga.trim();
+    var m=riga.match(regex);
+    if(m){
+      trovati.push({qty:parseInt(m[1]),cod:m[2].trim(),desc:m[3].trim()});
+    }
+  });
+  if(!trovati.length){
+    res.innerHTML='<div class="warn-box">Nessun articolo trovato. Assicurati che le righe siano nel formato: <strong>N. 5 0090343110 DESCRIZIONE</strong></div>';
+    return;
+  }
+  res.innerHTML='<div class="ok-box">Trovati '+trovati.length+' articoli. Salvataggio...</div>';
+  var ok=0;var err=0;
+  for(var i=0;i<trovati.length;i++){
+    var t=trovati[i];
+    var r=await apiPost('sostituzioni_ber',{codice_articolo:t.cod,descrizione:t.desc,quantita:t.qty,note:'da mail',evaso:false});
+    if(r)ok++;else err++;
+  }
+  document.getElementById('sost-mail-text').value='';
+  var msg='<div class="ok-box">✅ Salvati '+ok+' articoli';
+  if(err)msg+=' — '+err+' errori';
+  msg+='</div>';
+  res.innerHTML=msg;
+  caricaSostituzioni();
+}
 
 async function aggiungiSostituzione(){
   var cod=document.getElementById('sost-cod').value.trim();
