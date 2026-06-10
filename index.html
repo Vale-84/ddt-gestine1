@@ -1928,7 +1928,7 @@ async function mostraRiepilogoDDTU(){
   dDDT.forEach(function(r){
     var k=r.codice_articolo||r.descrizione;
     if(!map[k])map[k]={cod:r.codice_articolo||'',desc:r.descrizione,ddt:0,imb:0};
-    map[k].ddt+=(r.quantita_ddt||0);
+    map[k].ddt+=(r.quantita_ddt||r.quantita||0);
   });
   // Add imballo totals by codice_articolo
   dImb.forEach(function(r){
