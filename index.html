@@ -1918,16 +1918,23 @@ async function salvaDDTUscita(){
   var r=await apiPost('ddt_uscita',b);if(r){showMsg('msg-ddt-u','Salvato!','ok');caricaDDTU();}
 }
 
-function mostraRiepilogoDDTU(){
-  var d=window._ddtuData;
-  if(!d||!d.length){alert('Nessun dato caricato');return;}
-  // Group by codice_articolo, sum ddt and imballato
+async function mostraRiepilogoDDTU(){
+  var dDDT=window._ddtuData;
+  if(!dDDT||!dDDT.length){alert('Nessun dato DDT caricato');return;}
+  var dImb=await apiGet('imballo');
+  if(!dImb){alert('Errore caricamento imballo');return;}
+  // Group DDT by codice_articolo
   var map={};
-  d.forEach(function(r){
+  dDDT.forEach(function(r){
     var k=r.codice_articolo||r.descrizione;
     if(!map[k])map[k]={cod:r.codice_articolo||'',desc:r.descrizione,ddt:0,imb:0};
     map[k].ddt+=(r.quantita_ddt||0);
-    map[k].imb+=(r.quantita_imballato||0);
+  });
+  // Add imballo totals by codice_articolo
+  dImb.forEach(function(r){
+    var k=r.codice_articolo||r.articolo;
+    if(!map[k])map[k]={cod:r.codice_articolo||'',desc:r.articolo||'',ddt:0,imb:0};
+    map[k].imb+=(r.totale||0);
   });
   var diversi=Object.values(map).filter(function(x){return x.ddt!==x.imb;});
   var div=document.getElementById('du-riepilogo');
