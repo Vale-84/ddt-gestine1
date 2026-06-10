@@ -355,7 +355,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#5B2C8D;margin:0;">Verifica Verniciato vs Imballo</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-orange btn-sm" onclick="verificaWAImballo()">VERIFICA VERNICIATO vs IMBALLO</button>
+            <button class="btn btn-orange btn-sm" onclick="verificaVernImballo()">VERIFICA VERNICIATO vs IMBALLO</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
         </div>
@@ -1651,6 +1651,56 @@ async function aggiungiTestoLiberoUscita(){
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
 }
 // ── CONFRONTO ─────────────────────────────────────────────────────────
+async function verificaVernImballo(){
+  var vern=await apiGet('verniciato');
+  var imb=await apiGet('imballo');
+  var res=document.getElementById('imb2-verifica-res');
+  if(!res)return;
+  if(!vern||!imb){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
+  if(!vern.length){res.innerHTML='<div class="warn-box">Nessun verniciato presente.</div>';return;}
+  var mapVern={};
+  vern.forEach(function(r){
+    var key=((r.codice_articolo||'').toString().trim().toLowerCase()||('##'+(r.descrizione||'').toString().trim().toLowerCase()));
+    if(!mapVern[key])mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    mapVern[key].tot+=Number(r.quantita)||0;
+  });
+  var mapImb={};
+  imb.forEach(function(r){
+    var key=((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase()||('##'+(r.articolo||'').toString().trim().toLowerCase()));
+    if(!mapImb[key])mapImb[key]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
+    mapImb[key].tot+=Number(r.totale)||0;
+  });
+  var missing=[];var diff=[];var extra=[];
+  Object.keys(mapVern).forEach(function(key){
+    var v=mapVern[key];var i=mapImb[key];
+    if(!i){missing.push(v);}
+    else if(Math.abs((v.tot||0)-(i.tot||0))>0.0001){diff.push({cod:v.cod||i.cod,desc:v.desc||i.desc,vern:v.tot||0,imb:i.tot||0});}
+  });
+  Object.keys(mapImb).forEach(function(key){
+    if(!mapVern[key])extra.push(mapImb[key]);
+  });
+  if(!missing.length&&!diff.length&&!extra.length){
+    res.innerHTML='<div class="ok-box">✅ Verniciato e Imballo coincidono per tutti gli articoli.</div>';return;
+  }
+  var html='';
+  if(missing.length){
+    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Verniciato ma NON imballo</h3>'
+      +missing.map(function(a){return '<div class="row-item"><div class="row-qty">'+a.tot+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+a.tot+' pz — Imballo: 0 pz</div></div></div>';}).join('')+'</div>';
+  }
+  if(diff.length){
+    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Quantità diverse tra Verniciato e Imballo</h3>'
+      +diff.map(function(a){
+        var delta=a.vern-a.imb;
+        return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+a.vern+' pz — Imballo: '+a.imb+' pz (diff: '+(delta>0?'+':'')+delta+')</div></div></div>';
+      }).join('')+'</div>';
+  }
+  if(extra.length){
+    html+='<div><h3 style="margin-bottom:8px;">Imballo senza verniciato registrato</h3>'
+      +extra.map(function(a){return '<div class="row-item"><div class="row-qty">'+a.tot+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Imballo: '+a.tot+' pz — Verniciato: 0 pz</div></div></div>';}).join('')+'</div>';
+  }
+  res.innerHTML=html;
+}
+
 async function aggiornaConfronto(){
   var wa=await apiGet('whatsapp_righe');
   var ddte=await apiGet('ddt_entrata');
