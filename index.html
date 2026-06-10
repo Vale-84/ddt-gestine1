@@ -1920,7 +1920,7 @@ async function caricaDDTU(){
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
-  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span></div>';}).join('');
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span><button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,\'\\\'\')+'\'\,\'ddt_uscita\')">✎</button><button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button></div>';}).join('');
 }
 
 async function leggiPDFUscita(input){
