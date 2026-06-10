@@ -1760,7 +1760,7 @@ async function leggiPDF(input){
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
     var nddt='',data='',cliente='',articoli=[];
-   var mN=testo.match(/NUM\.\s*D\.D\.T\.\s+([A-Z]\d{5,8})/i);if(!mN)mN=testo.match(/([C-Z]\d{6,8})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);if(!mN)mN=testo.match(/([A-Z]\d{6,8})/);if(mN)nddt=mN[1].trim();
+   var mN=testo.match(/(C\d{7})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);if(!mN)mN=testo.match(/DDT NR\.?[\s\S]{0,150}?(C\d{7})/i);if(!mN)mN=testo.match(/NUM\.?\s*D\.?D\.?T\.?\s*([A-Z]\d{5,8})/i);if(mN)nddt=mN[1].trim();
     var mD=testo.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
     if(mD)data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
     if(!data){var mD2=testo.match(/(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s*(\d{4})/i);
@@ -1932,7 +1932,7 @@ async function leggiPDFUscita(input){
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
     var nddt='',data='',cliente='',articoli=[];
-    var mN=testo.match(/NUM\.?\s*D\.?D\.?T\.?\s*([A-Z]\d{5,8})/i);if(!mN)mN=testo.match(/([C-Z]\d{6,8})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);if(!mN)mN=testo.match(/DDT NR\.?\s*([A-Z]\d{5,8})/i);if(!mN){var mAll=testo.match(/([C-Z]\d{6,8})/g);if(mAll)nddt=mAll[0].trim();}else{nddt=mN[1].trim();}
+    var mN=testo.match(/(C\d{7})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);if(!mN)mN=testo.match(/DDT NR\.?[\s\S]{0,150}?(C\d{7})/i);if(!mN)mN=testo.match(/NUM\.?\s*D\.?D\.?T\.?\s*([A-Z]\d{5,8})/i);if(mN)nddt=mN[1].trim();
     var mD=testo.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
     if(mD)data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
     if(!data){var mD2=testo.match(/(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s*(\d{4})/i);
