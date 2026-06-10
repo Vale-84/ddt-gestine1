@@ -132,6 +132,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
+  <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
   <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
   <div class="tab" data-page="cfg" onclick="showPage('cfg',this)">Config</div>
@@ -389,6 +390,41 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <div id="ber-riepilogo-lista2"><div class="empty">Premi Aggiorna</div></div>
     <div id="ber-riepilogo-tot2" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
+  </div>
+</div>
+
+<!-- SOSTITUZIONI BERGAMASCO -->
+<div id="page-sost-ber" class="page">
+  <div id="msg-sost-ber"></div>
+  <div class="card">
+    <h2 style="color:#5B2C8D;">Sostituzioni Bergamasco</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci gli articoli da sostituire (dalla mail). L'app controlla se hai disponibilità in magazzino.</p>
+    <label>Cerca articolo</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="sost-cerca" placeholder="Codice o descrizione..." oninput="cerca('sost')" autocomplete="off">
+      <div class="cerca-risultati" id="sost-ris"></div>
+    </div>
+    <div class="art-sel" id="sost-sel"></div>
+    <input type="hidden" id="sost-cod"><input type="hidden" id="sost-dsc">
+    <label>Quantità richiesta</label>
+    <input type="number" id="sost-qty" placeholder="0" min="1" style="font-size:20px;text-align:center;font-weight:bold;">
+    <label>Note (es. numero mail, riferimento)</label>
+    <input type="text" id="sost-note" placeholder="es. mail 10/06">
+    <button class="btn btn-purple" onclick="aggiungiSostituzione()">AGGIUNGI SOSTITUZIONE</button>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <h2 style="color:#5B2C8D;margin:0;">Lista sostituzioni</h2>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-blue btn-sm" onclick="caricaSostituzioni()">↻</button>
+        <button class="btn btn-orange btn-sm" onclick="verificaDisponibilitaSost()">VERIFICA DISPONIBILITÀ</button>
+      </div>
+    </div>
+    <div id="sost-lista"><div class="empty">Nessuna sostituzione</div></div>
+  </div>
+  <div class="card" id="sost-verifica-card" style="display:none;">
+    <h2 style="color:#5B2C8D;">Risultato verifica disponibilità</h2>
+    <div id="sost-verifica-res"></div>
   </div>
 </div>
 
@@ -840,6 +876,7 @@ function showPage(name,el){
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
   if(name==='riepilogo-ber')caricaRiepilogoBer();
+  if(name==='sost-ber')caricaSostituzioni();
   if(name==='confronto')aggiornaConfronto();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
@@ -1548,6 +1585,106 @@ function aggiornaScarto(key,inputId){
   var val=parseInt(document.getElementById(inputId).value)||0;
   scartoBer[key]=val;caricaRiepilogoBer();
 }
+
+// ── SOSTITUZIONI BERGAMASCO ───────────────────────────────────────────
+var sostCache=[];
+
+async function aggiungiSostituzione(){
+  var cod=document.getElementById('sost-cod').value.trim();
+  var dsc=document.getElementById('sost-dsc').value.trim();
+  var qty=parseInt(document.getElementById('sost-qty').value)||0;
+  var note=document.getElementById('sost-note').value.trim();
+  if(!dsc&&!cod){alert('Seleziona un articolo!');return;}
+  if(!qty||qty<=0){alert('Inserisci una quantità!');return;}
+  var r=await apiPost('sostituzioni_ber',{codice_articolo:cod,descrizione:dsc,quantita:qty,note:note,evaso:false});
+  if(!r){alert('Errore salvataggio!');return;}
+  document.getElementById('sost-cerca').value='';
+  document.getElementById('sost-sel').innerHTML='';
+  document.getElementById('sost-cod').value='';
+  document.getElementById('sost-dsc').value='';
+  document.getElementById('sost-qty').value='';
+  document.getElementById('sost-note').value='';
+  caricaSostituzioni();
+}
+
+async function caricaSostituzioni(){
+  var d=await apiGet('sostituzioni_ber','order=created_at.desc');
+  var l=document.getElementById('sost-lista');
+  if(!d||!l){if(l)l.innerHTML='<div class="empty">Errore connessione</div>';return;}
+  sostCache=d;
+  if(!d.length){l.innerHTML='<div class="empty">Nessuna sostituzione</div>';return;}
+  l.innerHTML=d.map(function(r){
+    var evaso=r.evaso?'<span class="badge badge-ok">✅ Evaso</span>':'<span class="badge badge-warn">⏳ Da fare</span>';
+    return '<div class="row-item" style="border-left-color:'+(r.evaso?'#217346':'#C55A11')+';">'
+      +'<div class="row-qty" style="color:'+(r.evaso?'#217346':'#C55A11')+';">'+r.quantita+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ':'')+r.descrizione+'</div>'
+      +'<div class="rsub">'+(r.note?r.note+' — ':'')+evaso+'</div></div>'
+      +'<div style="display:flex;gap:6px;align-items:center;">'
+      +(r.evaso?'':'<button onclick="evadiSostituzione('+r.id+')" style="padding:6px 10px;background:#217346;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✅</button>')
+      +'<button onclick="eliminaSostituzione('+r.id+')" style="padding:6px 10px;background:#C00000;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+async function evadiSostituzione(id){
+  await apiPatch('sostituzioni_ber','id=eq.'+id,{evaso:true});
+  caricaSostituzioni();
+}
+
+async function eliminaSostituzione(id){
+  if(!confirm('Eliminare questa sostituzione?'))return;
+  await apiDel('sostituzioni_ber','id=eq.'+id);
+  caricaSostituzioni();
+}
+
+async function verificaDisponibilitaSost(){
+  var card=document.getElementById('sost-verifica-card');
+  var res=document.getElementById('sost-verifica-res');
+  card.style.display='block';
+  res.innerHTML='<div class="empty">Caricamento...</div>';
+  // Carica magazzino (ddt_entrata - ddt_uscita)
+  var ent=await apiGet('ddt_entrata');
+  var usc=await apiGet('ddt_uscita');
+  var sost=await apiGet('sostituzioni_ber','evaso=eq.false');
+  if(!ent||!usc||!sost){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
+  if(!sost.length){res.innerHTML='<div class="ok-box">✅ Nessuna sostituzione da evadere.</div>';return;}
+  // Calcola giacenza per codice
+  var magMap={};
+  ent.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toLowerCase();
+    if(!k)return;
+    if(!magMap[k])magMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
+    magMap[k].ric+=Number(r.quantita_ddt)||0;
+  });
+  usc.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toLowerCase();
+    if(!k)return;
+    if(!magMap[k])magMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
+    magMap[k].spe+=Number(r.quantita_ddt)||0;
+  });
+  var html='';
+  var tuttoOk=true;
+  sost.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toLowerCase();
+    var mag=magMap[k];
+    var gia=mag?(mag.ric-mag.spe):0;
+    var ok=gia>=r.quantita;
+    if(!ok)tuttoOk=false;
+    var colore=ok?'#217346':'#C00000';
+    var bg=ok?'#E8F5E9':'#FFE8E8';
+    html+='<div class="row-item" style="border-left-color:'+colore+';background-color:'+bg+';">'
+      +'<div class="row-qty" style="color:'+colore+';">'+gia+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ':'')+r.descrizione+'</div>'
+      +'<div class="rsub">Richiesto: <strong>'+r.quantita+' pz</strong> — Disponibile: <strong>'+gia+' pz</strong> '+(ok?'✅ Disponibile':'❌ Non disponibile')+'</div>'
+      +'</div></div>';
+  });
+  if(tuttoOk)html='<div class="ok-box">✅ Hai disponibilità per tutte le sostituzioni!</div>'+html;
+  else html='<div class="warn-box">⚠️ Alcune sostituzioni non hanno disponibilità sufficiente.</div>'+html;
+  res.innerHTML=html;
+}
+
+
 
 async function caricaRiepilogoWA(){await caricaRwa();}
 async function caricaRwa(){
@@ -2454,7 +2591,7 @@ function setWAMode(mode){
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
   AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-wa','confronto','cfg'],
-  BERGAMASCO:['imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-ber','cfg']
+  BERGAMASCO:['imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-ber','sost-ber','cfg']
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
