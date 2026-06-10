@@ -908,7 +908,9 @@ async function aggiungiWAEntrata(){
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
-        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc)});
+        var vecchiaSeq=dup.testo_seq||(dup.quantita||0)+'';
+        var nuovaSeq=vecchiaSeq+'+'+qty;
+        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_seq:nuovaSeq});
         n++;continue;
       }
     }
@@ -1044,7 +1046,9 @@ async function aggiungiWAUscita(){
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
-        await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc)});
+        var vecchiaSeq=dup.testo_seq||(dup.quantita||0)+'';
+        var nuovaSeq=vecchiaSeq+'+'+qty;
+        await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_seq:nuovaSeq});
         n++;continue;
       }
     }
@@ -1068,7 +1072,7 @@ async function caricaUscite(){
     var isConvU=!!r.convertito;
     var libBadgeU=isConvU?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">&#x2705; Convertito</span>':(isLibU?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_uscita" data-id="'+r.id+'">&#9998; Da convertire</span>':'');
     return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
-      +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">✕</button></div>';
