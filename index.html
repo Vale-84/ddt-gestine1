@@ -186,6 +186,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-green btn-sm" onclick="salvaEntrataMerce()">AGGIUNGI</button>
           </div>
           <div id="e-sezione-wa" style="display:none">
+            <label>Data (lascia vuoto per usare oggi)</label><input type="date" id="e-wa-date" style="margin-bottom:6px;">
             <textarea id="e-wa-text" placeholder="Incolla messaggio WhatsApp..." style="min-height:80px;"></textarea>
             <button class="btn btn-green btn-sm" onclick="aggiungiWAEntrata()">AGGIUNGI RIGHE</button>
           </div>
@@ -231,6 +232,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-teal btn-sm" onclick="salvaUscitaMerce()">AGGIUNGI</button>
           </div>
           <div id="u-sezione-wa" style="display:none">
+            <label>Data (lascia vuoto per usare oggi)</label><input type="date" id="u-wa-date" style="margin-bottom:6px;">
             <textarea id="u-wa-text" placeholder="Incolla messaggio WhatsApp..." style="min-height:80px;"></textarea>
             <button class="btn btn-teal btn-sm" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
           </div>
@@ -891,19 +893,18 @@ async function salvaEntrataMerce(){
 async function aggiungiWAEntrata(){
   var testo=document.getElementById('e-wa-text').value.trim();
   if(!testo){showMsg('msg-entrata','Incolla prima un messaggio!','err');return;}
+  var dataWA=document.getElementById('e-wa-date').value||oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var esistenti=await apiGet('whatsapp_righe','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
     var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
     var art=trovaArt(desc);
-    // Prova unione se stesso codice stesso giorno
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
-        var dataX=(x.created_at||'').slice(0,10);
-        return dataX===oggi && x.codice_articolo===art.codice_articolo;
+        var dataX=(x.data_inserimento||x.created_at||'').slice(0,10);
+        return dataX===dataWA && x.codice_articolo===art.codice_articolo;
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
@@ -911,7 +912,7 @@ async function aggiungiWAEntrata(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataWA});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
@@ -927,8 +928,9 @@ async function caricaEntrate(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F4E79;">'+codiceDesc+'</div>';
-    var isLibE=!!r.da_testo_libero;
-    var libBadgeE=isLibE?'<span class="badge-libero">✎ Da convertire</span>':'';
+    var isLibE=!!r.da_testo_libero&&!r.convertito;
+    var isConvE=!!r.convertito;
+    var libBadgeE=isConvE?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;cursor:default;">&#x2705; Convertito</span>':(isLibE?'<span class="badge-libero" style="cursor:pointer;" title="Clicca per segnare come convertito" onclick="segnaConvertito(event,\"whatsapp_righe\",'+r.id+',caricaEntrate)">&#9998; Da convertire</span>':'');
     return '<div class="row-item'+(isLibE?' libero':'')+'"><div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
@@ -1027,9 +1029,9 @@ async function salvaUscitaMerce(){
 async function aggiungiWAUscita(){
   var testo=document.getElementById('u-wa-text').value.trim();
   if(!testo){showMsg('msg-uscita','Incolla prima un messaggio!','err');return;}
+  var dataWA=document.getElementById('u-wa-date').value||oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var esistenti=await apiGet('whatsapp_uscita','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
@@ -1037,8 +1039,8 @@ async function aggiungiWAUscita(){
     var art=trovaArt(desc);
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
-        var dataX=(x.created_at||'').slice(0,10);
-        return dataX===oggi && x.codice_articolo===art.codice_articolo;
+        var dataX=(x.data_inserimento||x.created_at||'').slice(0,10);
+        return dataX===dataWA && x.codice_articolo===art.codice_articolo;
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
@@ -1046,7 +1048,7 @@ async function aggiungiWAUscita(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataWA});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-wa-text').value='';caricaUscite();mostraConfronto();}
@@ -1062,14 +1064,21 @@ async function caricaUscite(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>';
-    var isLibU=!!r.da_testo_libero;
-    var libBadgeU=isLibU?'<span class="badge-libero">✎ Da convertire</span>':'';
+    var isLibU=!!r.da_testo_libero&&!r.convertito;
+    var isConvU=!!r.convertito;
+    var libBadgeU=isConvU?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;cursor:default;">&#x2705; Convertito</span>':(isLibU?'<span class="badge-libero" style="cursor:pointer;" title="Clicca per segnare come convertito" onclick="segnaConvertito(event,\"whatsapp_uscita\",'+r.id+',caricaUscite)">&#9998; Da convertire</span>':'');
     return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">✕</button></div>';
   }).join('');
+}
+
+async function segnaConvertito(evt,table,id,callback){
+  evt.stopPropagation();
+  await apiPatch(table,'id=eq.'+id,{convertito:true});
+  if(callback)callback();
 }
 
 async function mostraConfronto(){
@@ -1580,11 +1589,21 @@ async function aggiungiTestoLiberoEntrata(){
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i];
-    var m=r.match(/^(\d+)\s+(.+)$/);
-    var qty=m?parseInt(m[1]):null;
-    var desc=m?m[2]:r;
+    // Supporta sia "20 articolo" che "20+20+20 articolo"
+    var mSeq=r.match(/^([\d+]+)\s+(.+)$/);
+    var qty=null,desc=r;
+    if(mSeq){
+      var seqStr=mSeq[1];
+      if(seqStr.indexOf('+')>=0){
+        qty=seqStr.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
+      } else {
+        qty=parseInt(seqStr);
+      }
+      desc=mSeq[2];
+    }
     var art=trovaArt(desc);
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
+    var testo_riga=qty?qty+' '+desc:r;
+    var res=await apiPost('whatsapp_righe',{testo_riga:testo_riga,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
@@ -1599,11 +1618,21 @@ async function aggiungiTestoLiberoUscita(){
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i];
-    var m=r.match(/^(\d+)\s+(.+)$/);
-    var qty=m?parseInt(m[1]):null;
-    var desc=m?m[2]:r;
+    // Supporta sia "20 articolo" che "20+20+20 articolo"
+    var mSeq=r.match(/^([\d+]+)\s+(.+)$/);
+    var qty=null,desc=r;
+    if(mSeq){
+      var seqStr=mSeq[1];
+      if(seqStr.indexOf('+')>=0){
+        qty=seqStr.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
+      } else {
+        qty=parseInt(seqStr);
+      }
+      desc=mSeq[2];
+    }
     var art=trovaArt(desc);
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
+    var testo_riga=qty?qty+' '+desc:r;
+    var res=await apiPost('whatsapp_uscita',{testo_riga:testo_riga,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
