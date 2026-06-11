@@ -309,6 +309,281 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <div class="imb-tot" id="imb2-vern-tot">0</div>
         </div>
         <label>Note</label>
+        <input .btn-green { background: #217346; color: white; }
+.btn-red { background: #C00000; color: white; }
+.btn-blue { background: #1F4E79; color: white; }
+.btn-orange { background: #C55A11; color: white; }
+.btn-teal { background: #1F6B75; color: white; }
+.btn-purple { background: #5B2C8D; color: white; }
+.btn-gray { background: #aaa; color: white; }
+.btn-sm { padding: 10px; font-size: 13px; }
+.metodo-btns { display: flex; gap: 10px; margin-bottom: 0; }
+.metodo-btns .btn { flex: 1; margin-bottom: 0; }
+.cerca-box { position: relative; margin-bottom: 10px; }
+.cerca-input { width: 100%; border: 2px solid #1F4E79; border-radius: 8px; padding: 10px 12px; font-size: 14px; background: #EEF4FF; margin-bottom: 0; }
+.cerca-risultati { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; }
+.cerca-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.cerca-item:hover { background: #EEF4FF; }
+.cerca-codice { font-weight: bold; color: #1F4E79; font-size: 12px; }
+.art-sel { background: #E2EFDA; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; color: #375623; display: none; }
+.pdf-drop { border: 2px dashed #1F4E79; border-radius: 10px; padding: 24px; text-align: center; background: #EEF4FF; margin-bottom: 12px; cursor: pointer; }
+.pdf-drop p { color: #1F4E79; font-size: 14px; font-weight: bold; }
+.pdf-drop small { color: #888; font-size: 12px; }
+.pdf-input { display: none; }
+.pdf-preview { background: #f7f8fa; border-radius: 10px; padding: 14px; margin-bottom: 12px; border-left: 4px solid #C55A11; }
+.pdf-preview h3 { font-size: 13px; color: #C55A11; margin-bottom: 8px; }
+.pdf-info { font-size: 13px; color: #333; margin-bottom: 4px; }
+.pdf-item { background: white; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+.pdf-item .pdesc { font-size: 13px; color: #333; flex: 1; }
+.pdf-item .pqty { font-size: 16px; font-weight: bold; color: #1F4E79; min-width: 50px; text-align: right; }
+.row-item { background: #f7f8fa; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; border-left: 4px solid #1F4E79; gap: 8px; }
+.row-item.verde { border-left-color: #217346; }
+.row-item.viola { border-left-color: #5B2C8D; }
+.row-item.teal { border-left-color: #1F6B75; }
+.row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
+.row-info { flex: 1; }
+.row-info .rdesc { font-size: 13px; color: #222; }
+.row-info .rsub { font-size: 11px; color: #999; margin-top: 2px; }
+.del-btn { background: none; border: 1px solid #ffaaaa; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; color: #C00000; }
+.edit-btn { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; }
+.msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+.msg-ok { background: #E2EFDA; color: #375623; }
+.msg-err { background: #FCE4D6; color: #7B2C2C; }
+.config-box { background: #FFFBEE; border: 2px solid #FFD966; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+.config-box h3 { color: #7B4F00; margin-bottom: 10px; font-size: 14px; }
+.badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+.badge-ok { background: #E2EFDA; color: #375623; }
+.badge-warn { background: #FFF2CC; color: #7B4F00; }
+.badge-err { background: #FCE4D6; color: #7B2C2C; }
+.stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+.stat { background: #EEF4FF; border-radius: 8px; padding: 10px 6px; text-align: center; }
+.stat .n { font-size: 20px; font-weight: bold; color: #1F4E79; }
+.stat .l { font-size: 10px; color: #666; margin-top: 2px; }
+.empty { text-align: center; color: #bbb; font-size: 14px; padding: 20px 0; }
+.imb-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+.imb-row input { margin-bottom: 0; flex: 1; }
+.imb-tot { background: #E2EFDA; border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 18px; font-weight: bold; color: #217346; min-width: 65px; }
+.ok-box { background: #E2EFDA; border-radius: 8px; padding: 10px 14px; color: #375623; font-size: 13px; margin-top: 8px; }
+.warn-box { background: #FCE4D6; border-radius: 8px; padding: 10px 14px; color: #7B2C2C; font-size: 13px; margin-top: 8px; }
+.modal { display: none; position: fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; padding:16px; }
+.modal-box { background:white; border-radius:16px; padding:20px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
+.modal-box h3 { color:#1F4E79; margin-bottom:12px; font-size:15px; }
+.modal-desc { background:#f0f2f5; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:14px; color:#555; }
+/* WA testo originale */
+.wa-orig { font-size:11px; color:#888; font-style:italic; margin-top:2px; border-left:2px solid #FFD966; padding-left:6px; }
+/* Testo libero fratello */
+.row-item.libero { border-left-color: #E8A000; background: #FFFBEE; }
+.badge-libero { background: #FFD966; color: #7B4F00; font-size:11px; font-weight:bold; padding:2px 7px; border-radius:20px; display:inline-block; }
+@media print {
+  body * { visibility: hidden !important; }
+  .print-section, .print-section * { visibility: visible !important; }
+  .print-section { position: relative; top: 0; left: 0; width: 100%; }
+  .print-section button { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <h1>DDT Gestione</h1>
+      <p id="conn-status">Configura Supabase nelle Impostazioni</p>
+    </div>
+    <div id="cliente-selector" style="display:none">
+      <select id="cliente-sel" onchange="cambiaCliente()" style="background:#2a5f8f;color:white;border:1px solid #aac4e0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:bold;cursor:pointer;">
+        <option value="AZZURRA">AZZURRA</option>
+        <option value="BERGAMASCO">BERGAMASCO</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-page="wa" onclick="showPage('wa',this)">WA</div>
+  <div class="tab" data-page="imballo" onclick="showPage('imballo',this)">Imballo</div>
+  <div class="tab admin-tab" data-page="verniciato" onclick="showPage('verniciato',this)" style="display:none">Verniciato</div>
+  <div class="tab admin-tab" data-page="ddt-entrata" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
+  <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
+  <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
+  <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
+  <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
+  <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
+  <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
+  <div class="tab" data-page="cfg" onclick="showPage('cfg',this)">Config</div>
+</div>
+
+<!-- WA UNICA - 3 COLONNE -->
+<div id="page-wa" class="page active">
+  <div id="msg-wa"></div>
+  <div id="msg-entrata"></div>
+  <div id="msg-uscita"></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+
+    <!-- COLONNA 1: WA ENTRATA + USCITA -->
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2>WhatsApp</h2>
+        <div class="metodo-btns">
+          <button id="btn-wa-e" class="btn btn-green btn-sm" onclick="setWAMode('entrata')">ENTRATA</button>
+          <button id="btn-wa-u" class="btn btn-gray btn-sm" onclick="setWAMode('uscita')">USCITA</button>
+        </div>
+      </div>
+
+      <!-- SEZIONE ENTRATA -->
+      <div id="wa-sezione-entrata">
+        <div class="card" style="margin-bottom:10px;">
+          <div class="metodo-btns" style="margin-bottom:8px;">
+            <button id="btn-e-man" class="btn btn-green btn-sm" onclick="setMetodo('e','manuale')">MANUALE</button>
+            <button id="btn-e-wa" class="btn btn-gray btn-sm" onclick="setMetodo('e','wa')">WHATSAPP</button>
+            <button id="btn-e-lib" class="btn btn-gray btn-sm" onclick="setMetodo('e','libero')">TESTO LIBERO</button>
+          </div>
+          <div id="e-sezione-libero" style="display:none;margin-top:8px;">
+            <label>Data</label><input type="date" id="e-lib-date" style="margin-bottom:6px;">
+            <textarea id="e-lib-text" placeholder="es. 190 testate glam bianco&#10;25 sponde lettino web bianco" style="min-height:80px;"></textarea>
+            <button class="btn btn-green btn-sm" onclick="aggiungiTestoLiberoEntrata()">AGGIUNGI RIGHE</button>
+          </div>
+          <div id="e-sezione-manuale">
+            <label>Cerca articolo</label>
+            <div class="cerca-box">
+              <input class="cerca-input" id="e-cerca" placeholder="Codice o descrizione..." oninput="cerca('e')" autocomplete="off">
+              <div class="cerca-risultati" id="e-ris"></div>
+            </div>
+            <div class="art-sel" id="e-sel"></div>
+            <input type="hidden" id="e-cod"><input type="hidden" id="e-dsc">
+            <label>Data</label><input type="date" id="e-date" style="margin-bottom:6px;">
+            <label>Quantità</label>
+            <div class="imb-row">
+              <input type="text" id="e-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('e-qty','e-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
+              <div class="imb-tot" id="e-tot">0</div>
+            </div>
+            <label>Note</label><input type="text" id="e-note" placeholder="">
+            <button class="btn btn-green btn-sm" onclick="salvaEntrataMerce()">AGGIUNGI</button>
+          </div>
+          <div id="e-sezione-wa" style="display:none">
+            <label>Data (lascia vuoto per usare oggi)</label><input type="date" id="e-wa-date" style="margin-bottom:6px;">
+            <textarea id="e-wa-text" placeholder="Incolla messaggio WhatsApp..." style="min-height:80px;"></textarea>
+            <button class="btn btn-green btn-sm" onclick="aggiungiWAEntrata()">AGGIUNGI RIGHE</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:10px;">
+          <h2 style="color:#217346;">Articoli entrati</h2>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuota('whatsapp_righe','msg-wa')">SVUOTA</button>
+            <button class="btn btn-blue btn-sm" style="flex:1;" onclick="unisciDuplicatiEntrata()">UNISCI</button>
+          </div>
+          <div id="e-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
+        </div>
+      </div>
+
+      <!-- SEZIONE USCITA -->
+      <div id="wa-sezione-uscita" style="display:none">
+        <div class="card" style="margin-bottom:10px;">
+          <div class="metodo-btns" style="margin-bottom:8px;">
+            <button id="btn-u-man" class="btn btn-teal btn-sm" onclick="setMetodo('u','manuale')">MANUALE</button>
+            <button id="btn-u-wa" class="btn btn-gray btn-sm" onclick="setMetodo('u','wa')">WHATSAPP</button>
+            <button id="btn-u-lib" class="btn btn-gray btn-sm" onclick="setMetodo('u','libero')">TESTO LIBERO</button>
+          </div>
+          <div id="u-sezione-libero" style="display:none;margin-top:8px;">
+            <label>Data</label><input type="date" id="u-lib-date" style="margin-bottom:6px;">
+            <textarea id="u-lib-text" placeholder="es. 37+37+37 testate glam bianco&#10;25 sponde lettino" style="min-height:80px;"></textarea>
+            <button class="btn btn-teal btn-sm" onclick="aggiungiTestoLiberoUscita()">AGGIUNGI RIGHE</button>
+          </div>
+          <div id="u-sezione-manuale">
+            <label>Cerca articolo</label>
+            <div class="cerca-box">
+              <input class="cerca-input" id="u-cerca" placeholder="Codice o descrizione..." oninput="cerca('u')" autocomplete="off">
+              <div class="cerca-risultati" id="u-ris"></div>
+            </div>
+            <div class="art-sel" id="u-sel"></div>
+            <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
+            <label>Data</label><input type="date" id="u-date" style="margin-bottom:6px;">
+            <label>Sequenza (es. 37+37+37)</label>
+            <div class="imb-row">
+              <input type="text" id="u-seq" placeholder="37+37+37" oninput="calcolaSeq('u-seq','u-tot')">
+              <div class="imb-tot" id="u-tot">0</div>
+            </div>
+            <label>Note</label><input type="text" id="u-note" placeholder="">
+            <button class="btn btn-teal btn-sm" onclick="salvaUscitaMerce()">AGGIUNGI</button>
+          </div>
+          <div id="u-sezione-wa" style="display:none">
+            <label>Data (lascia vuoto per usare oggi)</label><input type="date" id="u-wa-date" style="margin-bottom:6px;">
+            <textarea id="u-wa-text" placeholder="Incolla messaggio WhatsApp..." style="min-height:80px;"></textarea>
+            <button class="btn btn-teal btn-sm" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
+          </div>
+        </div>
+        <div id="u-confronto" style="display:none" class="card" style="margin-bottom:10px;">
+          <h2>Confronto imballo</h2>
+          <div id="u-confronto-res"></div>
+        </div>
+        <div class="card" style="margin-bottom:10px;">
+          <h2 style="color:#1F6B75;">Uscite registrate</h2>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaUscite()">SVUOTA</button>           
+            <button class="btn btn-teal btn-sm" style="flex:1;" onclick="unisciDuplicatiUscita()">UNISCI</button><button class="btn btn-blue btn-sm" style="flex:1;" onclick="associaCodiciUscita()">ASSOCIA</button>
+          </div>
+          <div id="u-lista" style="margin-top:8px;"><div class="empty">Nessuna uscita</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLONNA 2: VERNICIATO -->
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2 style="color:#C55A11;">Verniciato</h2>
+        <label>Cerca articolo</label>
+        <div class="cerca-box">
+          <input class="cerca-input" id="vern-cerca" placeholder="Codice o descrizione..." oninput="cerca('vern')" autocomplete="off">
+          <div class="cerca-risultati" id="vern-ris"></div>
+        </div>
+        <div class="art-sel" id="vern-sel"></div>
+        <input type="hidden" id="vern-cod"><input type="hidden" id="vern-dsc">
+        <label>Data</label><input type="date" id="vern-date" style="margin-bottom:6px;">
+        <label>Quantità (es. 10+10+10)</label>
+        <div class="imb-row">
+          <input type="text" id="vern-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('vern-qty','vern-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
+          <div class="imb-tot" id="vern-tot">0</div>
+        </div>
+        <label>Note</label>
+        <input type="text" id="vern-note" placeholder="">
+        <button class="btn btn-orange btn-sm" onclick="salvaVerniciato()">SALVA</button>
+        <div id="msg-verniciato" style="margin-top:6px;"></div>
+      </div>
+      <div class="card">
+        <h2 style="color:#C55A11;">Verniciato oggi</h2>
+        <button class="btn btn-red btn-sm" onclick="svuotaVerniciato()">SVUOTA</button>
+        <div id="vern-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
+      </div>
+    </div>
+
+  </div><!-- fine grid -->
+</div>
+
+<!-- IMBALLO -->
+<div id="page-imballo" class="page">
+  <div id="msg-imballo2"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start;">
+
+    <!-- COLONNA 1: VERNICIATO (nella scheda imballo) -->
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2 style="color:#C55A11;">Verniciato</h2>
+        <div id="msg-imb2-vern" style="margin-bottom:6px;"></div>
+        <label>Cerca articolo</label>
+        <div class="cerca-box">
+          <input class="cerca-input" id="imb2vern-cerca" placeholder="Codice o descrizione..." oninput="cerca('imb2vern')" autocomplete="off">
+          <div class="cerca-risultati" id="imb2vern-ris"></div>
+        </div>
+        <div class="art-sel" id="imb2vern-sel"></div>
+        <input type="hidden" id="imb2vern-cod"><input type="hidden" id="imb2vern-dsc">
+        <label>Data</label><input type="date" id="imb2-vern-date" style="margin-bottom:6px;">
+        <label>Quantità (es. 10+10+10)</label>
+        <div class="imb-row">
+          <input type="text" id="imb2-vern-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('imb2-vern-qty','imb2-vern-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
+          <div class="imb-tot" id="imb2-vern-tot">0</div>
+        </div>
+        <label>Note</label>
         <input type="text" id="imb2-vern-note" placeholder="">
         <button class="btn btn-orange btn-sm" onclick="salvaVernBer()">SALVA</button>
       </div>
