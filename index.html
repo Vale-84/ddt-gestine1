@@ -1039,6 +1039,19 @@ async function caricaUscite(){
   }).join('');
 }
 
+async function segnaConvertito(table,id){
+  await apiPatch(table,'id=eq.'+id,{convertito:true});
+  if(table==='whatsapp_uscita')caricaUscite(); else caricaEntrate();
+}
+
+document.addEventListener('click',function(e){
+  var el=e.target.closest('.badge-converti');
+  if(!el)return;
+  var table=el.getAttribute('data-table');
+  var id=el.getAttribute('data-id');
+  if(table&&id)segnaConvertito(table,parseInt(id));
+});
+
 async function mostraConfronto(){
   var imb=await apiGet('imballo');var wau=await apiGet('whatsapp_uscita');if(!imb||!wau)return;
   var tI=imb.reduce(function(a,r){return a+(r.totale||0);},0);
@@ -1395,7 +1408,11 @@ var scartoBer={};
 async function caricaRiepilogoBer(){
   var vern=await apiGet('verniciato');
   var imb=await apiGet('imballo');
+  var scartiDB=await apiGet('scarti_ber');
   if(!vern||!imb)return;
+  if(scartiDB&&scartiDB.length){
+    scartiDB.forEach(function(r){scartoBer[r.codice_articolo]=r.quantita;});
+  }
   var map={};
   vern.forEach(function(r){
     var k=r.codice_articolo||r.descrizione||'?';
@@ -1435,9 +1452,16 @@ async function caricaRiepilogoBer(){
   renderList('ber-riepilogo-lista2','ber-riepilogo-tot2');
 }
 
-function aggiornaScarto(key,inputId){
+async function aggiornaScarto(key,inputId){
   var val=parseInt(document.getElementById(inputId).value)||0;
-  scartoBer[key]=val;caricaRiepilogoBer();
+  scartoBer[key]=val;
+  var esistente=await apiGet('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key));
+  if(esistente&&esistente.length){
+    await apiPatch('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key),{quantita:val});
+  } else {
+    await apiPost('scarti_ber',{codice_articolo:key,quantita:val,cliente:'BERGAMASCO'});
+  }
+  caricaRiepilogoBer();
 }
 
 async function caricaRiepilogoWA(){await caricaRwa();}
