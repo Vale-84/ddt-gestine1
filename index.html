@@ -894,8 +894,9 @@ async function caricaEntrate(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F4E79;">'+codiceDesc+'</div>';
-    var isLibE=!!r.da_testo_libero;
-    var libBadgeE=isLibE?'<span class="badge-libero">✎ Da convertire</span>':'';
+    var isLibE=!!r.da_testo_libero&&!r.convertito;
+    var isConvE=!!r.convertito;
+    var libBadgeE=isConvE?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibE?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_righe" data-id="'+r.id+'">✎ Da convertire</span>':'');
     return '<div class="row-item'+(isLibE?' libero':'')+'"><div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
@@ -1029,8 +1030,9 @@ async function caricaUscite(){
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
     var codice = '<div class="rsub" style="font-size:12px;color:#1F6B75;">'+codiceDesc+'</div>';
-    var isLibU=!!r.da_testo_libero;
-    var libBadgeU=isLibU?'<span class="badge-libero">✎ Da convertire</span>':'';
+    var isLibU=!!r.da_testo_libero&&!r.convertito;
+    var isConvU=!!r.convertito;
+    var libBadgeU=isConvU?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibU?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_uscita" data-id="'+r.id+'">✎ Da convertire</span>':'');
     return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
