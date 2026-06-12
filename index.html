@@ -1012,8 +1012,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 var pdfDati=null, artCache=[];
 
-function getConfig(){return{url:localStorage.getItem('ddt_url')||'',key:localStorage.getItem('ddt_key')||''};}
-
+function getConfig(){return{url:'https://ddziwcyxjgzcmtlqltrc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkeml3Y3l4amd6Y210bHFsdHJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDE4NjUsImV4cCI6MjA5NTExNzg2NX0.xBu-nFP-7G1I4gj7vU0iaN4LWYmJ1kwUAbwr0UjN8l8'};}
 function salvaConfig(){
   var url=document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
   var key=document.getElementById('cfg-key').value.trim();
