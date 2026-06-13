@@ -1527,28 +1527,46 @@ async function caricaRiepilogoBerNew(){
     if(!entrList.length){lEnt.innerHTML='<div class="empty">Nessuna entrata</div>';}
     else{
       lEnt.innerHTML=entrList.map(function(a){
-        return '<div class="row-item" style="border-left-color:#378ADD;">'          +'<div class="row-qty" style="color:#185FA5;">'+a.tot+'</div>'          +'<div class="row-info">'            +'<div class="rdesc"><span class="badge" style="background:#E6F1FB;color:#0C447C;">'+a.cod+'</span> '+a.desc+'</div>'            +'<div class="rsub">DDT '+a.ddt+(a.data?' — '+a.data:'')+'</div>'          +'</div></div>';
+        return '<div class="row-item" style="border-left-color:#378ADD;">'
+          +'<div class="row-qty" style="color:#185FA5;">'+a.tot+'</div>'
+          +'<div class="row-info">'
+            +'<div class="rdesc"><span class="badge" style="background:#E6F1FB;color:#0C447C;">'+a.cod+'</span> '+a.desc+'</div>'
+            +'<div class="rsub">DDT '+a.ddt+(a.data?' — '+a.data:'')+'</div>'
+          +'</div></div>';
       }).join('');
     }
   }
 
   // SEZIONE 2: Finiti (B0...) — Verniciato vs Imballo vs DDT Uscita
+  // Mappa DDT entrata per codice B0 — NON esiste, ma cerchiamo corrispondenza per numero DDT
+  // Mappa DDT entrata: numero_ddt -> quantita totale entrata
+  var mapEntQty={};
+  var mapEntNddt={};
+  ent.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();
+    if(!k)return;
+    if(!mapEntQty[k])mapEntQty[k]={tot:0,nddt:r.numero_ddt||''};
+    mapEntQty[k].tot+=Number(r.quantita_ddt)||0;
+    if(r.numero_ddt)mapEntQty[k].nddt=r.numero_ddt;
+  });
+
   var mapFin={};
   vern.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
-    if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
+    if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0,nddt_e:''};
     mapFin[k].vern+=Number(r.quantita)||0;
   });
   imb.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
-    if(!mapFin[k])mapFin[k]={cod:k,desc:r.articolo||'',vern:0,imb:0,ddt:0};
+    if(!mapFin[k])mapFin[k]={cod:k,desc:r.articolo||'',vern:0,imb:0,ddt:0,nddt_e:''};
     if(!mapFin[k].desc)mapFin[k].desc=r.articolo||'';
     mapFin[k].imb+=Number(r.totale)||0;
   });
   usc.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
-    if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
+    if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0,nddt_e:''};
     mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
+    if(r.numero_ddt)mapFin[k].nddt_e=r.numero_ddt;
   });
 
   var lFin=document.getElementById('ber-new-finiti');
@@ -1561,13 +1579,22 @@ async function caricaRiepilogoBerNew(){
       lFin.innerHTML=finList.map(function(a){
         totV+=a.vern;totI+=a.imb;totD+=a.ddt;
         var ok=a.vern===a.imb&&a.imb===a.ddt;
-        var diffImb=a.vern-a.imb;
-        var diffDdt=a.imb-a.ddt;
-        var bordo=ok?'#217346':'#C55A11';
+        var aperti=a.vern-a.imb;
+        var ddtAperti=a.ddt>0?(a.ddt-a.imb):0;
+        var bordo=ok?'#217346':(aperti>0||ddtAperti!==0)?'#C55A11':'#217346';
+        var badgeParts=[];
+        if(aperti>0)badgeParts.push('aperti: '+aperti);
+        if(a.nddt_e&&ddtAperti!==0)badgeParts.push('DDT '+a.nddt_e+' aperti: '+Math.abs(ddtAperti));
+        else if(!a.nddt_e&&a.ddt>0&&(a.ddt-a.imb)!==0)badgeParts.push('DDT aperti: '+Math.abs(a.ddt-a.imb));
         var badge=ok
           ?'<span class="badge badge-ok">OK</span>'
-          :'<span class="badge badge-warn">'+(diffImb!==0?(diffImb>0?'da imballare: '+diffImb:'imballo extra: '+Math.abs(diffImb)):'')+( diffDdt!==0?(diffImb!==0?' · ':'')+(diffDdt>0?'da spedire: '+diffDdt:'spedito extra: '+Math.abs(diffDdt)):'')+'</span>';
-        return '<div class="row-item" style="border-left-color:'+bordo+';">'          +'<div class="row-qty" style="color:'+bordo+';">'+a.vern+'</div>'          +'<div class="row-info">'            +'<div class="rdesc"><span class="badge badge-ok" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span> '+a.desc+' '+badge+'</div>'            +'<div class="rsub">Verniciato: <strong>'+a.vern+'</strong> &nbsp;Imballo: <strong>'+a.imb+'</strong> &nbsp;DDT: <strong>'+a.ddt+'</strong></div>'          +'</div></div>';
+          :(badgeParts.length?'<span class="badge badge-warn">'+badgeParts.join(' · ')+'</span>':'');
+        return '<div class="row-item" style="border-left-color:'+bordo+';">'
+          +'<div class="row-qty" style="color:'+bordo+';">'+a.vern+'</div>'
+          +'<div class="row-info">'
+            +'<div class="rdesc"><span class="badge badge-ok" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span> '+a.desc+' '+badge+'</div>'
+            +'<div class="rsub">Verniciato: <strong>'+a.vern+'</strong> &nbsp;Imballo: <strong>'+a.imb+'</strong> &nbsp;DDT: <strong>'+a.ddt+'</strong></div>'
+          +'</div></div>';
       }).join('');
       if(lTot){
         var allOk=totV===totI&&totI===totD;
