@@ -1566,7 +1566,7 @@ async function caricaRiepilogoBerNew(){
         var bordo=ok?'#217346':'#C55A11';
         var badge=ok
           ?'<span class="badge badge-ok">OK</span>'
-          :'<span class="badge badge-warn">'+(diffImb!==0?'imb '+diffImb:'')+( diffDdt!==0?(diffImb!==0?' · ':'')+'ddt '+diffDdt:'')+'</span>';
+          :'<span class="badge badge-warn">'+(diffImb!==0?(diffImb>0?'da imballare: '+diffImb:'imballo extra: '+Math.abs(diffImb)):'')+( diffDdt!==0?(diffImb!==0?' · ':'')+(diffDdt>0?'da spedire: '+diffDdt:'spedito extra: '+Math.abs(diffDdt)):'')+'</span>';
         return '<div class="row-item" style="border-left-color:'+bordo+';">'          +'<div class="row-qty" style="color:'+bordo+';">'+a.vern+'</div>'          +'<div class="row-info">'            +'<div class="rdesc"><span class="badge badge-ok" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span> '+a.desc+' '+badge+'</div>'            +'<div class="rsub">Verniciato: <strong>'+a.vern+'</strong> &nbsp;Imballo: <strong>'+a.imb+'</strong> &nbsp;DDT: <strong>'+a.ddt+'</strong></div>'          +'</div></div>';
       }).join('');
       if(lTot){
