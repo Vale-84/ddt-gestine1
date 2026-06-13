@@ -2185,26 +2185,48 @@ async function esportaImballoExcel(){
 async function esportaVerniciatoExcel(){
   var d=await apiGet('verniciato');
   if(!d||!d.length){alert('Nessun verniciato da esportare!');return;}
-  var dataOggi=new Date().toLocaleDateString('it-IT');
+  var anno=new Date().getFullYear();
+  var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
   var bom='\uFEFF';
-  var CRLF='\r\n';
-  var intestazione='DATA;CODART;DESART;QUANTITA;SEQUENZA;NOTE'+CRLF;
-  function parseDate(v){
-    if(!v)return null;
-    var dt=new Date(v);if(!isNaN(dt))return dt;
-    var p=String(v).split(/[-\/]/).map(function(x){return x.trim();});
-    if(p.length===3){var dd=parseInt(p[0],10),mm=parseInt(p[1],10),yy=parseInt(p[2],10);if(!isNaN(dd)&&!isNaN(mm)&&!isNaN(yy))return new Date(yy,mm-1,dd);}
+  var intestazione='DATA; TDOC; ANNO; SDOC; NDOC; DDOC; DATA_DOC; DATAREG; CPROWNUM; CODART; DESART; UMART; QUANT1; PREZZO; SCONTO1; SCONTO2; SCONTO3; SCONTO4; SCO_TOT; IMP_TOT_RE; CONS_RICH; DATA_CON; NUM_FAT; SEZ_FATT; DATA_FATT; ARTCSOTT \r\n';
+  function parseDate(value){
+    if(!value) return null;
+    var dt=new Date(value);
+    if(!isNaN(dt)) return dt;
+    var parts=value.split(/[\/-]/).map(function(p){return p.trim();});
+    if(parts.length===3){
+      var day=parseInt(parts[0],10);
+      var month=parseInt(parts[1],10);
+      var year=parseInt(parts[2],10);
+      if(!isNaN(day) && !isNaN(month) && !isNaN(year)){
+        return new Date(year, month-1, day);
+      }
+    }
     return null;
   }
-  function fmtD(dt){if(!(dt instanceof Date)||isNaN(dt))return dataOggi;return ('0'+dt.getDate()).slice(-2)+'/'+(('0'+(dt.getMonth()+1)).slice(-2))+'/'+dt.getFullYear();}
-  d.forEach(function(r){var dt=parseDate(r.data_inserimento||r.created_at||r.data)||new Date();r._sd=dt;r._ed=fmtD(dt);});
-  d.sort(function(a,b){return a._sd-b._sd;});
-  var righe=d.map(function(r){return r._ed+';'+String(r.codice_articolo||'')+';'+String(r.descrizione||'')+';'+String(Number(r.quantita||0))+';'+String(r.sequenza||'')+';'+String(r.note||'');}).join(CRLF);
-  var csv=bom+intestazione+righe+CRLF;
+  function fmtData(dt){
+    if(!(dt instanceof Date) || isNaN(dt)) return dataOggi;
+    return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
+  }
+  d.forEach(function(r){
+    var dt=parseDate(r.data_inserimento||r.created_at||r.data) || new Date();
+    r._sortDate=dt;
+    r._exportDate=fmtData(dt);
+  });
+  d.sort(function(a,b){return a._sortDate - b._sortDate;});
+  var num=1;
+  var righe=d.map(function(r){
+    var qty=String(Number(r.quantita||0).toFixed(3)).replace('.',',');
+    return r._exportDate+';TDDDT;'+anno+';  ;      1; ;'+r._exportDate+';'+r._exportDate+';    '+num+++';'
+      +String(r.codice_articolo||'').padEnd(16)+';'
+      +String(r.descrizione||'').padEnd(35)+';'
+      +'n ;     '+qty+';          0,000; 0,00; 0,00; 0,00; 0,00; 0,00;           0,00;  /  /    ;  /  /    ;      0;  /  /    ;  ;                    ';
+  }).join('\r\n');
+  var csv=bom+intestazione+righe+'\r\n';
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');a.href=url;
-  a.download='verniciato_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.download='TDDDT'+anno+'_verniciato_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
