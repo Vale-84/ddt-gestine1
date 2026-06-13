@@ -348,13 +348,22 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <!-- RIEPILOGO BERGAMASCO -->
 <div id="page-riepilogo-ber" class="page">
   <div class="card">
-    <h2>Riepilogo Lavorazione</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Verniciato → Imballo → Scarto = Rimanenza in magazzino</p>
-    <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBer()">↻ AGGIORNA</button>
+    <h2>Riepilogo Bergamasco</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Grezzi ricevuti (BER...) e finiti verniciati/spediti (B0...)</p>
+    <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBerNew()">↻ AGGIORNA</button>
   </div>
   <div class="card">
-    <div id="ber-riepilogo-lista2"><div class="empty">Premi Aggiorna</div></div>
-    <div id="ber-riepilogo-tot2" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
+    <h3 style="color:#185FA5;margin-bottom:10px;">Grezzi ricevuti (DDT Entrata)</h3>
+    <div id="ber-new-entrata"><div class="empty">Premi Aggiorna</div></div>
+  </div>
+  <div class="card">
+    <h3 style="color:#0F6E56;margin-bottom:10px;">Finiti — Verniciato · Imballo · DDT Uscita</h3>
+    <div id="ber-new-finiti"><div class="empty">Premi Aggiorna</div></div>
+    <div id="ber-new-finiti-tot" style="margin-top:10px;"></div>
+  </div>
+  <div class="card" style="display:none;" id="ber-riepilogo-lista2-card">
+    <div id="ber-riepilogo-lista2"></div>
+    <div id="ber-riepilogo-tot2"></div>
   </div>
 </div>
 
@@ -849,7 +858,7 @@ function showPage(name,el){
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
   if(name==='sostituzioni'){sostList=[];renderSostLista();}
-  if(name==='riepilogo-ber')caricaRiepilogoBer();
+  if(name==='riepilogo-ber')caricaRiepilogoBerNew();
   if(name==='confronto')aggiornaConfronto();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
@@ -1492,6 +1501,80 @@ async function svuotaVerniciato2(){
   await apiDel('verniciato','data_inserimento=eq.'+oggi);
   showMsg('msg-verniciato2','✅ Svuotato!','ok');
   caricaVerniciato2();caricaRiepilogoBer();
+}
+
+// ── RIEPILOGO BERGAMASCO NUOVO ────────────────────────────────────────
+async function caricaRiepilogoBerNew(){
+  var ent=await apiGet('ddt_entrata');
+  var vern=await apiGet('verniciato');
+  var imb=await apiGet('imballo');
+  var usc=await apiGet('ddt_uscita');
+  if(!ent||!vern||!imb||!usc)return;
+
+  // SEZIONE 1: Grezzi ricevuti (BER...)
+  var mapEnt={};
+  ent.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();
+    if(!k)return;
+    if(!mapEnt[k])mapEnt[k]={cod:k,desc:r.descrizione||'',tot:0,ddt:r.numero_ddt||'',data:r.data_ddt||''};
+    mapEnt[k].tot+=Number(r.quantita_ddt)||0;
+    if(r.numero_ddt)mapEnt[k].ddt=r.numero_ddt;
+    if(r.data_ddt)mapEnt[k].data=r.data_ddt;
+  });
+  var lEnt=document.getElementById('ber-new-entrata');
+  if(lEnt){
+    var entrList=Object.values(mapEnt).sort(function(a,b){return b.tot-a.tot;});
+    if(!entrList.length){lEnt.innerHTML='<div class="empty">Nessuna entrata</div>';}
+    else{
+      lEnt.innerHTML=entrList.map(function(a){
+        return '<div class="row-item" style="border-left-color:#378ADD;">'          +'<div class="row-qty" style="color:#185FA5;">'+a.tot+'</div>'          +'<div class="row-info">'            +'<div class="rdesc"><span class="badge" style="background:#E6F1FB;color:#0C447C;">'+a.cod+'</span> '+a.desc+'</div>'            +'<div class="rsub">DDT '+a.ddt+(a.data?' — '+a.data:'')+'</div>'          +'</div></div>';
+      }).join('');
+    }
+  }
+
+  // SEZIONE 2: Finiti (B0...) — Verniciato vs Imballo vs DDT Uscita
+  var mapFin={};
+  vern.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
+    mapFin[k].vern+=Number(r.quantita)||0;
+  });
+  imb.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(!mapFin[k])mapFin[k]={cod:k,desc:r.articolo||'',vern:0,imb:0,ddt:0};
+    if(!mapFin[k].desc)mapFin[k].desc=r.articolo||'';
+    mapFin[k].imb+=Number(r.totale)||0;
+  });
+  usc.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
+    mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
+  });
+
+  var lFin=document.getElementById('ber-new-finiti');
+  var lTot=document.getElementById('ber-new-finiti-tot');
+  if(lFin){
+    var finList=Object.values(mapFin).sort(function(a,b){return b.vern-a.vern;});
+    if(!finList.length){lFin.innerHTML='<div class="empty">Nessun articolo</div>';}
+    else{
+      var totV=0,totI=0,totD=0;
+      lFin.innerHTML=finList.map(function(a){
+        totV+=a.vern;totI+=a.imb;totD+=a.ddt;
+        var ok=a.vern===a.imb&&a.imb===a.ddt;
+        var diffImb=a.vern-a.imb;
+        var diffDdt=a.imb-a.ddt;
+        var bordo=ok?'#217346':'#C55A11';
+        var badge=ok
+          ?'<span class="badge badge-ok">OK</span>'
+          :'<span class="badge badge-warn">'+(diffImb!==0?'imb '+diffImb:'')+( diffDdt!==0?(diffImb!==0?' · ':'')+'ddt '+diffDdt:'')+'</span>';
+        return '<div class="row-item" style="border-left-color:'+bordo+';">'          +'<div class="row-qty" style="color:'+bordo+';">'+a.vern+'</div>'          +'<div class="row-info">'            +'<div class="rdesc"><span class="badge badge-ok" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span> '+a.desc+' '+badge+'</div>'            +'<div class="rsub">Verniciato: <strong>'+a.vern+'</strong> &nbsp;Imballo: <strong>'+a.imb+'</strong> &nbsp;DDT: <strong>'+a.ddt+'</strong></div>'          +'</div></div>';
+      }).join('');
+      if(lTot){
+        var allOk=totV===totI&&totI===totD;
+        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;DDT Uscita: <strong>'+totD+'</strong></div>';
+      }
+    }
+  }
 }
 
 // ── RIEPILOGO BERGAMASCO ──────────────────────────────────────────────
