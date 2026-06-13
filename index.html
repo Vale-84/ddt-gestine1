@@ -320,7 +320,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#5B2C8D;margin:0;">Verifica Verniciato vs Imballo</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-orange btn-sm" onclick="verificaWAImballo()">VERIFICA VERNICIATO vs IMBALLO</button>
+            <button class="btn btn-orange btn-sm" onclick="verificaVerniciatoImballo()">VERIFICA VERNICIATO vs IMBALLO</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
         </div>
@@ -1116,6 +1116,49 @@ async function verificaWAImballo(){
       }).join('')
     +'</div>';
   }
+  res.innerHTML=html;
+}
+
+
+async function verificaVerniciatoImballo(){
+  var imb=await apiGet('imballo');
+  var vern=await apiGet('verniciato');
+  var res=document.getElementById('imb2-verifica-res');
+  if(!res){return;}
+  if(!imb||!vern){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato o Imballo.</div>';return;}
+  if(!vern.length){res.innerHTML='<div class="warn-box">Nessun verniciato presente.</div>';return;}
+  var mapImb={};
+  imb.forEach(function(r){
+    var key=((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase());
+    if(!mapImb[key]) mapImb[key]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
+    mapImb[key].tot += Number(r.totale)||0;
+  });
+  var mapVern={};
+  vern.forEach(function(r){
+    var key=((r.codice_articolo||'').toString().trim().toLowerCase());
+    if(!mapVern[key]) mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    mapVern[key].tot += Number(r.quantita)||0;
+  });
+  var missing=[];
+  var diff=[];
+  Object.keys(mapVern).forEach(function(key){
+    var v=mapVern[key];
+    var i=mapImb[key];
+    if(!i){
+      missing.push(v);
+    } else if(Math.abs((v.tot||0)-(i.tot||0))>0.0001){
+      diff.push({cod:v.cod||i.cod,desc:v.desc||i.desc,vern:v.tot||0,imb:i.tot||0});
+    }
+  });
+  if(!missing.length && !diff.length){
+    res.innerHTML='<div class="ok-box">&#x2705; Verniciato e Imballo coincidono per tutti gli articoli.</div>';
+    return;
+  }
+  var html='';
+  if(missing.length){
+    html+='<div style="margin-bottom:14px;">'      +'<h3 style="margin-bottom:8px;">Articoli verniciati ma mancanti in Imballo</h3>'      +missing.map(function(a){        return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+(a.tot||0)+' pz</div></div></div>';      }).join('')    +'</div>';  }
+  if(diff.length){
+    html+='<div>'      +'<h3 style="margin-bottom:8px;">Articoli con quantit&agrave; diverse tra Verniciato e Imballo</h3>'      +diff.map(function(a){        return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+a.vern+' pz &mdash; Imballo: '+a.imb+' pz</div></div></div>';      }).join('')    +'</div>';  }
   res.innerHTML=html;
 }
 
