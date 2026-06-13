@@ -443,6 +443,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div id="page-ddt-uscita" class="page">
   <div id="msg-ddt-u"></div>
   <div class="card">
+    <h2>Carica Excel Verniciato in DDT Uscita</h2>
+    <label for="xls-usc-inp" class="pdf-drop" style="display:block;cursor:pointer;background:#f0fff4;border-color:#217346;">
+      <p style="color:#217346;">Tocca qui per caricare l'Excel verniciato (.xlsx)</p>
+      <small>oppure trascinalo qui</small>
+    </label>
+    <input type="file" id="xls-usc-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiExcelUscita(this)">
+    <div id="xls-usc-prev" style="display:none"></div>
+    <button class="btn btn-green" id="btn-importa-xls-usc" style="display:none" onclick="importaExcelUscita()">IMPORTA EXCEL IN DDT USCITA</button>
+  </div>
+  <div class="card">
     <h2>Carica PDF DDT Uscita</h2>
     <label for="pdf-usc-inp" class="pdf-drop" style="display:block;cursor:pointer;background:#f0fff4;border-color:#217346;">
       <p style="color:#217346;">Tocca qui per caricare il PDF</p>
@@ -1852,6 +1862,63 @@ async function importaDaExcel(){
   document.getElementById('xls-prev').style.display='none';
   document.getElementById('btn-importa-xls').style.display='none';
   document.getElementById('xls-inp').value='';excelDati=null;caricaDDTE();
+}
+
+// ── EXCEL USCITA ──────────────────────────────────────────────────────
+var excelUscitaDati=null;
+
+async function leggiExcelUscita(input){
+  var file=input.files[0];if(!file)return;
+  var prev=document.getElementById('xls-usc-prev');
+  prev.style.display='block';prev.innerHTML='<div style="padding:16px;text-align:center;color:#217346;">Lettura Excel...</div>';
+  try{
+    var ab=await file.arrayBuffer();
+    var wb=XLSX.read(ab,{type:'array',cellDates:true});
+    var ws=wb.Sheets[wb.SheetNames[0]];
+    var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    var articoli=[];
+    for(var i=0;i<rows.length;i++){
+      var row=rows[i];
+      var col0=String(row[0]||'').trim().toUpperCase();
+      if(col0==='DATA'||!row[1])continue;
+      var cod=String(row[1]||'').trim();
+      var dsc=String(row[2]||'').trim();
+      var qty=parseFloat(String(row[3]||'').replace(',','.'))||0;
+      var seq=String(row[4]||'').trim();
+      var dataRiga=row[0];
+      var dataStr='';
+      if(dataRiga instanceof Date){
+        dataStr=dataRiga.getFullYear()+'-'+('0'+(dataRiga.getMonth()+1)).slice(-2)+'-'+('0'+dataRiga.getDate()).slice(-2);
+      } else {
+        var ds=String(dataRiga||'').trim();
+        if(ds.match(/\d{2}\/\d{2}\/\d{4}/)){var p=ds.split('/');dataStr=p[2]+'-'+p[1]+'-'+p[0];}
+        else dataStr=ds;
+      }
+      if(!cod||qty<=0)continue;
+      articoli.push({cod:cod,desc:dsc,qty:qty,seq:seq,data:dataStr});
+    }
+    excelUscitaDati={articoli:articoli};
+    var html='<div class="pdf-preview" style="border-left-color:#217346;"><h3>'+file.name+'</h3><div class="pdf-info" style="margin-top:8px"><strong>Righe ('+articoli.length+'):</strong></div>';
+    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc"><strong>'+a.cod+'</strong> '+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});
+    html+='</div>';
+    prev.innerHTML=html;
+    if(articoli.length){document.getElementById('btn-importa-xls-usc').style.display='block';showMsg('msg-ddt-u',articoli.length+' righe trovate!','ok');}
+    else{prev.innerHTML='<div class="msg msg-err">Nessuna riga valida trovata</div>';}
+  }catch(e){prev.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+}
+
+async function importaExcelUscita(){
+  if(!excelUscitaDati||!excelUscitaDati.articoli.length)return;
+  var righe=0;
+  for(var i=0;i<excelUscitaDati.articoli.length;i++){
+    var a=excelUscitaDati.articoli[i];
+    var rb=await apiPost('ddt_uscita',{numero_ddt:'VERN',data_ddt:a.data||null,cliente:getCliente(),codice_articolo:a.cod,descrizione:a.desc,quantita_verniciato:a.qty,quantita_imballato:0,quantita_ddt:a.qty,note:'Excel verniciato'});
+    if(rb)righe++;
+  }
+  showMsg('msg-ddt-u',righe+' righe importate!','ok');
+  document.getElementById('xls-usc-prev').style.display='none';
+  document.getElementById('btn-importa-xls-usc').style.display='none';
+  document.getElementById('xls-usc-inp').value='';excelUscitaDati=null;caricaDDTU();
 }
 
 // ── DDT USCITA ────────────────────────────────────────────────────────
