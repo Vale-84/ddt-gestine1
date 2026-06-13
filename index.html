@@ -382,7 +382,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>Verniciato oggi</h2>
-    <button class="btn btn-red btn-sm" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
+    <div style="display:flex;gap:8px;margin-bottom:4px;">
+      <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
+      <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaVerniciatoExcel()">📥 ESPORTA EXCEL</button>
+    </div>
     <br>
     <div id="vernp-lista"><div class="empty">Nessun articolo ancora</div></div>
   </div>
@@ -2173,6 +2176,58 @@ async function esportaImballoExcel(){
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');a.href=url;
   a.download='TDDDT'+anno+'_imballo_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+
+
+// ── ESPORTA VERNICIATO EXCEL ──────────────────────────────────────────
+async function esportaVerniciatoExcel(){
+  var d=await apiGet('verniciato');
+  if(!d||!d.length){alert('Nessun verniciato da esportare!');return;}
+  var anno=new Date().getFullYear();
+  var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
+  var bom='﻿';
+  var intestazione='DATA; CODART; DESART; QUANTITA; SEQUENZA; NOTE
+';
+  function parseDate(value){
+    if(!value) return null;
+    var dt=new Date(value);
+    if(!isNaN(dt)) return dt;
+    var parts=value.split(/[\/-]/).map(function(p){return p.trim();});
+    if(parts.length===3){
+      var day=parseInt(parts[0],10);
+      var month=parseInt(parts[1],10);
+      var year=parseInt(parts[2],10);
+      if(!isNaN(day)&&!isNaN(month)&&!isNaN(year)) return new Date(year,month-1,day);
+    }
+    return null;
+  }
+  function fmtData(dt){
+    if(!(dt instanceof Date)||isNaN(dt)) return dataOggi;
+    return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
+  }
+  d.forEach(function(r){
+    var dt=parseDate(r.data_inserimento||r.created_at||r.data)||new Date();
+    r._sortDate=dt; r._exportDate=fmtData(dt);
+  });
+  d.sort(function(a,b){return a._sortDate-b._sortDate;});
+  var righe=d.map(function(r){
+    var qty=String(Number(r.quantita||0));
+    return r._exportDate+';'
+      +String(r.codice_articolo||'')+';'
+      +String(r.descrizione||'')+';'
+      +qty+';'
+      +String(r.sequenza||'')+';'
+      +String(r.note||'');
+  }).join('
+');
+  var csv=bom+intestazione+righe+'
+';
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='verniciato_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
