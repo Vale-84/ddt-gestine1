@@ -2167,7 +2167,7 @@ async function importaPDFUscita(){
   var n=0;
   for(var i=0;i<pdfUscDati.articoli.length;i++){
     var a=pdfUscDati.articoli[i];
-    var r=await apiPost('ddt_uscita',{numero_ddt:pdfUscDati.nddt,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente,codice_articolo:'',descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF'});
+    var r=await apiPost('ddt_uscita',{numero_ddt:pdfUscDati.nddt,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente||getCliente(),codice_articolo:a.cod||'',descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF'});
     if(r)n++;
   }
   showMsg('msg-ddt-u',n+' articoli importati!','ok');
