@@ -327,6 +327,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div id="imb2-verifica-res" style="margin-top:8px;"><div class="empty">Premi Verifica</div></div>
       </div>
+      <div class="card" id="imb2-wa-verifica-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
+          <h2 style="color:#1F6B75;margin:0;">Verifica WA Uscita vs Imballo</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-teal btn-sm" onclick="verificaWAUscitaImballo()">VERIFICA WA USCITA vs IMBALLO</button>
+            <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-wa-verifica-card')">STAMPA</button>
+          </div>
+        </div>
+        <div id="imb2-wa-verifica-res" style="margin-top:8px;"><div class="empty">Premi Verifica</div></div>
+      </div>
     </div>
 
     <!-- COLONNA 3: SCARTO + RIMANENZA -->
@@ -1216,6 +1226,57 @@ async function verificaVerniciatoImballo(){
     html+='<div style="margin-bottom:14px;">'      +'<h3 style="margin-bottom:8px;">Articoli verniciati ma mancanti in Imballo</h3>'      +missing.map(function(a){        return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+(a.tot||0)+' pz</div></div></div>';      }).join('')    +'</div>';  }
   if(diff.length){
     html+='<div>'      +'<h3 style="margin-bottom:8px;">Articoli con quantit&agrave; diverse tra Verniciato e Imballo</h3>'      +diff.map(function(a){        return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+a.vern+' pz &mdash; Imballo: '+a.imb+' pz</div></div></div>';      }).join('')    +'</div>';  }
+  res.innerHTML=html;
+}
+
+async function verificaWAUscitaImballo(){
+  var wa=await apiGet('whatsapp_uscita');
+  var imb=await apiGet('imballo');
+  var res=document.getElementById('imb2-wa-verifica-res');
+  if(!res)return;
+  if(!wa||!imb){res.innerHTML='<div class="warn-box">Errore caricamento dati WA Uscita o Imballo.</div>';return;}
+  var senzaCodice=[];
+  var mapWA={};
+  wa.forEach(function(r){
+    if(!r.codice_articolo){senzaCodice.push(r);return;}
+    var key=r.codice_articolo.trim().toLowerCase();
+    if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
+    mapWA[key].tot+=Number(r.quantita)||0;
+  });
+  var mapImb={};
+  imb.forEach(function(r){
+    var key=((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase());
+    if(!mapImb[key])mapImb[key]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
+    mapImb[key].tot+=Number(r.totale)||0;
+  });
+  var waNoImb=[],diff=[],imbNoWA=[];
+  Object.keys(mapWA).forEach(function(key){
+    var w=mapWA[key],i=mapImb[key];
+    if(!i)waNoImb.push(w);
+    else if(Math.abs(w.tot-i.tot)>0.0001)diff.push({cod:w.cod,desc:w.desc||i.desc,wa:w.tot,imb:i.tot});
+  });
+  Object.keys(mapImb).forEach(function(key){if(!mapWA[key])imbNoWA.push(mapImb[key]);});
+  if(!waNoImb.length&&!imbNoWA.length&&!diff.length&&!senzaCodice.length){
+    res.innerHTML='<div class="ok-box">&#x2705; WA Uscita e Imballo coincidono per tutti gli articoli.</div>';return;
+  }
+  var html='';
+  if(waNoImb.length){
+    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Articoli in WA Uscita ma mancanti in Imballo</h3>'
+      +waNoImb.map(function(a){return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">WA Uscita: '+(a.tot||0)+' pz</div></div></div>';}).join('')+'</div>';
+  }
+  if(imbNoWA.length){
+    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Articoli in Imballo ma non presenti in WA Uscita</h3>'
+      +imbNoWA.map(function(a){return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Imballo: '+(a.tot||0)+' pz</div></div></div>';}).join('')+'</div>';
+  }
+  if(diff.length){
+    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Quantit&agrave; diverse tra WA Uscita e Imballo</h3>'
+      +diff.map(function(a){var delta=a.wa-a.imb;return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">WA Uscita: '+a.wa+' pz &mdash; Imballo: '+a.imb+' pz &mdash; Diff: <strong>'+(delta>0?'+':'')+delta+'</strong></div></div></div>';}).join('')+'</div>';
+  }
+  if(senzaCodice.length){
+    html+='<div><h3 style="margin-bottom:8px;">Da associare manualmente</h3>'
+      +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Righe WA Uscita senza codice articolo — da correggere</p>'
+      +senzaCodice.map(function(r){var desc=r.testo_originale||r.testo_riga||r.descrizione||'';return '<div class="row-item" style="border-left-color:#E8A000;"><div class="row-qty" style="color:#E8A000;">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+desc+'</div><div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div></div></div>';}).join('')+'</div>';
+  }
   res.innerHTML=html;
 }
 
