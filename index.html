@@ -1897,12 +1897,12 @@ async function leggiPDF(input){
         if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
       }
     }
-    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
+    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseQty(m2[2]);if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
         riga=riga.trim();
-        var m2=riga.match(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,]+)/);
-        if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseFloat(m2[2].replace(',','.'))});
+        var m2=riga.match(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,.]+)/);
+        if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseQty(m2[2])});
       });
     }
     pdfDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
@@ -1982,6 +1982,7 @@ function convData(v){
 }
 
 function codiceValido(c){c=String(c||'').trim();if(!c)return '';if(!/[A-Za-z]/.test(c))return '';return c;}
+function parseQty(s){return parseFloat(String(s).replace(/\./g,'').replace(',','.'))||0;}
 
 async function leggiExcelEntrata(input){
   var file=input.files[0];if(!file)return;
@@ -2170,13 +2171,13 @@ async function leggiPDFUscita(input){
       }
     }
     // Primary: CODICE(A0.../B0...) + descrizione + PZ. + qty su una riga (formato ART COLOR)
-    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var mArt=riga.match(/^([A-Z]\d[A-Z\d]+)\s+(.+?)\s+PZ\.\s+([\d,.]+)/);if(mArt){var qty=parseFloat(mArt[3].replace(',','.'));if(qty>0)articoli.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});}});}
-    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
+    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var mArt=riga.match(/^([A-Z]\d[A-Z\d]+)\s+(.+?)\s+PZ\.\s+([\d,.]+)/);if(mArt){var qty=parseQty(mArt[3]);if(qty>0)articoli.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});}});}
+    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseQty(m2[2]);if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
         riga=riga.trim();
-        var m2=riga.match(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,]+)/);
-        if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseFloat(m2[2].replace(',','.'))});
+        var m2=riga.match(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,.]+)/);
+        if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseQty(m2[2])});
       });
     }
     pdfUscDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
