@@ -2415,11 +2415,21 @@ async function verificaSostituzioni(){
 async function caricaMagazzino(){
   var ent=await apiGet('ddt_entrata');var usc=await apiGet('ddt_uscita');
   if(!ent||!usc)return;
+  var abb=await apiGet('abbinamenti_ber');
+  var b0ToBer={};
+  if(abb&&abb.length){
+    abb.forEach(function(r){
+      if(r.codice_b0&&r.codice_ber)b0ToBer[r.codice_b0.toUpperCase()]=r.codice_ber.toUpperCase();
+    });
+  }
   var map={};
   function agg(r,campo){
-    var k=r.codice_articolo||r.descrizione||'?';
-    if(!map[k])map[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
+    var raw=(r.codice_articolo||'').trim().toUpperCase()||r.descrizione||'?';
+    var berKey=campo==='spe'?(b0ToBer[raw]||null):null;
+    var k=berKey||raw;
+    if(!map[k])map[k]={cod:k,cod_b0s:[],desc:r.descrizione||'',ric:0,spe:0};
     if(!map[k].desc&&r.descrizione)map[k].desc=r.descrizione;
+    if(berKey&&raw&&map[k].cod_b0s.indexOf(raw)<0)map[k].cod_b0s.push(raw);
     map[k][campo]+=(r.quantita_ddt||0);
   }
   ent.forEach(function(r){agg(r,'ric');});usc.forEach(function(r){agg(r,'spe');});
@@ -2438,7 +2448,7 @@ function renderMagazzino(){
   document.getElementById('mag-tot-gia').textContent=tGia;
   var lista=magCache.filter(function(a){
     if(soloGia&&a.gia<=0)return false;
-    if(q){var t=((a.cod||'')+' '+(a.desc||'')).toUpperCase();if(!t.includes(q))return false;}
+    if(q){var t=((a.cod||'')+' '+(a.cod_b0s||[]).join(' ')+' '+(a.desc||'')).toUpperCase();if(!t.includes(q))return false;}
     return true;
   });
   var l=document.getElementById('mag-lista');
@@ -2446,9 +2456,11 @@ function renderMagazzino(){
   l.innerHTML=lista.map(function(a){
     var bordo=a.gia>0?'#C55A11':a.gia<0?'#C00000':'#217346';
     var badge=a.gia>0?'<span class="badge badge-warn">'+a.gia+' in casa</span>':a.gia<0?'<span class="badge badge-err">'+a.gia+'</span>':'<span class="badge badge-ok">finito</span>';
+    var codBadges=(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'');
+    if(a.cod_b0s&&a.cod_b0s.length){codBadges+='→ '+a.cod_b0s.map(function(c){return '<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+c+'</span>';}).join(' ')+' ';}
     return '<div class="row-item" style="border-left-color:'+bordo+';">'
       +'<div class="row-qty" style="color:'+bordo+';">'+a.gia+'</div>'
-      +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+codBadges+a.desc+'</div>'
       +'<div class="rsub">Ricevuto: '+a.ric+' &nbsp;Spedito: '+a.spe+'</div></div>'+badge+'</div>';
   }).join('');
 }
