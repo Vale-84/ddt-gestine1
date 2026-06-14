@@ -419,10 +419,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Carica Excel DDT Entrata</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Per chi ti manda il DDT in Excel (es. Bergamasco). I codici nuovi vengono aggiunti automaticamente alla lista articoli.</p>
     <label for="xls-inp" class="pdf-drop" style="display:block;cursor:pointer;border-color:#217346;background:#f0fff4;">
-      <p style="color:#217346;">Tocca qui per caricare l'Excel (.xlsx)</p>
+      <p style="color:#217346;">Tocca qui per caricare Excel (.xlsx) o CSV</p>
       <small>Assicurati di aver selezionato il cliente corretto in alto</small>
     </label>
-    <input type="file" id="xls-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiExcelEntrata(this)">
+    <input type="file" id="xls-inp" class="pdf-input" accept=".xlsx,.xls,.csv" onchange="leggiExcelEntrata(this)">
     <div id="xls-prev" style="display:none"></div>
     <button class="btn btn-green" id="btn-importa-xls" style="display:none" onclick="importaDaExcel()">IMPORTA DA EXCEL</button>
   </div>
@@ -1986,28 +1986,52 @@ function codiceValido(c){c=String(c||'').trim();if(!c)return '';if(!/[A-Za-z]/.t
 async function leggiExcelEntrata(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('xls-prev');
-  prev.style.display='block';prev.innerHTML='<div style="padding:16px;text-align:center;color:#217346;">Lettura Excel...</div>';
+  prev.style.display='block';prev.innerHTML='<div style="padding:16px;text-align:center;color:#217346;">Lettura...</div>';
   try{
-    var ab=await file.arrayBuffer();
-    var wb=XLSX.read(ab,{type:'array',cellDates:true});
-    var ws=wb.Sheets[wb.SheetNames[0]];
-    var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    var hi=-1,H={};
-    for(var i=0;i<Math.min(rows.length,15);i++){
-      var up=rows[i].map(function(x){return String(x).trim().toUpperCase();});
-      if(up.indexOf('CODART')>=0&&up.indexOf('QUANT1')>=0){hi=i;up.forEach(function(n,idx){H[n]=idx;});break;}
-    }
-    if(hi<0)throw new Error('Colonne CODART/QUANT1 non trovate nel file');
     var nddt='',data='',articoli=[];
-    for(var r=hi+1;r<rows.length;r++){
-      var row=rows[r];if(!row||!row.length)continue;
-      var cod=H['CODART']!=null?codiceValido(row[H['CODART']]):'';
-      var dsc=String(H['DESART']!=null?row[H['DESART']]:'').trim();
-      var qty=parseFloat(String(H['QUANT1']!=null?row[H['QUANT1']]:'').replace(',','.'))||0;
-      if(!cod&&!dsc)continue;
-      if(!nddt&&H['NDOC']!=null)nddt=String(row[H['NDOC']]).trim();
-      if(!data&&H['DATA_DOC']!=null)data=convData(row[H['DATA_DOC']]);
-      articoli.push({cod:cod,desc:dsc,qty:qty});
+    if(/\.csv$/i.test(file.name)){
+      // Formato CSV TDDDT (Nova Software) — separatore virgola, valori a larghezza fissa con spazi
+      var text=await file.text();
+      var righe=text.split('\n');
+      var hi=-1,H={};
+      for(var i=0;i<Math.min(righe.length,5);i++){
+        var c=righe[i].split(',').map(function(x){return x.trim().toUpperCase();});
+        if(c.indexOf('CODART')>=0&&c.indexOf('QUANT1')>=0){hi=i;c.forEach(function(n,idx){H[n]=idx;});break;}
+      }
+      if(hi<0)throw new Error('Colonne CODART/QUANT1 non trovate nel CSV');
+      for(var r=hi+1;r<righe.length;r++){
+        var riga=righe[r].trim();if(!riga)continue;
+        var row=riga.split(',');
+        var cod=codiceValido(H['CODART']!=null?row[H['CODART']]:'');
+        var dsc=String(H['DESART']!=null?row[H['DESART']]||'':'').trim();
+        var qty=parseFloat(String(H['QUANT1']!=null?row[H['QUANT1']]||'':'').replace(',','.'))||0;
+        if(!cod&&!dsc)continue;
+        if(!nddt&&H['NDOC']!=null)nddt=String(row[H['NDOC']]||'').trim();
+        if(!data&&H['DATA_DOC']!=null)data=convData(String(row[H['DATA_DOC']]||'').trim());
+        if(qty>0)articoli.push({cod:cod,desc:dsc,qty:qty});
+      }
+    } else {
+      // Excel (.xlsx / .xls)
+      var ab=await file.arrayBuffer();
+      var wb=XLSX.read(ab,{type:'array',cellDates:true});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      var hiX=-1,HX={};
+      for(var i=0;i<Math.min(rows.length,15);i++){
+        var up=rows[i].map(function(x){return String(x).trim().toUpperCase();});
+        if(up.indexOf('CODART')>=0&&up.indexOf('QUANT1')>=0){hiX=i;up.forEach(function(n,idx){HX[n]=idx;});break;}
+      }
+      if(hiX<0)throw new Error('Colonne CODART/QUANT1 non trovate nel file');
+      for(var r=hiX+1;r<rows.length;r++){
+        var row=rows[r];if(!row||!row.length)continue;
+        var cod=HX['CODART']!=null?codiceValido(row[HX['CODART']]):'';
+        var dsc=String(HX['DESART']!=null?row[HX['DESART']]:'').trim();
+        var qty=parseFloat(String(HX['QUANT1']!=null?row[HX['QUANT1']]:'').replace(',','.'))||0;
+        if(!cod&&!dsc)continue;
+        if(!nddt&&HX['NDOC']!=null)nddt=String(row[HX['NDOC']]).trim();
+        if(!data&&HX['DATA_DOC']!=null)data=convData(row[HX['DATA_DOC']]);
+        articoli.push({cod:cod,desc:dsc,qty:qty});
+      }
     }
     excelDati={nddt:nddt,data:data,articoli:articoli};
     var html='<div class="pdf-preview" style="border-left-color:#217346;"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Righe ('+articoli.length+'):</strong></div>';
