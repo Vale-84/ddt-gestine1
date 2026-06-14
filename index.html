@@ -868,12 +868,13 @@ function oggiISO(){return new Date().toISOString().split('T')[0];}
 function fmtData(s){if(!s)return'';var d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('it-IT');}
 
 // ── TROVA ARTICOLO DA TESTO WA ────────────────────────────────────────
-function trovaArt(desc){
-  if(!desc||!artCache.length)return null;
+function trovaArt(desc,tbl){
+  tbl=tbl||artCache;
+  if(!desc||!tbl.length)return null;
   var abbr={TEST:'TESTATA',TESTA:'TESTATA',PED:'PEDIERA',RET:'RETE',SPO:'SPONDA',SPON:'SPONDA',BCO:'BIANCO',GR:'GRIGIO',NAT:'NATURALE',AV:'AVANA',PIC:'PICCOLA',PICC:'PICCOLA',CONT:'CONTACT',LET:'LETTINO',LETT:'LETTINO',INF:'INFINITO',INFI:'INFINITO',NOR:'NORMALE',SUP:'SUPERIORE',MDF:'MDF',GLAM:'GLAM',LUX:'LUX',FL:'FL'};
   var parole=desc.toUpperCase().split(/\s+/).filter(function(p){return p.length>1;});
   var best=null,max=0;
-  artCache.forEach(function(a){
+  tbl.forEach(function(a){
     var d=a.descrizione.toUpperCase(),p=0;
     parole.forEach(function(w){var e=abbr[w]||w;if(d.includes(e))p++;});
     if(p>max){max=p;best=a;}
@@ -1896,8 +1897,6 @@ async function leggiPDF(input){
         if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
       }
     }
-    // Primary: CODICE(A0.../B0...) + descrizione + PZ. + qty su una riga (formato ART COLOR)
-    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var mArt=riga.match(/^([A-Z]\d[A-Z\d]+)\s+(.+?)\s+PZ\.\s+([\d,.]+)/);if(mArt){var qty=parseFloat(mArt[3].replace(',','.'));if(qty>0)articoli.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});}});}
     if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseFloat(m2[2].replace(',','.'));if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
     if(!articoli.length){
       testo.split('\n').forEach(function(riga){
@@ -1922,12 +1921,19 @@ async function importaDaPDF(){
   var n=0;
   var pfxMap={'AZZURRA':'A0','BERGAMASCO':'B0'};
   var pfx=pfxMap[getCliente()]||'';
+  var artFiltrato=pfx?artCache.filter(function(x){return (x.codice_articolo||'').toUpperCase().startsWith(pfx);}):artCache;
   for(var i=0;i<pdfDati.articoli.length;i++){
     var a=pdfDati.articoli[i];
     var cod=a.cod||'';
     if(cod&&pfx&&!artCache.some(function(x){return x.codice_articolo.toUpperCase()===cod.toUpperCase();})){
       var withPfx=artCache.find(function(x){return x.codice_articolo.toUpperCase()===(pfx+cod).toUpperCase();});
       if(withPfx)cod=withPfx.codice_articolo;
+    }
+    if(!cod){
+      // Normalizza rimuovendo "DA LACCARE", "DA VERNICIARE", "SUI BORDI" poi cerca per descrizione
+      var descNorm=a.desc.toUpperCase().replace(/\s+DA\s+LACCARE\b/g,'').replace(/\s+DA\s+VERNICIARE\b/g,'').replace(/\s+SUI\s+BORDI\b/g,'').replace(/\s+/g,' ').trim();
+      var art=trovaArt(descNorm,artFiltrato);
+      if(art)cod=art.codice_articolo;
     }
     var r=await apiPost('ddt_entrata',{numero_ddt:pdfDati.nddt,data_ddt:pdfDati.data||null,cliente:pdfDati.cliente||getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF'});
     if(r)n++;
