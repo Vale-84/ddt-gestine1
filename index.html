@@ -1666,14 +1666,46 @@ async function caricaRiepilogoBerNew(){
   }
 
   // SEZIONE 2: Finiti (B0...) — Verniciato vs Imballo vs DDT Uscita
+  // Calcolato PER COPPIA (BER, B0) tramite abbinamenti_ber: ogni B0 viene
+  // sommato in modo esatto e isolato, mai mescolando quantita' di BER diversi
+  // anche se hanno piu' codici B0 simili abbinati.
+  function exactSum(arr,code,field,altField){
+    if(!arr)return 0;
+    return arr.filter(function(r){return (r.codice_articolo||'').trim().toUpperCase()===code;})
+      .reduce(function(a,r){return a+(Number(r[field]||(altField?r[altField]:0))||0);},0);
+  }
+  function findDesc(b0c){
+    var rv=vern.find(function(r){return (r.codice_articolo||'').trim().toUpperCase()===b0c;});
+    if(rv&&rv.descrizione)return rv.descrizione;
+    var ri=imb.find(function(r){return (r.codice_articolo||'').trim().toUpperCase()===b0c;});
+    if(ri&&ri.articolo)return ri.articolo;
+    var ru=usc.find(function(r){return (r.codice_articolo||'').trim().toUpperCase()===b0c;});
+    if(ru&&ru.descrizione)return ru.descrizione;
+    var ra=(abb||[]).find(function(r){return (r.codice_b0||'').trim().toUpperCase()===b0c;});
+    if(ra&&ra.desc_b0)return ra.desc_b0;
+    return '';
+  }
   var mapFin={};
+  var b0Usati={};
+  Object.keys(mapEnt).forEach(function(berCod){
+    var berUp=berCod.trim().toUpperCase();
+    var b0Codes=berToB0[berUp]||[];
+    b0Codes.forEach(function(b0c){
+      if(mapFin[b0c])return;
+      mapFin[b0c]={cod:b0c,desc:findDesc(b0c),vern:exactSum(vern,b0c,'quantita'),imb:exactSum(imb,b0c,'totale'),ddt:exactSum(usc,b0c,'quantita_ddt','quantita')};
+      b0Usati[b0c]=true;
+    });
+  });
+  // B0 senza BER nota in DDT Entrata (es. verniciato prima della tracciatura): riga propria
   vern.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(b0Usati[k.toUpperCase()])return;
     if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
     mapFin[k].vern+=Number(r.quantita)||0;
   });
   imb.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(b0Usati[k.toUpperCase()])return;
     if(!mapFin[k])mapFin[k]={cod:k,desc:r.articolo||'',vern:0,imb:0,ddt:0};
     if(!mapFin[k].desc)mapFin[k].desc=r.articolo||'';
     mapFin[k].imb+=Number(r.totale)||0;
@@ -1681,12 +1713,14 @@ async function caricaRiepilogoBerNew(){
   usc.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
     var kUp=k.toUpperCase();
-    if(berToB0[kUp]&&berToB0[kUp].length){
-      // codice di un grezzo (BER) abbinato a uno o piu' finiti: redirige al B0 gia' presente da Verniciato/Imballo
-      var b0codes=berToB0[kUp];
-      var b0match=Object.keys(mapFin).filter(function(mk){return b0codes.indexOf(mk.toUpperCase())>=0;})[0];
-      k=b0match||b0codes[0];
+    if(b0Usati[kUp])return; // gia' sommato sopra come B0 di un BER
+    if(berToB0[kUp]&&berToB0[kUp].length===1&&b0Usati[berToB0[kUp][0]]){
+      // DDT uscita salvato per errore col codice BER invece del B0: redirige solo se il BER non e' ambiguo (un solo B0)
+      k=berToB0[kUp][0];
+      mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
+      return;
     }
+    // BER ambiguo (piu' B0 abbinati) o codice senza abbinamento: riga separata, da controllare manualmente
     if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
     mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
   });
@@ -1699,14 +1733,17 @@ async function caricaRiepilogoBerNew(){
     else{
       var totV=0,totI=0,totS=0,totDiff=0;
       lFin.innerHTML=finList.map(function(a){
-        var ber=b0ToBer[(a.cod||'').toUpperCase()]||'';
+        var codUp=(a.cod||'').toUpperCase();
+        var ber=b0ToBer[codUp]||'';
+        var ambiguo=!ber&&berToB0[codUp]&&berToB0[codUp].length>1;
         var scarto=scartoMap[a.cod]||0;
         var diff=a.vern-a.imb-scarto;
         totV+=a.vern;totI+=a.imb;totS+=scarto;totDiff+=diff;
-        var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
+        var bordo=ambiguo?'#C00000':diff===0?'#217346':diff>0?'#C55A11':'#C00000';
         return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
           +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
             +(ber?'<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+ber+'</span><span style="color:#999;">&rarr;</span>':'')
+            +(ambiguo?'<span class="badge badge-err">&#9888; DDT Uscita su '+berToB0[codUp].length+' B0 abbinati: verifica manuale</span> ':'')
             +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
             +'<span>'+a.desc+'</span>'
             +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
