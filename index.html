@@ -1594,7 +1594,7 @@ async function caricaRiepilogoBerNew(){
   var vern=await apiGet('verniciato');
   var imb=await apiGet('imballo');
   var usc=await apiGet('ddt_uscita');
-  var abb=await apiGet('abbinamenti_ber');
+  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
   var scartiDB=await apiGet('scarti_ber');
   if(!ent||!vern||!imb||!usc)return;
   var scartoMap={};
@@ -2562,7 +2562,7 @@ async function verificaSostituzioni(){
 async function caricaMagazzino(){
   var ent=await apiGet('ddt_entrata');var usc=await apiGet('ddt_uscita');
   if(!ent||!usc)return;
-  var abb=await apiGet('abbinamenti_ber');
+  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
   var b0ToBer={};
   if(abb&&abb.length){
     abb.forEach(function(r){
@@ -2648,7 +2648,7 @@ async function selDettaglioArt(cod,desc){
   var usc=await apiGet('ddt_uscita');
   var vern=await apiGet('verniciato');
   var imb=await apiGet('imballo');
-  var abb=await apiGet('abbinamenti_ber');
+  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
   // se il codice e' un finito (B0), trova il grezzo (BER) abbinato; se e' un grezzo (BER), trova TUTTI i finiti (B0) abbinati
   var altCodes=[];
   if(abb&&abb.length){
