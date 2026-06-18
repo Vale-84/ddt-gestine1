@@ -131,7 +131,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="ddt-entrata" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
-  <div class="tab admin-tab" data-page="dettaglio" onclick="showPage('dettaglio',this)" style="display:none">Dettaglio</div>
+  <div class="tab" data-page="dettaglio" onclick="showPage('dettaglio',this)">Dettaglio</div>
   <div class="tab admin-tab" data-page="sostituzioni" onclick="showPage('sostituzioni',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
@@ -1602,14 +1602,17 @@ async function caricaRiepilogoBerNew(){
     scartiDB.forEach(function(r){scartoMap[r.codice_articolo]=Number(r.quantita)||0;});
   }
 
-  // Mappa abbinamenti: codice_b0 -> codice_ber
+  // Mappa abbinamenti: codice_b0 -> codice_ber (normalizzati trim+uppercase)
   var b0ToBer={};
   var berToB0={};
   if(abb&&abb.length){
     abb.forEach(function(r){
-      b0ToBer[r.codice_b0]=r.codice_ber;
-      if(!berToB0[r.codice_ber])berToB0[r.codice_ber]=[];
-      berToB0[r.codice_ber].push(r.codice_b0);
+      var b0=(r.codice_b0||'').trim().toUpperCase();
+      var ber=(r.codice_ber||'').trim().toUpperCase();
+      if(!b0||!ber)return;
+      b0ToBer[b0]=ber;
+      if(!berToB0[ber])berToB0[ber]=[];
+      if(berToB0[ber].indexOf(b0)<0)berToB0[ber].push(b0);
     });
   }
 
@@ -1622,14 +1625,22 @@ async function caricaRiepilogoBerNew(){
     mapEnt[k].tot+=Number(r.quantita_ddt)||0;
     if(r.numero_ddt)mapEnt[k].nddt=r.numero_ddt;
   });
-  // Calcola quanti finiti (B0) sono stati verniciati per ogni BER
-  var vernPerBer={};
-  vern.forEach(function(r){
-    var b0=(r.codice_articolo||'').trim();
-    var ber=b0ToBer[b0];
-    if(!ber)return;
-    if(!vernPerBer[ber])vernPerBer[ber]=0;
-    vernPerBer[ber]+=Number(r.quantita)||0;
+  // Per ogni BER, somma verniciato/imballo/DDT uscita su TUTTI i codici B0 abbinati (abbinamenti_ber)
+  function sumByCodes(arr,codes,field,altField){
+    if(!arr||!codes||!codes.length)return 0;
+    var set={};codes.forEach(function(c){set[c]=true;});
+    return arr.filter(function(r){return set[(r.codice_articolo||'').trim().toUpperCase()];})
+      .reduce(function(a,r){return a+(Number(r[field]||(altField?r[altField]:0))||0);},0);
+  }
+  var lavoratiPerBer={};
+  Object.keys(mapEnt).forEach(function(berCod){
+    var berUp=berCod.trim().toUpperCase();
+    var b0Codes=berToB0[berUp]||[];
+    if(!b0Codes.length)return;
+    var vTot=sumByCodes(vern,b0Codes,'quantita');
+    var iTot=sumByCodes(imb,b0Codes,'totale');
+    var dTot=sumByCodes(usc,b0Codes,'quantita_ddt','quantita');
+    lavoratiPerBer[berCod]=Math.max(vTot,iTot,dTot);
   });
 
   var lEnt=document.getElementById('ber-new-entrata');
@@ -1638,7 +1649,7 @@ async function caricaRiepilogoBerNew(){
     if(!entrList.length){lEnt.innerHTML='<div class="empty">Nessuna entrata</div>';}
     else{
       lEnt.innerHTML=entrList.map(function(a){
-        var lavorati=vernPerBer[a.cod]||0;
+        var lavorati=lavoratiPerBer[a.cod]||0;
         var aperti=a.tot-lavorati;
         var bordo=aperti===0?'#217346':'#378ADD';
         var badge=aperti===0
@@ -1669,10 +1680,12 @@ async function caricaRiepilogoBerNew(){
   });
   usc.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
-    if(berToB0[k]&&berToB0[k].length){
+    var kUp=k.toUpperCase();
+    if(berToB0[kUp]&&berToB0[kUp].length){
       // codice di un grezzo (BER) abbinato a uno o piu' finiti: redirige al B0 gia' presente da Verniciato/Imballo
-      var b0match=berToB0[k].filter(function(b0c){return mapFin[b0c];})[0];
-      k=b0match||berToB0[k][0];
+      var b0codes=berToB0[kUp];
+      var b0match=Object.keys(mapFin).filter(function(mk){return b0codes.indexOf(mk.toUpperCase())>=0;})[0];
+      k=b0match||b0codes[0];
     }
     if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
     mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
@@ -1686,7 +1699,7 @@ async function caricaRiepilogoBerNew(){
     else{
       var totV=0,totI=0,totS=0,totDiff=0;
       lFin.innerHTML=finList.map(function(a){
-        var ber=b0ToBer[a.cod]||'';
+        var ber=b0ToBer[(a.cod||'').toUpperCase()]||'';
         var scarto=scartoMap[a.cod]||0;
         var diff=a.vern-a.imb-scarto;
         totV+=a.vern;totI+=a.imb;totS+=scarto;totDiff+=diff;
@@ -2599,19 +2612,24 @@ async function selDettaglioArt(cod,desc){
   var vern=await apiGet('verniciato');
   var imb=await apiGet('imballo');
   var abb=await apiGet('abbinamenti_ber');
-  // se il codice e' un finito (B0) o un grezzo (BER) abbinato, includi anche le righe del codice corrispondente
-  var altCod=null;
+  // se il codice e' un finito (B0), trova il grezzo (BER) abbinato; se e' un grezzo (BER), trova TUTTI i finiti (B0) abbinati
+  var altCodes=[];
   if(abb&&abb.length){
-    var m1=abb.find(function(r){return (r.codice_b0||'').toUpperCase()===codUp;});
-    if(m1)altCod=(m1.codice_ber||'').toUpperCase();
-    if(!altCod){
-      var m2=abb.find(function(r){return (r.codice_ber||'').toUpperCase()===codUp;});
-      if(m2)altCod=(m2.codice_b0||'').toUpperCase();
+    var m1=abb.find(function(r){return (r.codice_b0||'').trim().toUpperCase()===codUp;});
+    if(m1){
+      var berUp=(m1.codice_ber||'').trim().toUpperCase();
+      if(berUp)altCodes.push(berUp);
+    } else {
+      abb.forEach(function(r){
+        var berUp=(r.codice_ber||'').trim().toUpperCase();
+        var b0Up=(r.codice_b0||'').trim().toUpperCase();
+        if(berUp===codUp&&b0Up&&altCodes.indexOf(b0Up)<0)altCodes.push(b0Up);
+      });
     }
   }
   function matches(r){
-    var k=(r.codice_articolo||'').toUpperCase();
-    return k===codUp||(altCod&&k===altCod);
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    return k===codUp||altCodes.indexOf(k)>=0;
   }
   function sum(arr,field,altField){
     if(!arr)return 0;
@@ -2623,7 +2641,8 @@ async function selDettaglioArt(cod,desc){
   var totImb=sum(imb,'totale');
   var diff=totEnt-totUsc;
   var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
-  res.innerHTML='<div class="rdesc" style="margin-bottom:12px;font-size:15px;"><span class="badge badge-ok">'+cod+'</span>'+(altCod?' <span style="color:#999;">&harr;</span> <span class="badge" style="background:#E6F1FB;color:#0C447C;">'+altCod+'</span>':'')+' '+desc+'</div>'
+  var altBadges=altCodes.map(function(c){return ' <span style="color:#999;">&harr;</span> <span class="badge" style="background:#E6F1FB;color:#0C447C;">'+c+'</span>';}).join('');
+  res.innerHTML='<div class="rdesc" style="margin-bottom:12px;font-size:15px;"><span class="badge badge-ok">'+cod+'</span>'+altBadges+' '+desc+'</div>'
     +'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr);">'
       +'<div class="stat"><div class="n">'+totEnt+'</div><div class="l">DDT Entrata</div></div>'
       +'<div class="stat"><div class="n">'+totUsc+'</div><div class="l">DDT Uscita</div></div>'
