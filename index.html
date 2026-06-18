@@ -766,7 +766,7 @@ function printSection(id){
 async function apiGet(t,p){
   var c=getConfig();if(!c.url)return null;
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli'];
-  var params = p || 'order=created_at.desc&limit=200';
+  var params = p || 'order=created_at.desc&limit=5000';
   if(tables.indexOf(t)>=0){
     var cl=getCliente();
     params = params + '&cliente=eq.'+encodeURIComponent(cl);
