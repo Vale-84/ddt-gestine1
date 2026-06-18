@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#1F4E79">
 <title>DDT Gestione</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -128,6 +131,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="ddt-entrata" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
+  <div class="tab admin-tab" data-page="dettaglio" onclick="showPage('dettaglio',this)" style="display:none">Dettaglio</div>
   <div class="tab admin-tab" data-page="sostituzioni" onclick="showPage('sostituzioni',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
@@ -229,6 +233,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-teal btn-sm" onclick="salvaUscitaMerce()">AGGIUNGI</button>
           </div>
           <div id="u-sezione-wa" style="display:none">
+            <label>Data</label><input type="date" id="u-wa-date" style="margin-bottom:6px;">
             <textarea id="u-wa-text" placeholder="Incolla messaggio WhatsApp..." style="min-height:80px;"></textarea>
             <button class="btn btn-teal btn-sm" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
           </div>
@@ -313,6 +318,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <div style="display:flex;gap:6px;margin-bottom:8px;">
           <button class="btn btn-blue btn-sm" style="flex:1;" onclick="caricaImballo()">↻</button>
           <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaImballo()">SVUOTA</button>
+          <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciDuplicatiImballo()">UNISCI</button>
           <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaImballoExcel()"></button>
         </div>
         <div id="imb2-lista" style="margin-top:8px;"><div class="empty">Nessun imballo</div></div>
@@ -583,6 +589,21 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- DETTAGLIO ARTICOLO -->
+<div id="page-dettaglio" class="page">
+  <div class="card">
+    <h2>Dettaglio Articolo</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Cerca un articolo per vedere tutte le sue quantità (DDT Entrata, DDT Uscita, Verniciato, Imballo) e la differenza, senza dover controllare Nova Software manualmente.</p>
+    <div class="cerca-box">
+      <input class="cerca-input" id="det-cerca" placeholder="Codice o descrizione..." oninput="cercaDettaglioArt()" autocomplete="off">
+      <div class="cerca-risultati" id="det-ris"></div>
+    </div>
+  </div>
+  <div class="card" id="det-risultato-card" style="display:none;">
+    <div id="det-risultato"></div>
+  </div>
+</div>
+
 <!-- SOSTITUZIONI -->
 <div id="page-sostituzioni" class="page">
   <div id="msg-sost"></div>
@@ -849,6 +870,7 @@ function setMetodo(pg,m){
   document.getElementById('btn-'+pg+'-lib').className='btn '+(m==='libero'?col:'btn-gray');
   var today=oggiISO();
   var dl=document.getElementById(pg+'-lib-date');if(dl&&!dl.value)dl.value=today;
+  var dw=document.getElementById(pg+'-wa-date');if(dw&&!dw.value)dw.value=today;
 }
 
 function showPage(name,el){
@@ -867,6 +889,7 @@ function showPage(name,el){
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
+  if(name==='dettaglio')resetDettaglioArt();
   if(name==='sostituzioni'){sostList=[];renderSostLista();}
   if(name==='riepilogo-ber')caricaRiepilogoBerNew();
   if(name==='confronto')aggiornaConfronto();
@@ -1062,9 +1085,9 @@ async function salvaUscitaMerce(){
 async function aggiungiWAUscita(){
   var testo=document.getElementById('u-wa-text').value.trim();
   if(!testo){showMsg('msg-uscita','Incolla prima un messaggio!','err');return;}
+  var dataSel=(document.getElementById('u-wa-date')&&document.getElementById('u-wa-date').value)?document.getElementById('u-wa-date').value:oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var esistenti=await apiGet('whatsapp_uscita','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
@@ -1072,8 +1095,8 @@ async function aggiungiWAUscita(){
     var art=trovaArt(desc);
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
-        var dataX=(x.created_at||'').slice(0,10);
-        return dataX===oggi && x.codice_articolo===art.codice_articolo;
+        var dataX=(x.data_inserimento||x.created_at||'').slice(0,10);
+        return dataX===dataSel && x.codice_articolo===art.codice_articolo;
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
@@ -1081,7 +1104,7 @@ async function aggiungiWAUscita(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-wa-text').value='';caricaUscite();mostraConfronto();}
@@ -1572,7 +1595,12 @@ async function caricaRiepilogoBerNew(){
   var imb=await apiGet('imballo');
   var usc=await apiGet('ddt_uscita');
   var abb=await apiGet('abbinamenti_ber');
+  var scartiDB=await apiGet('scarti_ber');
   if(!ent||!vern||!imb||!usc)return;
+  var scartoMap={};
+  if(scartiDB&&scartiDB.length){
+    scartiDB.forEach(function(r){scartoMap[r.codice_articolo]=Number(r.quantita)||0;});
+  }
 
   // Mappa abbinamenti: codice_b0 -> codice_ber
   var b0ToBer={};
@@ -1641,6 +1669,11 @@ async function caricaRiepilogoBerNew(){
   });
   usc.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(berToB0[k]&&berToB0[k].length){
+      // codice di un grezzo (BER) abbinato a uno o piu' finiti: redirige al B0 gia' presente da Verniciato/Imballo
+      var b0match=berToB0[k].filter(function(b0c){return mapFin[b0c];})[0];
+      k=b0match||berToB0[k][0];
+    }
     if(!mapFin[k])mapFin[k]={cod:k,desc:r.descrizione||'',vern:0,imb:0,ddt:0};
     mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
   });
@@ -1651,29 +1684,29 @@ async function caricaRiepilogoBerNew(){
     var finList=Object.values(mapFin).sort(function(a,b){return b.vern-a.vern;});
     if(!finList.length){lFin.innerHTML='<div class="empty">Nessun articolo</div>';}
     else{
-      var totV=0,totI=0,totD=0;
+      var totV=0,totI=0,totS=0,totDiff=0;
       lFin.innerHTML=finList.map(function(a){
-        totV+=a.vern;totI+=a.imb;totD+=a.ddt;
-        var ok=a.vern===a.imb&&a.imb===a.ddt;
-        var apertiImb=a.vern-a.imb;
-        var apertiDdt=a.imb-a.ddt;
-        var bordo=ok?'#217346':'#C55A11';
-        var badgeParts=[];
-        if(apertiImb>0)badgeParts.push('da imballare: '+apertiImb);
-        if(apertiDdt>0)badgeParts.push('da spedire: '+apertiDdt);
-        var badge=ok
-          ?'<span class="badge badge-ok">OK</span>'
-          :(badgeParts.length?'<span class="badge badge-warn">'+badgeParts.join(' · ')+'</span>':'');
-        return '<div class="row-item" style="border-left-color:'+bordo+';">'
-          +'<div class="row-qty" style="color:'+bordo+';">'+a.vern+'</div>'
-          +'<div class="row-info">'
-            +'<div class="rdesc"><span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span> '+a.desc+' '+badge+'</div>'
-            +'<div class="rsub">Verniciato: <strong>'+a.vern+'</strong> &nbsp;Imballo: <strong>'+a.imb+'</strong> &nbsp;DDT: <strong>'+a.ddt+'</strong></div>'
+        var ber=b0ToBer[a.cod]||'';
+        var scarto=scartoMap[a.cod]||0;
+        var diff=a.vern-a.imb-scarto;
+        totV+=a.vern;totI+=a.imb;totS+=scarto;totDiff+=diff;
+        var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
+        return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
+          +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
+            +(ber?'<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+ber+'</span><span style="color:#999;">&rarr;</span>':'')
+            +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
+            +'<span>'+a.desc+'</span>'
+            +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
+              +'<span>Verniciato: <strong>'+a.vern+'</strong></span>'
+              +'<span>Imballato: <strong>'+a.imb+'</strong></span>'
+              +'<span>Scarti: <strong>'+scarto+'</strong></span>'
+              +'<span style="color:'+bordo+';">Diff: <strong>'+(diff>0?'+':'')+diff+'</strong> pz</span>'
+            +'</span>'
           +'</div></div>';
       }).join('');
       if(lTot){
-        var allOk=totV===totI&&totI===totD;
-        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;DDT Uscita: <strong>'+totD+'</strong></div>';
+        var allOk=totDiff===0;
+        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> pz</div>';
       }
     }
   }
@@ -2309,6 +2342,8 @@ async function svuotaImballo(){
 }
 
 async function caricaImballo(){
+  var waCard=document.getElementById('imb2-wa-verifica-card');
+  if(waCard)waCard.style.display=getCliente()==='BERGAMASCO'?'none':'';
   var d=await apiGet('imballo');if(!d)return;
   if(document.getElementById('st-imb'))document.getElementById('st-imb').textContent=d.length;
   var l=document.getElementById('imb-lista');
@@ -2527,6 +2562,77 @@ function renderMagazzino(){
   }).join('');
 }
 
+// ── DETTAGLIO ARTICOLO ─────────────────────────────────────────────────
+function resetDettaglioArt(){
+  var c=document.getElementById('det-cerca');if(c)c.value='';
+  var r=document.getElementById('det-ris');if(r){r.style.display='none';r.innerHTML='';}
+  var card=document.getElementById('det-risultato-card');if(card)card.style.display='none';
+}
+
+function cercaDettaglioArt(){
+  var q=document.getElementById('det-cerca').value.trim();
+  var el=document.getElementById('det-ris');
+  if(q.length<2){el.style.display='none';return;}
+  var qUpper=q.toUpperCase();
+  var results=artCache.filter(function(a){
+    var code=(a.codice_articolo||'').toUpperCase();
+    var desc=(a.descrizione||'').toUpperCase();
+    return code.includes(qUpper)||desc.includes(qUpper);
+  });
+  if(!results.length){el.innerHTML='<div class="cerca-item">Nessun risultato</div>';el.style.display='block';return;}
+  el.innerHTML=results.map(function(a){
+    return '<div class="cerca-item" onclick="selDettaglioArt(\''+a.codice_articolo+'\',\''+String(a.descrizione||'').replace(/'/g,"\\'")+'\')"><div class="cerca-codice">'+a.codice_articolo+'</div><div>'+a.descrizione+'</div></div>';
+  }).join('');
+  el.style.display='block';
+}
+
+async function selDettaglioArt(cod,desc){
+  document.getElementById('det-cerca').value=cod+' — '+desc;
+  document.getElementById('det-ris').style.display='none';
+  var card=document.getElementById('det-risultato-card');
+  var res=document.getElementById('det-risultato');
+  card.style.display='block';
+  res.innerHTML='<div class="empty">Caricamento...</div>';
+  var codUp=cod.toUpperCase();
+  var ent=await apiGet('ddt_entrata');
+  var usc=await apiGet('ddt_uscita');
+  var vern=await apiGet('verniciato');
+  var imb=await apiGet('imballo');
+  var abb=await apiGet('abbinamenti_ber');
+  // se il codice e' un finito (B0) o un grezzo (BER) abbinato, includi anche le righe del codice corrispondente
+  var altCod=null;
+  if(abb&&abb.length){
+    var m1=abb.find(function(r){return (r.codice_b0||'').toUpperCase()===codUp;});
+    if(m1)altCod=(m1.codice_ber||'').toUpperCase();
+    if(!altCod){
+      var m2=abb.find(function(r){return (r.codice_ber||'').toUpperCase()===codUp;});
+      if(m2)altCod=(m2.codice_b0||'').toUpperCase();
+    }
+  }
+  function matches(r){
+    var k=(r.codice_articolo||'').toUpperCase();
+    return k===codUp||(altCod&&k===altCod);
+  }
+  function sum(arr,field,altField){
+    if(!arr)return 0;
+    return arr.filter(matches).reduce(function(a,r){return a+(Number(r[field]||(altField?r[altField]:0))||0);},0);
+  }
+  var totEnt=sum(ent,'quantita_ddt');
+  var totUsc=sum(usc,'quantita_ddt','quantita');
+  var totVern=sum(vern,'quantita');
+  var totImb=sum(imb,'totale');
+  var diff=totEnt-totUsc;
+  var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
+  res.innerHTML='<div class="rdesc" style="margin-bottom:12px;font-size:15px;"><span class="badge badge-ok">'+cod+'</span>'+(altCod?' <span style="color:#999;">&harr;</span> <span class="badge" style="background:#E6F1FB;color:#0C447C;">'+altCod+'</span>':'')+' '+desc+'</div>'
+    +'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr);">'
+      +'<div class="stat"><div class="n">'+totEnt+'</div><div class="l">DDT Entrata</div></div>'
+      +'<div class="stat"><div class="n">'+totUsc+'</div><div class="l">DDT Uscita</div></div>'
+      +'<div class="stat"><div class="n" style="color:#C55A11;">'+totVern+'</div><div class="l">Verniciato</div></div>'
+      +'<div class="stat"><div class="n" style="color:#5B2C8D;">'+totImb+'</div><div class="l">Imballo</div></div>'
+    +'</div>'
+    +'<div class="'+(diff===0?'ok-box':'warn-box')+'">Differenza (Entrata &minus; Uscita): <strong style="color:'+bordo+';">'+(diff>0?'+':'')+diff+'</strong> pz</div>';
+}
+
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
 async function chiudiMese(){
   if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati. I DDT restano.'))return;
@@ -2726,6 +2832,34 @@ async function unisciDuplicatiUscita(){
   showMsg('msg-uscita',uniti>0?'Uniti '+uniti+' duplicati!':'Nessun duplicato trovato.','ok');
   caricaUscite();
 }
+
+async function unisciDuplicatiImballo(){
+  if(!confirm('Unire gli imballi duplicati della stessa data?'))return;
+  var d=await apiGet('imballo','order=created_at.asc&limit=500');
+  if(!d||!d.length)return;
+  var map={};
+  d.forEach(function(r){
+    var data=(r.data_inserimento||r.created_at||'').slice(0,10);
+    var k=data+'__'+(r.codice_articolo||r.articolo||'?');
+    if(!map[k])map[k]=[];
+    map[k].push(r);
+  });
+  var uniti=0;
+  for(var k in map){
+    var gruppo=map[k];
+    if(gruppo.length<=1)continue;
+    var primo=gruppo[0];
+    var totQty=gruppo.reduce(function(a,r){return a+(r.totale||0);},0);
+    var seqParts=gruppo.map(function(r){return r.sequenza||String(r.totale||0);}).filter(Boolean);
+    var nuovaSeq=seqParts.join('+');
+    await apiPatch('imballo','id=eq.'+primo.id,{totale:totQty,sequenza:nuovaSeq});
+    for(var i=1;i<gruppo.length;i++){await apiDel('imballo','id=eq.'+gruppo[i].id);}
+    uniti+=gruppo.length-1;
+  }
+  showMsg('msg-imballo2',uniti>0?'Uniti '+uniti+' duplicati!':'Nessun duplicato trovato.','ok');
+  caricaImballo();caricaRiepilogoBer();
+}
+
 async function associaCodiciUscita(){
   var d=await apiGet('whatsapp_uscita','order=created_at.asc&limit=500');
   if(!d||!d.length){showMsg('msg-uscita','Nessuna uscita.','ok');return;}
@@ -2797,8 +2931,8 @@ function setWAMode(mode){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','riepilogo-wa','confronto','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','sostituzioni','riepilogo-ber','cfg']
+  AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','confronto','cfg'],
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sostituzioni','riepilogo-ber','cfg']
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
@@ -2836,10 +2970,11 @@ function cambiaCliente(){
     if(name==='ddt-entrata')caricaDDTE();
     if(name==='ddt-uscita')caricaDDTU();
     if(name==='magazzino')caricaMagazzino();
+    if(name==='dettaglio')resetDettaglioArt();
   if(name==='sostituzioni'){sostList=[];renderSostLista();}
     if(name==='riepilogo-wa')caricaRiepilogoWA();
     if(name==='confronto')aggiornaConfronto();
-    
+
   }
 }
 
@@ -2857,7 +2992,7 @@ window.onload=function(){
   }
   // Imposta le date di default a oggi per i campi nuova inserzione
   var today=oggiISO();
-  ['e-date','u-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
+  ['e-date','u-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
 };
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
