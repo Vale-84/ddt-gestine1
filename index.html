@@ -2635,6 +2635,30 @@ async function selDettaglioArt(cod,desc){
     if(!arr)return 0;
     return arr.filter(matches).reduce(function(a,r){return a+(Number(r[field]||(altField?r[altField]:0))||0);},0);
   }
+  function breakdownByDDT(arr,field,altField){
+    if(!arr)return [];
+    var map={};
+    arr.filter(matches).forEach(function(r){
+      var k=r.numero_ddt||'?';
+      map[k]=(map[k]||0)+(Number(r[field]||(altField?r[altField]:0))||0);
+    });
+    return Object.keys(map).sort().map(function(k){return{label:'DDT '+k,qty:map[k]};});
+  }
+  function breakdownByData(arr,field){
+    if(!arr)return [];
+    var map={};
+    arr.filter(matches).forEach(function(r){
+      var k=(r.data_inserimento||r.created_at||'').slice(0,10)||'?';
+      map[k]=(map[k]||0)+(Number(r[field])||0);
+    });
+    return Object.keys(map).sort().map(function(k){return{label:fmtData(k)||k,qty:map[k]};});
+  }
+  function renderBreakdown(title,total,items){
+    var rows=items.length
+      ? items.map(function(it){return '<div style="padding:3px 0 3px 18px;font-size:13px;color:#444;">&rarr; '+it.label+': <strong>'+it.qty+'</strong> pz</div>';}).join('')
+      : '<div style="padding:3px 0 3px 18px;font-size:13px;color:#999;">(nessun record)</div>';
+    return '<div style="margin-bottom:10px;"><div style="font-weight:bold;font-size:14px;">'+title+': '+total+' pz</div>'+rows+'</div>';
+  }
   var totEnt=sum(ent,'quantita_ddt');
   var totUsc=sum(usc,'quantita_ddt','quantita');
   var totVern=sum(vern,'quantita');
@@ -2649,7 +2673,13 @@ async function selDettaglioArt(cod,desc){
       +'<div class="stat"><div class="n" style="color:#C55A11;">'+totVern+'</div><div class="l">Verniciato</div></div>'
       +'<div class="stat"><div class="n" style="color:#5B2C8D;">'+totImb+'</div><div class="l">Imballo</div></div>'
     +'</div>'
-    +'<div class="'+(diff===0?'ok-box':'warn-box')+'">Differenza (Entrata &minus; Uscita): <strong style="color:'+bordo+';">'+(diff>0?'+':'')+diff+'</strong> pz</div>';
+    +'<div class="'+(diff===0?'ok-box':'warn-box')+'">Differenza (Entrata &minus; Uscita): <strong style="color:'+bordo+';">'+(diff>0?'+':'')+diff+'</strong> pz</div>'
+    +'<div style="margin-top:14px;border-top:1px solid #eee;padding-top:12px;">'
+      +renderBreakdown('DDT Entrata',totEnt,breakdownByDDT(ent,'quantita_ddt'))
+      +renderBreakdown('DDT Uscita',totUsc,breakdownByDDT(usc,'quantita_ddt','quantita'))
+      +renderBreakdown('Verniciato',totVern,breakdownByData(vern,'quantita'))
+      +renderBreakdown('Imballo',totImb,breakdownByData(imb,'totale'))
+    +'</div>';
 }
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
