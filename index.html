@@ -1965,32 +1965,64 @@ async function verificaDisponibilitaSost(){
   var res=document.getElementById('sost-verifica-res');
   card.style.display='block';
   res.innerHTML='<div class="empty">Caricamento...</div>';
-  // Carica magazzino (ddt_entrata - ddt_uscita)
+  // Disponibilità = Verniciato - Imballato - Scarti (stesso calcolo del Riepilogo Bergamasco):
+  // il verniciato deve corrispondere all'entrata; quello già uscito (imballato) viene sottratto;
+  // quello che resta è pronto ma non ancora spedito. Se per un codice non c'è verniciato
+  // registrato, si usa l'Entrata-Uscita (ddt_entrata/ddt_uscita) come stima al suo posto,
+  // dato che verniciato dovrebbe normalmente coincidere con l'entrata.
+  var vern=await apiGet('verniciato');
+  var imb=await apiGet('imballo');
   var ent=await apiGet('ddt_entrata');
   var usc=await apiGet('ddt_uscita');
+  var scartiDB=await apiGet('scarti_ber');
   var sost=await apiGet('sostituzioni_ber','evaso=eq.false');
-  if(!ent||!usc||!sost){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
+  if(!vern||!imb||!ent||!usc||!sost){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
   if(!sost.length){res.innerHTML='<div class="ok-box">✅ Nessuna sostituzione da evadere.</div>';return;}
-  // Calcola giacenza per codice
+  var scartoMap={};
+  if(scartiDB&&scartiDB.length){
+    scartiDB.forEach(function(r){scartoMap[(r.codice_articolo||'').trim().toUpperCase()]=Number(r.quantita)||0;});
+  }
+  // Verniciato - Imballato per codice
+  var vernMap={};
+  vern.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    if(!k)return;
+    if(!vernMap[k])vernMap[k]={vern:0,imb:0};
+    vernMap[k].vern+=Number(r.quantita)||0;
+  });
+  imb.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    if(!k)return;
+    if(!vernMap[k])vernMap[k]={vern:0,imb:0};
+    vernMap[k].imb+=Number(r.totale)||0;
+  });
+  // Fallback Entrata - Uscita per codice (usato solo se manca il verniciato)
   var magMap={};
   ent.forEach(function(r){
-    var k=(r.codice_articolo||'').trim().toLowerCase();
+    var k=(r.codice_articolo||'').trim().toUpperCase();
     if(!k)return;
-    if(!magMap[k])magMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
+    if(!magMap[k])magMap[k]={ric:0,spe:0};
     magMap[k].ric+=Number(r.quantita_ddt)||0;
   });
   usc.forEach(function(r){
-    var k=(r.codice_articolo||'').trim().toLowerCase();
+    var k=(r.codice_articolo||'').trim().toUpperCase();
     if(!k)return;
-    if(!magMap[k])magMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
-    magMap[k].spe+=Number(r.quantita_ddt)||0;
+    if(!magMap[k])magMap[k]={ric:0,spe:0};
+    magMap[k].spe+=Number(r.quantita_ddt||r.quantita)||0;
   });
   var html='';
   var tuttoOk=true;
   sost.forEach(function(r){
-    var k=(r.codice_articolo||'').trim().toLowerCase();
-    var mag=magMap[k];
-    var gia=mag?(mag.ric-mag.spe):0;
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    var scarto=scartoMap[k]||0;
+    var v=vernMap[k];
+    var gia;
+    if(v&&v.vern>0){
+      gia=Math.max(0,v.vern-v.imb-scarto);
+    } else {
+      var mag=magMap[k];
+      gia=mag?Math.max(0,mag.ric-mag.spe):0;
+    }
     var ok=gia>=r.quantita;
     if(!ok)tuttoOk=false;
     var colore=ok?'#217346':'#C00000';
