@@ -2566,7 +2566,9 @@ async function caricaMagazzino(){
   var b0ToBer={};
   if(abb&&abb.length){
     abb.forEach(function(r){
-      if(r.codice_b0&&r.codice_ber)b0ToBer[r.codice_b0.toUpperCase()]=r.codice_ber.toUpperCase();
+      var b0=(r.codice_b0||'').trim().toUpperCase();
+      var ber=(r.codice_ber||'').trim().toUpperCase();
+      if(b0&&ber)b0ToBer[b0]=ber;
     });
   }
   var map={};
