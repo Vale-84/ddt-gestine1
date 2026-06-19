@@ -132,7 +132,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
   <div class="tab" data-page="dettaglio" onclick="showPage('dettaglio',this)">Dettaglio</div>
-  <div class="tab admin-tab" data-page="sostituzioni" onclick="showPage('sostituzioni',this)" style="display:none">Sostituzioni</div>
+  <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
   <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
@@ -604,35 +604,48 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
-<!-- SOSTITUZIONI -->
-<div id="page-sostituzioni" class="page">
-  <div id="msg-sost"></div>
+<!-- SOSTITUZIONI BERGAMASCO -->
+<div id="page-sost-ber" class="page">
+  <div id="msg-sost-ber"></div>
+
+  <!-- MODALITÀ INCOLLA MAIL -->
   <div class="card">
-    <h2>Articoli da sostituire</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci gli articoli richiesti dalla mail e verifica la disponibilità da verniciato e magazzino.</p>
+    <h2 style="color:#5B2C8D;">Incolla mail</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Copia tutto il testo della mail e incollalo qui. L'app estrae automaticamente gli articoli (formato: <strong>N. 5 0090343110 RETE BCO...</strong>)</p>
+    <textarea id="sost-mail-text" rows="6" placeholder="Incolla qui il testo della mail..." style="width:100%;font-size:13px;padding:10px;border:1px solid #ccc;border-radius:8px;resize:vertical;box-sizing:border-box;"></textarea>
+    <button class="btn btn-purple" style="margin-top:8px;" onclick="parseMail()">ESTRAI ARTICOLI DALLA MAIL</button>
+    <div id="sost-mail-res" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- MODALITÀ MANUALE -->
+  <div class="card">
+    <h2 style="color:#5B2C8D;">Aggiungi manuale</h2>
     <label>Cerca articolo</label>
     <div class="cerca-box">
-      <input class="cerca-input" id="sost-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('sost')" autocomplete="off">
+      <input class="cerca-input" id="sost-cerca" placeholder="Codice o descrizione..." oninput="cerca('sost')" autocomplete="off">
       <div class="cerca-risultati" id="sost-ris"></div>
     </div>
     <div class="art-sel" id="sost-sel"></div>
     <input type="hidden" id="sost-cod"><input type="hidden" id="sost-dsc">
     <label>Quantità richiesta</label>
-    <div class="imb-row">
-      <input type="number" id="sost-qty" placeholder="0" style="font-size:20px;text-align:center;font-weight:bold;margin-bottom:0;">
-    </div>
-    <button class="btn btn-purple" onclick="aggiungiSostituzione()">AGGIUNGI</button>
+    <input type="number" id="sost-qty" placeholder="0" min="1" style="font-size:20px;text-align:center;font-weight:bold;">
+    <label>Note (es. numero mail, riferimento)</label>
+    <input type="text" id="sost-note" placeholder="es. mail 10/06">
+    <button class="btn btn-purple" onclick="aggiungiSostituzione()">AGGIUNGI SOSTITUZIONE</button>
   </div>
   <div class="card">
-    <div style="display:flex;gap:8px;margin-bottom:8px;">
-      <button class="btn btn-blue btn-sm" style="flex:1;" onclick="verificaSostituzioni()">🔍 VERIFICA DISPONIBILITÀ</button>
-      <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaSostituzioni()">SVUOTA</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <h2 style="color:#5B2C8D;margin:0;">Lista sostituzioni</h2>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-blue btn-sm" onclick="caricaSostituzioni()">↻</button>
+        <button class="btn btn-orange btn-sm" onclick="verificaDisponibilitaSost()">VERIFICA DISPONIBILITÀ</button>
+      </div>
     </div>
-    <div id="sost-lista"><div class="empty">Nessun articolo inserito</div></div>
+    <div id="sost-lista"><div class="empty">Nessuna sostituzione</div></div>
   </div>
-  <div class="card" id="sost-risultati-card" style="display:none;">
-    <h2 style="color:#5B2C8D;">Risultato verifica</h2>
-    <div id="sost-risultati"></div>
+  <div class="card" id="sost-verifica-card" style="display:none;">
+    <h2 style="color:#5B2C8D;">Risultato verifica disponibilità</h2>
+    <div id="sost-verifica-res"></div>
   </div>
 </div>
 
@@ -673,6 +686,22 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Stato connessione</h2>
     <div id="stato-conn">Non configurato</div><br>
     <button class="btn btn-gray btn-sm" onclick="testConn()">TESTA CONNESSIONE</button>
+  </div>
+</div>
+
+<!-- MODAL MODIFICA SOSTITUZIONE -->
+<div class="modal" id="modal-sost">
+  <div class="modal-box">
+    <h3 style="color:#5B2C8D;">Modifica sostituzione</h3>
+    <div class="modal-desc" id="modal-sost-desc"></div>
+    <input type="hidden" id="modal-sost-id">
+    <label>Quantità richiesta</label>
+    <input type="number" id="modal-sost-qty" placeholder="0" min="1" style="font-size:20px;text-align:center;font-weight:bold;">
+    <label>Note</label>
+    <input type="text" id="modal-sost-note" placeholder="es. mail 10/06">
+    <br>
+    <button class="btn btn-blue" onclick="salvaModificaSost()">SALVA</button>
+    <button class="btn btn-gray" onclick="document.getElementById('modal-sost').style.display='none'">ANNULLA</button>
   </div>
 </div>
 
@@ -726,8 +755,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 var pdfDati=null, artCache=[];
 
-function getConfig(){return{url:localStorage.getItem('ddt_url')||'',key:localStorage.getItem('ddt_key')||''};}
-
+function getConfig(){return{url:'https://ddziwcyxjgzcmtlqltrc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkeml3Y3l4amd6Y210bHFsdHJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDE4NjUsImV4cCI6MjA5NTExNzg2NX0.xBu-nFP-7G1I4gj7vU0iaN4LWYmJ1kwUAbwr0UjN8l8'};}
 function salvaConfig(){
   var url=document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
   var key=document.getElementById('cfg-key').value.trim();
@@ -890,7 +918,7 @@ function showPage(name,el){
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
   if(name==='dettaglio')resetDettaglioArt();
-  if(name==='sostituzioni'){sostList=[];renderSostLista();}
+  if(name==='sost-ber')caricaSostituzioni();
   if(name==='riepilogo-ber')caricaRiepilogoBerNew();
   if(name==='confronto')aggiornaConfronto();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
@@ -1770,6 +1798,7 @@ async function caricaRiepilogoBer(){
   var imb=await apiGet('imballo');
   var scartiDB=await apiGet('scarti_ber');
   if(!vern||!imb)return;
+  // Carica scarti dal database
   if(scartiDB&&scartiDB.length){
     scartiDB.forEach(function(r){scartoBer[r.codice_articolo]=r.quantita;});
   }
@@ -1815,6 +1844,7 @@ async function caricaRiepilogoBer(){
 async function aggiornaScarto(key,inputId){
   var val=parseInt(document.getElementById(inputId).value)||0;
   scartoBer[key]=val;
+  // Salva su Supabase: cerca se esiste già
   var esistente=await apiGet('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key));
   if(esistente&&esistente.length){
     await apiPatch('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key),{quantita:val});
@@ -1822,6 +1852,158 @@ async function aggiornaScarto(key,inputId){
     await apiPost('scarti_ber',{codice_articolo:key,quantita:val,cliente:'BERGAMASCO'});
   }
   caricaRiepilogoBer();
+}
+
+// ── SOSTITUZIONI BERGAMASCO ───────────────────────────────────────────
+var sostCache=[];
+
+// ── PARSE MAIL SOSTITUZIONI ───────────────────────────────────────────
+async function parseMail(){
+  var testo=document.getElementById('sost-mail-text').value;
+  var res=document.getElementById('sost-mail-res');
+  if(!testo.trim()){res.innerHTML='<div class="warn-box">Incolla prima il testo della mail!</div>';return;}
+  // Cerca righe tipo: N. 5 0090343110 RETE MOD.CULLA BCO
+  var righe=testo.split('\n');
+  var trovati=[];
+  var regex=/^[Nn]\.?\s*(\d+)\s+(\d{7,13})\s+(.+)$/;
+  righe.forEach(function(riga){
+    riga=riga.trim();
+    var m=riga.match(regex);
+    if(m){
+      trovati.push({qty:parseInt(m[1]),cod:m[2].trim(),desc:m[3].trim()});
+    }
+  });
+  if(!trovati.length){
+    res.innerHTML='<div class="warn-box">Nessun articolo trovato. Assicurati che le righe siano nel formato: <strong>N. 5 0090343110 DESCRIZIONE</strong></div>';
+    return;
+  }
+  res.innerHTML='<div class="ok-box">Trovati '+trovati.length+' articoli. Salvataggio...</div>';
+  var ok=0;var err=0;
+  for(var i=0;i<trovati.length;i++){
+    var t=trovati[i];
+    var r=await apiPost('sostituzioni_ber',{codice_articolo:t.cod,descrizione:t.desc,quantita:t.qty,note:'da mail',evaso:false});
+    if(r)ok++;else err++;
+  }
+  document.getElementById('sost-mail-text').value='';
+  var msg='<div class="ok-box">✅ Salvati '+ok+' articoli';
+  if(err)msg+=' — '+err+' errori';
+  msg+='</div>';
+  res.innerHTML=msg;
+  caricaSostituzioni();
+}
+
+async function aggiungiSostituzione(){
+  var cod=document.getElementById('sost-cod').value.trim();
+  var dsc=document.getElementById('sost-dsc').value.trim();
+  var qty=parseInt(document.getElementById('sost-qty').value)||0;
+  var note=document.getElementById('sost-note').value.trim();
+  if(!dsc&&!cod){alert('Seleziona un articolo!');return;}
+  if(!qty||qty<=0){alert('Inserisci una quantità!');return;}
+  var r=await apiPost('sostituzioni_ber',{codice_articolo:cod,descrizione:dsc,quantita:qty,note:note,evaso:false});
+  if(!r){alert('Errore salvataggio!');return;}
+  document.getElementById('sost-cerca').value='';
+  document.getElementById('sost-sel').innerHTML='';
+  document.getElementById('sost-cod').value='';
+  document.getElementById('sost-dsc').value='';
+  document.getElementById('sost-qty').value='';
+  document.getElementById('sost-note').value='';
+  caricaSostituzioni();
+}
+
+async function caricaSostituzioni(){
+  var d=await apiGet('sostituzioni_ber','order=created_at.desc');
+  var l=document.getElementById('sost-lista');
+  if(!d||!l){if(l)l.innerHTML='<div class="empty">Errore connessione</div>';return;}
+  sostCache=d;
+  if(!d.length){l.innerHTML='<div class="empty">Nessuna sostituzione</div>';return;}
+  l.innerHTML=d.map(function(r){
+    var evaso=r.evaso?'<span class="badge badge-ok">✅ Evaso</span>':'<span class="badge badge-warn">⏳ Da fare</span>';
+    return '<div class="row-item" style="border-left-color:'+(r.evaso?'#217346':'#C55A11')+';">'
+      +'<div class="row-qty" style="color:'+(r.evaso?'#217346':'#C55A11')+';">'+r.quantita+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ':'')+r.descrizione+'</div>'
+      +'<div class="rsub">'+(r.note?r.note+' — ':'')+evaso+'</div></div>'
+      +'<div style="display:flex;gap:6px;align-items:center;">'
+      +(r.evaso?'':'<button onclick="evadiSostituzione('+r.id+')" style="padding:6px 10px;background:#217346;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✅</button>')
+      +'<button onclick="apriModificaSost('+r.id+','+r.quantita+',\''+encodeURIComponent(r.note||'')+'\',\''+encodeURIComponent((r.codice_articolo||'')+' '+(r.descrizione||''))+'\')" style="padding:6px 10px;background:#1F4E79;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✏️</button>'
+      +'<button onclick="eliminaSostituzione('+r.id+')" style="padding:6px 10px;background:#C00000;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function apriModificaSost(id,qty,noteEnc,descEnc){
+  document.getElementById('modal-sost-id').value=id;
+  document.getElementById('modal-sost-qty').value=qty;
+  document.getElementById('modal-sost-note').value=decodeURIComponent(noteEnc||'');
+  document.getElementById('modal-sost-desc').textContent=decodeURIComponent(descEnc||'');
+  document.getElementById('modal-sost').style.display='flex';
+}
+
+async function salvaModificaSost(){
+  var id=document.getElementById('modal-sost-id').value;
+  var qty=parseInt(document.getElementById('modal-sost-qty').value)||0;
+  var note=document.getElementById('modal-sost-note').value.trim();
+  if(!qty||qty<=0){alert('Inserisci una quantità valida!');return;}
+  await apiPatch('sostituzioni_ber','id=eq.'+id,{quantita:qty,note:note});
+  document.getElementById('modal-sost').style.display='none';
+  caricaSostituzioni();
+}
+
+async function evadiSostituzione(id){
+  await apiPatch('sostituzioni_ber','id=eq.'+id,{evaso:true});
+  caricaSostituzioni();
+}
+
+async function eliminaSostituzione(id){
+  if(!confirm('Eliminare questa sostituzione?'))return;
+  await apiDel('sostituzioni_ber','id=eq.'+id);
+  caricaSostituzioni();
+}
+
+async function verificaDisponibilitaSost(){
+  var card=document.getElementById('sost-verifica-card');
+  var res=document.getElementById('sost-verifica-res');
+  card.style.display='block';
+  res.innerHTML='<div class="empty">Caricamento...</div>';
+  // Carica magazzino (ddt_entrata - ddt_uscita)
+  var ent=await apiGet('ddt_entrata');
+  var usc=await apiGet('ddt_uscita');
+  var sost=await apiGet('sostituzioni_ber','evaso=eq.false');
+  if(!ent||!usc||!sost){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
+  if(!sost.length){res.innerHTML='<div class="ok-box">✅ Nessuna sostituzione da evadere.</div>';return;}
+  // Calcola giacenza per codice
+  var magMap={};
+  ent.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toLowerCase();
+    if(!k)return;
+    if(!magMap[k])magMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
+    magMap[k].ric+=Number(r.quantita_ddt)||0;
+  });
+  usc.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toLowerCase();
+    if(!k)return;
+    if(!magMap[k])magMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',ric:0,spe:0};
+    magMap[k].spe+=Number(r.quantita_ddt)||0;
+  });
+  var html='';
+  var tuttoOk=true;
+  sost.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toLowerCase();
+    var mag=magMap[k];
+    var gia=mag?(mag.ric-mag.spe):0;
+    var ok=gia>=r.quantita;
+    if(!ok)tuttoOk=false;
+    var colore=ok?'#217346':'#C00000';
+    var bg=ok?'#E8F5E9':'#FFE8E8';
+    html+='<div class="row-item" style="border-left-color:'+colore+';background-color:'+bg+';">'
+      +'<div class="row-qty" style="color:'+colore+';">'+gia+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ':'')+r.descrizione+'</div>'
+      +'<div class="rsub">Richiesto: <strong>'+r.quantita+' pz</strong> — Disponibile: <strong>'+gia+' pz</strong> '+(ok?'✅ Disponibile':'❌ Non disponibile')+'</div>'
+      +'</div></div>';
+  });
+  if(tuttoOk)html='<div class="ok-box">✅ Hai disponibilità per tutte le sostituzioni!</div>'+html;
+  else html='<div class="warn-box">⚠️ Alcune sostituzioni non hanno disponibilità sufficiente.</div>'+html;
+  res.innerHTML=html;
 }
 
 async function caricaRiepilogoWA(){await caricaRwa();}
@@ -2463,102 +2645,6 @@ async function salvaImballo2(){
 // ── MAGAZZINO ─────────────────────────────────────────────────────────
 var magCache=[];
 
-// ── SOSTITUZIONI ──────────────────────────────────────────────────────
-var sostList=[];
-
-function aggiungiSostituzione(){
-  var cod=document.getElementById('sost-cod').value.trim();
-  var dsc=document.getElementById('sost-dsc').value.trim();
-  var qty=parseInt(document.getElementById('sost-qty').value)||0;
-  if(!cod){showMsg('msg-sost','Seleziona un articolo!','err');return;}
-  if(!qty){showMsg('msg-sost','Inserisci la quantità!','err');return;}
-  var esiste=sostList.findIndex(function(x){return x.cod===cod;});
-  if(esiste>=0){sostList[esiste].qty+=qty;}
-  else{sostList.push({cod:cod,dsc:dsc,qty:qty});}
-  document.getElementById('sost-cod').value='';
-  document.getElementById('sost-dsc').value='';
-  document.getElementById('sost-qty').value='';
-  document.getElementById('sost-sel').textContent='';
-  document.getElementById('sost-cerca').value='';
-  renderSostLista();
-  showMsg('msg-sost','Aggiunto!','ok');
-}
-
-function renderSostLista(){
-  var l=document.getElementById('sost-lista');
-  if(!sostList.length){l.innerHTML='<div class="empty">Nessun articolo inserito</div>';return;}
-  l.innerHTML=sostList.map(function(a,i){
-    return '<div class="row-item" style="border-left-color:#5B2C8D;">'      +'<div class="row-qty" style="color:#5B2C8D;">'+a.qty+'</div>'      +'<div class="row-info"><div class="rdesc"><strong>'+a.cod+'</strong> '+a.dsc+'</div>'      +'<div class="rsub">Richiesti: '+a.qty+' pz</div></div>'      +'<button class="del-btn" onclick="rimuoviSost('+i+')">✕</button>'      +'</div>';
-  }).join('');
-}
-
-function rimuoviSost(i){
-  sostList.splice(i,1);
-  renderSostLista();
-}
-
-function svuotaSostituzioni(){
-  if(!confirm('Svuotare la lista sostituzioni?'))return;
-  sostList=[];
-  renderSostLista();
-  document.getElementById('sost-risultati-card').style.display='none';
-}
-
-async function verificaSostituzioni(){
-  if(!sostList.length){showMsg('msg-sost','Inserisci almeno un articolo!','err');return;}
-  var vern=await apiGet('verniciato');
-  var ent=await apiGet('ddt_entrata');
-  var usc=await apiGet('ddt_uscita');
-  if(!vern||!ent||!usc){showMsg('msg-sost','Errore caricamento dati!','err');return;}
-
-  // Mappa verniciato per codice
-  var mapVern={};
-  vern.forEach(function(r){
-    var k=(r.codice_articolo||'').toUpperCase();
-    if(!mapVern[k])mapVern[k]=0;
-    mapVern[k]+=Number(r.quantita)||0;
-  });
-
-  // Mappa magazzino (entrata - uscita)
-  var mapMag={};
-  ent.forEach(function(r){
-    var k=(r.codice_articolo||'').toUpperCase();
-    if(!mapMag[k])mapMag[k]=0;
-    mapMag[k]+=Number(r.quantita_ddt)||0;
-  });
-  usc.forEach(function(r){
-    var k=(r.codice_articolo||'').toUpperCase();
-    if(!mapMag[k])mapMag[k]=0;
-    mapMag[k]-=Number(r.quantita_ddt||r.quantita||0);
-  });
-
-  var html='';
-  var totOk=0,totManca=0;
-
-  sostList.forEach(function(a){
-    var k=a.cod.toUpperCase();
-    var dispVern=mapVern[k]||0;
-    var dispMag=Math.max(0,mapMag[k]||0);
-    var dispTot=dispVern+dispMag;
-    var coperto=Math.min(dispTot,a.qty);
-    var manca=Math.max(0,a.qty-dispTot);
-    var rimVern=Math.max(0,dispVern-(Math.min(dispVern,a.qty)));
-    var rimMag=Math.max(0,dispMag-(Math.min(dispMag,Math.max(0,a.qty-dispVern))));
-    var colore=manca===0?'#217346':'#C00000';
-    var badge=manca===0
-      ?'<span class="badge badge-ok">✅ OK</span>'
-      :'<span class="badge badge-err">Mancano '+manca+' pz</span>';
-    if(manca===0)totOk++;else totManca++;
-    html+='<div class="row-item" style="border-left-color:'+colore+';margin-bottom:8px;">'      +'<div class="row-info" style="width:100%;">'      +'<div class="rdesc"><strong>'+a.cod+'</strong> '+a.dsc+' '+badge+'</div>'      +'<div class="rsub">Richiesti: <strong>'+a.qty+'</strong> pz'      +' &nbsp;|&nbsp; Verniciato: <strong>'+dispVern+'</strong>'      +' &nbsp;Magazzino: <strong>'+dispMag+'</strong>'      +' &nbsp;Totale disp: <strong>'+dispTot+'</strong></div>'      +(dispTot>0?'<div class="rsub" style="margin-top:4px;">Rimane dopo sostituzione — Verniciato: <strong>'+rimVern+'</strong> &nbsp;Magazzino: <strong>'+rimMag+'</strong></div>':'')
-      +'</div></div>';
-  });
-
-  var riepilogo='<div class="'+(totManca===0?'ok-box':'warn-box')+'" style="margin-bottom:12px;">'    +(totManca===0?'✅ Puoi coprire tutte le sostituzioni!':'⚠️ '+totOk+' articoli OK, '+totManca+' con disponibilità insufficiente')    +'</div>';
-
-  document.getElementById('sost-risultati').innerHTML=riepilogo+html;
-  document.getElementById('sost-risultati-card').style.display='block';
-}
-
 async function caricaMagazzino(){
   var ent=await apiGet('ddt_entrata');var usc=await apiGet('ddt_uscita');
   if(!ent||!usc)return;
@@ -3059,7 +3145,7 @@ function cambiaCliente(){
     if(name==='ddt-uscita')caricaDDTU();
     if(name==='magazzino')caricaMagazzino();
     if(name==='dettaglio')resetDettaglioArt();
-  if(name==='sostituzioni'){sostList=[];renderSostLista();}
+    if(name==='sost-ber')caricaSostituzioni();
     if(name==='riepilogo-wa')caricaRiepilogoWA();
     if(name==='confronto')aggiornaConfronto();
 
