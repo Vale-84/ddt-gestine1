@@ -992,7 +992,8 @@ async function aggiungiWAEntrata(){
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
-        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc)});
+        var nuovoTestoOriginale=(dup.testo_originale||dup.testo_riga||'')+' + '+r;
+        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
         n++;continue;
       }
     }
@@ -1128,7 +1129,8 @@ async function aggiungiWAUscita(){
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
-        await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc)});
+        var nuovoTestoOriginale=(dup.testo_originale||dup.testo_riga||'')+' + '+r;
+        await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
         n++;continue;
       }
     }
