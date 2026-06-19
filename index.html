@@ -320,6 +320,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaImballo()">SVUOTA</button>
           <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciDuplicatiImballo()">UNISCI</button>
           <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaImballoExcel()"></button>
+          <button class="btn btn-orange btn-sm" style="flex:1;" onclick="verificaTutto()">VERIFICA TUTTO</button>
         </div>
         <div id="imb2-lista" style="margin-top:8px;"><div class="empty">Nessun imballo</div></div>
       </div>
@@ -327,7 +328,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#5B2C8D;margin:0;">Verifica Verniciato vs Imballo</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-orange btn-sm" onclick="verificaVerniciatoImballo()">VERIFICA VERNICIATO vs IMBALLO</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
         </div>
@@ -337,7 +337,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#1F6B75;margin:0;">Verifica WA Uscita vs Imballo</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-teal btn-sm" onclick="verificaWAUscitaImballo()">VERIFICA WA USCITA vs IMBALLO</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-wa-verifica-card')">STAMPA</button>
           </div>
         </div>
@@ -1259,27 +1258,37 @@ async function verificaVerniciatoImballo(){
     if(!mapVern[key]) mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
     mapVern[key].tot += Number(r.quantita)||0;
   });
-  var missing=[];
-  var diff=[];
-  Object.keys(mapVern).forEach(function(key){
-    var v=mapVern[key];
-    var i=mapImb[key];
-    if(!i){
-      missing.push(v);
-    } else if(Math.abs((v.tot||0)-(i.tot||0))>0.0001){
-      diff.push({cod:v.cod||i.cod,desc:v.desc||i.desc,vern:v.tot||0,imb:i.tot||0});
-    }
+  var keys={};
+  Object.keys(mapVern).forEach(function(k){keys[k]=true;});
+  Object.keys(mapImb).forEach(function(k){keys[k]=true;});
+  var list=Object.keys(keys).map(function(key){
+    var v=mapVern[key],i=mapImb[key];
+    var vTot=v?v.tot:0,iTot=i?i.tot:0;
+    return {cod:(v&&v.cod)||(i&&i.cod)||'',desc:(v&&v.desc)||(i&&i.desc)||'',vern:vTot,imb:iTot,diff:vTot-iTot};
   });
-  if(!missing.length && !diff.length){
-    res.innerHTML='<div class="ok-box">&#x2705; Verniciato e Imballo coincidono per tutti gli articoli.</div>';
-    return;
-  }
-  var html='';
-  if(missing.length){
-    html+='<div style="margin-bottom:14px;">'      +'<h3 style="margin-bottom:8px;">Articoli verniciati ma mancanti in Imballo</h3>'      +missing.map(function(a){        return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+(a.tot||0)+' pz</div></div></div>';      }).join('')    +'</div>';  }
-  if(diff.length){
-    html+='<div>'      +'<h3 style="margin-bottom:8px;">Articoli con quantit&agrave; diverse tra Verniciato e Imballo</h3>'      +diff.map(function(a){        return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Verniciato: '+a.vern+' pz &mdash; Imballo: '+a.imb+' pz</div></div></div>';      }).join('')    +'</div>';  }
-  res.innerHTML=html;
+  list.sort(function(a,b){
+    var aZero=a.diff===0,bZero=b.diff===0;
+    if(aZero!==bZero)return aZero?1:-1;
+    return 0;
+  });
+  var totV=0,totI=0,totDiff=0;
+  var rowsHtml=list.map(function(a){
+    totV+=a.vern;totI+=a.imb;totDiff+=a.diff;
+    var bordo=a.diff===0?'#217346':a.diff>0?'#C55A11':'#C00000';
+    return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
+      +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
+        +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+(a.cod||'?')+'</span>'
+        +'<span>'+a.desc+'</span>'
+        +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
+          +'<span>Verniciato: <strong>'+a.vern+'</strong></span>'
+          +'<span>Imballo: <strong>'+a.imb+'</strong></span>'
+          +'<span style="color:'+bordo+';">Diff: <strong>'+(a.diff>0?'+':'')+a.diff+'</strong></span>'
+        +'</span>'
+      +'</div></div>';
+  }).join('');
+  var allOk=totDiff===0;
+  var totHtml='<div class="'+(allOk?'ok-box':'warn-box')+'" style="margin-bottom:10px;">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong></div>';
+  res.innerHTML=totHtml+rowsHtml;
 }
 
 async function verificaWAUscitaImballo(){
@@ -1302,35 +1311,51 @@ async function verificaWAUscitaImballo(){
     if(!mapImb[key])mapImb[key]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
     mapImb[key].tot+=Number(r.totale)||0;
   });
-  var waNoImb=[],diff=[],imbNoWA=[];
-  Object.keys(mapWA).forEach(function(key){
+  var keys={};
+  Object.keys(mapWA).forEach(function(k){keys[k]=true;});
+  Object.keys(mapImb).forEach(function(k){keys[k]=true;});
+  var list=Object.keys(keys).map(function(key){
     var w=mapWA[key],i=mapImb[key];
-    if(!i)waNoImb.push(w);
-    else if(Math.abs(w.tot-i.tot)>0.0001)diff.push({cod:w.cod,desc:w.desc||i.desc,wa:w.tot,imb:i.tot});
+    var wTot=w?w.tot:0,iTot=i?i.tot:0;
+    return {cod:(w&&w.cod)||(i&&i.cod)||'',desc:(w&&w.desc)||(i&&i.desc)||'',wa:wTot,imb:iTot,diff:wTot-iTot};
   });
-  Object.keys(mapImb).forEach(function(key){if(!mapWA[key])imbNoWA.push(mapImb[key]);});
-  if(!waNoImb.length&&!imbNoWA.length&&!diff.length&&!senzaCodice.length){
+  list.sort(function(a,b){
+    var aZero=a.diff===0,bZero=b.diff===0;
+    if(aZero!==bZero)return aZero?1:-1;
+    return 0;
+  });
+  if(!list.length&&!senzaCodice.length){
     res.innerHTML='<div class="ok-box">&#x2705; WA Uscita e Imballo coincidono per tutti gli articoli.</div>';return;
   }
-  var html='';
-  if(waNoImb.length){
-    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Articoli in WA Uscita ma mancanti in Imballo</h3>'
-      +waNoImb.map(function(a){return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">WA Uscita: '+(a.tot||0)+' pz</div></div></div>';}).join('')+'</div>';
-  }
-  if(imbNoWA.length){
-    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Articoli in Imballo ma non presenti in WA Uscita</h3>'
-      +imbNoWA.map(function(a){return '<div class="row-item"><div class="row-qty">'+(a.tot||0)+'</div><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">Imballo: '+(a.tot||0)+' pz</div></div></div>';}).join('')+'</div>';
-  }
-  if(diff.length){
-    html+='<div style="margin-bottom:14px;"><h3 style="margin-bottom:8px;">Quantit&agrave; diverse tra WA Uscita e Imballo</h3>'
-      +diff.map(function(a){var delta=a.wa-a.imb;return '<div class="row-item"><div class="row-info"><div class="rdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="rsub">WA Uscita: '+a.wa+' pz &mdash; Imballo: '+a.imb+' pz &mdash; Diff: <strong>'+(delta>0?'+':'')+delta+'</strong></div></div></div>';}).join('')+'</div>';
-  }
+  var totW=0,totI=0,totDiff=0;
+  var rowsHtml=list.map(function(a){
+    totW+=a.wa;totI+=a.imb;totDiff+=a.diff;
+    var bordo=a.diff===0?'#217346':a.diff>0?'#C55A11':'#C00000';
+    return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
+      +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
+        +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+(a.cod||'?')+'</span>'
+        +'<span>'+a.desc+'</span>'
+        +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
+          +'<span>WA Uscita: <strong>'+a.wa+'</strong></span>'
+          +'<span>Imballo: <strong>'+a.imb+'</strong></span>'
+          +'<span style="color:'+bordo+';">Diff: <strong>'+(a.diff>0?'+':'')+a.diff+'</strong></span>'
+        +'</span>'
+      +'</div></div>';
+  }).join('');
+  var allOk=totDiff===0;
+  var totHtml=list.length?('<div class="'+(allOk?'ok-box':'warn-box')+'" style="margin-bottom:10px;">Totale — WA Uscita: <strong>'+totW+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong></div>'):'';
+  var senzaHtml='';
   if(senzaCodice.length){
-    html+='<div><h3 style="margin-bottom:8px;">Da associare manualmente</h3>'
+    senzaHtml='<div style="margin-top:14px;"><h3 style="margin-bottom:8px;">Da associare manualmente</h3>'
       +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Righe WA Uscita senza codice articolo — da correggere</p>'
       +senzaCodice.map(function(r){var desc=r.testo_originale||r.testo_riga||r.descrizione||'';return '<div class="row-item" style="border-left-color:#E8A000;"><div class="row-qty" style="color:#E8A000;">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+desc+'</div><div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div></div></div>';}).join('')+'</div>';
   }
-  res.innerHTML=html;
+  res.innerHTML=totHtml+rowsHtml+senzaHtml;
+}
+
+async function verificaTutto(){
+  await verificaVerniciatoImballo();
+  await verificaWAUscitaImballo();
 }
 
 async function svuotaUscite(){
