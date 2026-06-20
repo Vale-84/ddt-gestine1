@@ -548,16 +548,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div id="cf-2-lista"></div>
     <div id="cf-2-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
   </div>
-  <div id="cf-3" class="card" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h2 style="margin:0;">2. WA Uscita vs Imballo</h2>
-      <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('cf-3')">STAMPA</button>
-    </div>
-    <div id="cf-3-lista"></div>
-    <div id="cf-3-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
-  </div>
   <div id="cf-4" class="card" style="display:none">
-    <h2>3. Verniciato vs DDT Uscita</h2>
+    <h2>2. Verniciato vs DDT Uscita</h2>
     <div id="cf-4-lista"></div>
     <div id="cf-4-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
   </div>
@@ -2184,36 +2176,6 @@ async function aggiornaConfronto(){
   document.getElementById('cf-2-res').innerHTML=diff1===0
     ?'<div class="ok-box">✅ WA Entrata e DDT Entrata coincidono! Totale: '+totWA+' pz</div>'
     :'<div class="warn-box">(!) WA Entrata: '+totWA+' pz — DDT Entrata: '+totDDT+' pz — Differenza: '+(diff1>0?'+':'')+diff1+' pz</div>';
-
-  var uscMap={};
-  wau.forEach(function(r){
-    var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
-    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
-    if(!uscMap[k])uscMap[k]={cod:r.codice_articolo,desc:desc,wau:0,imb:0};
-    uscMap[k].wau+=(r.quantita||0);
-  });
-  imb.forEach(function(r){
-    var k=r.codice_articolo||r.articolo||'?';
-    if(uscMap[k]){uscMap[k].imb+=(r.totale||0);}
-    else{if(!uscMap[k])uscMap[k]={cod:r.codice_articolo,desc:r.articolo||'',wau:0,imb:0};uscMap[k].imb+=(r.totale||0);}
-  });
-  document.getElementById('cf-3').style.display='block';
-  var html3='',tuttoOk=true,totWAU=0,totIMB=0;
-  var uscArr=Object.values(uscMap).sort(function(a,b){var da=Math.abs(a.wau-a.imb),db=Math.abs(b.wau-b.imb);return db-da;});
-  uscArr.forEach(function(a){
-    var diff=a.wau-a.imb;totWAU+=a.wau;totIMB+=a.imb;
-    if(diff!==0)tuttoOk=false;
-    var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
-    var bg3=diff===0?'':'background-color:'+(diff>0?'#FFF3CD':'#FFE8E8')+';';
-    var badge=diff===0?'<span class="badge badge-ok">OK</span>':diff>0?'<span class="badge badge-warn">+'+diff+' pz</span>':'<span class="badge badge-err">'+diff+' pz</span>';
-    html3+='<div class="row-item" style="border-left-color:'+bordo+';'+bg3+'">'
-      +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
-      +'<div class="rsub">WA Uscita: <strong>'+a.wau+'</strong> &nbsp;Imballo: <strong>'+a.imb+'</strong> &nbsp;Diff: <strong>'+diff+'</strong></div></div>'+badge+'</div>';
-  });
-  document.getElementById('cf-3-lista').innerHTML=html3||'<div class="empty">Nessun dato</div>';
-  document.getElementById('cf-3-res').innerHTML=tuttoOk
-    ?'<div class="ok-box">✅ WA Uscita e Imballo coincidono per tutti gli articoli!</div>'
-    :'<div class="warn-box">(!) WA Uscita: '+totWAU+' pz — Imballo: '+totIMB+' pz — controlla sopra</div>';
 
   var ddtu=await apiGet('ddt_uscita');
   if(ddtu){
