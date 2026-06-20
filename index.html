@@ -1144,12 +1144,29 @@ async function caricaUscite(){
     var isLibU=!!r.da_testo_libero&&!r.convertito;
     var isConvU=!!r.convertito;
     var libBadgeU=isConvU?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibU?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_uscita" data-id="'+r.id+'">✎ Da convertire</span>':'');
+    var imbBtnU=!r.codice_articolo?'':(r.in_imballo?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ In Imballo</span>':'<span class="badge-libero" style="background:#DCE6F1;color:#1F4E79;cursor:pointer;" onclick="inviaWAImballo('+r.id+')">→ Imballo</span>');
     return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
       +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
+      +imbBtnU
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">✕</button></div>';
   }).join('');
+}
+
+async function inviaWAImballo(id){
+  var rows=await apiGet('whatsapp_uscita','id=eq.'+id);
+  if(!rows||!rows.length)return;
+  var r=rows[0];
+  if(!r.codice_articolo||r.in_imballo)return;
+  var desc=r.descrizione_articolo||r.descrizione||'';
+  var qty=r.quantita||0;
+  var dataIns=r.data_inserimento||(r.created_at||'').slice(0,10);
+  var res=await apiPost('imballo',{codice_articolo:r.codice_articolo,articolo:desc,sequenza:String(qty),totale:qty,note:'Da WA Uscita diretto (verniciato e spedito senza passare da Verniciato)',data_inserimento:dataIns});
+  if(!res)return;
+  await apiPatch('whatsapp_uscita','id=eq.'+id,{in_imballo:true});
+  caricaUscite();
+  caricaImballo();
 }
 
 async function segnaConvertito(table,id){
