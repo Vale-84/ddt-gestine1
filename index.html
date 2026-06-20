@@ -366,7 +366,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Riepilogo Bergamasco</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Grezzi ricevuti (BER...) e finiti verniciati/spediti (B0...)</p>
     <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBerNew()">↻ AGGIORNA</button>
+    <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('ber-riepilogo-stampa')">STAMPA</button>
   </div>
+  <div id="ber-riepilogo-stampa">
   <div class="card">
     <h3 style="color:#185FA5;margin-bottom:10px;">Grezzi ricevuti (DDT Entrata)</h3>
     <div id="ber-new-entrata"><div class="empty">Premi Aggiorna</div></div>
@@ -375,6 +377,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h3 style="color:#0F6E56;margin-bottom:10px;">Finiti — Verniciato · Imballo · DDT Uscita</h3>
     <div id="ber-new-finiti"><div class="empty">Premi Aggiorna</div></div>
     <div id="ber-new-finiti-tot" style="margin-top:10px;"></div>
+  </div>
   </div>
   <div class="card" style="display:none;" id="ber-riepilogo-lista2-card">
     <div id="ber-riepilogo-lista2"></div>
@@ -536,6 +539,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>Controllo generale</h2>
     <button class="btn btn-blue" onclick="aggiornaConfronto()">AGGIORNA CONFRONTO</button>
+    <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('confronto-stampa')">STAMPA</button>
     <div style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
       <strong>Leggenda colori:</strong><br>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E2EFDA;border-radius:4px;margin-right:6px;">✅ Verde = OK, coincide</span>
@@ -543,6 +547,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFE8E8;border-radius:4px;">(!) Rosso = mancano pezzi</span>
     </div>
   </div>
+  <div id="confronto-stampa">
   <div id="cf-2" class="card" style="display:none">
     <h2>1. WA Entrata vs DDT Entrata</h2>
     <div id="cf-2-lista"></div>
@@ -552,6 +557,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>2. Verniciato vs DDT Uscita</h2>
     <div id="cf-4-lista"></div>
     <div id="cf-4-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
+  </div>
   </div>
 </div>
 
