@@ -2901,7 +2901,10 @@ async function azzeraTutto(){
 // ── ESPORTA IMBALLO EXCEL ─────────────────────────────────────────────
 async function esportaImballoExcel(){
   var d=await apiGet('imballo');
-  if(!d||!d.length){alert('Nessun imballo da esportare!');return;}
+  var wa=await apiGet('whatsapp_uscita');
+  if(!d)d=[];
+  if(!wa)wa=[];
+  if(!d.length && !wa.length){alert('Nessun imballo da esportare!');return;}
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
   var bom='\uFEFF';
@@ -2931,14 +2934,48 @@ async function esportaImballoExcel(){
     r._exportDate=fmtData(dt);
   });
   d.sort(function(a,b){return a._sortDate - b._sortDate;});
+
+  // Confronto con WA Uscita: se un articolo ha più pezzi in WA Uscita che in Imballo,
+  // aggiunge una riga extra con la differenza (così si esporta sempre il valore più alto)
+  var mapImb={};
+  d.forEach(function(r){
+    var key=(r.codice_articolo||'').toString().trim().toLowerCase();
+    if(!key)return;
+    if(!mapImb[key])mapImb[key]={cod:r.codice_articolo,desc:r.articolo,tot:0,lastDate:r._exportDate,lastSort:r._sortDate};
+    mapImb[key].tot+=Number(r.totale)||0;
+    if(r._sortDate>mapImb[key].lastSort){mapImb[key].lastSort=r._sortDate;mapImb[key].lastDate=r._exportDate;}
+  });
+  var mapWA={};
+  wa.forEach(function(r){
+    if(!r.codice_articolo)return;
+    var key=r.codice_articolo.toString().trim().toLowerCase();
+    if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
+    mapWA[key].tot+=Number(r.quantita)||0;
+  });
+  var righeExtra=[];
+  Object.keys(mapWA).forEach(function(key){
+    var w=mapWA[key],i=mapImb[key];
+    var totImb=i?i.tot:0;
+    var diff=w.tot-totImb;
+    if(diff>0){
+      righeExtra.push({
+        codice_articolo:(i&&i.cod)||w.cod,
+        articolo:(i&&i.desc)||w.desc,
+        totale:diff,
+        _exportDate:(i&&i.lastDate)||dataOggi
+      });
+    }
+  });
+
   var num=1;
-  var righe=d.map(function(r){
+  function buildRiga(r){
     var qty=String(Number(r.totale||0).toFixed(3)).replace('.',',');
     return r._exportDate+';TDDDT;'+anno+';  ;      1; ;'+r._exportDate+';'+r._exportDate+';    '+num+++';'
       +String(r.codice_articolo||'').padEnd(16)+';'
       +String(r.articolo||'').padEnd(35)+';'
       +'n ;     '+qty+';          0,000; 0,00; 0,00; 0,00; 0,00; 0,00;           0,00;  /  /    ;  /  /    ;      0;  /  /    ;  ;                    ';
-  }).join('\r\n');
+  }
+  var righe=d.map(buildRiga).concat(righeExtra.map(buildRiga)).join('\r\n');
   var csv=bom+intestazione+righe+'\r\n';
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
