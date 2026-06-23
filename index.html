@@ -63,6 +63,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .pdf-item .pqty { font-size: 16px; font-weight: bold; color: #1F4E79; min-width: 50px; text-align: right; }
 .row-item { background: #f7f8fa; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; border-left: 4px solid #1F4E79; gap: 8px; }
 .row-item.verde { border-left-color: #217346; }
+.rc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rc-table th { background: #1F4E79; color: white; padding: 8px 6px; text-align: left; position: sticky; top: 0; white-space: nowrap; }
+.rc-table td { padding: 6px; border-bottom: 1px solid #eee; white-space: nowrap; }
+.rc-table td:first-child { white-space: normal; min-width: 180px; }
 .row-item.viola { border-left-color: #5B2C8D; }
 .row-item.teal { border-left-color: #1F6B75; }
 .row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
@@ -542,30 +546,38 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
-<!-- CONFRONTO -->
+<!-- CONFRONTO / RIEPILOGO COMPLETO -->
 <div id="page-confronto" class="page">
   <div class="card">
-    <h2>Controllo generale</h2>
-    <button class="btn btn-blue" onclick="aggiornaConfronto()">AGGIORNA CONFRONTO</button>
+    <h2>Riepilogo Completo</h2>
+    <button class="btn btn-blue" onclick="aggiornaConfronto()">↻ AGGIORNA</button>
     <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('confronto-stampa')">STAMPA</button>
     <div style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
-      <strong>Leggenda colori:</strong><br>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E2EFDA;border-radius:4px;margin-right:6px;">✅ Verde = OK, coincide</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFF3CD;border-radius:4px;margin-right:6px;">(!) Giallo = hai più pezzi di quelli attesi</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFE8E8;border-radius:4px;">(!) Rosso = mancano pezzi</span>
+      <strong>Legenda:</strong><br>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fffde7;border-radius:4px;margin-right:6px;">🟡 WA Uscita ≠ Imballo</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fce4ec;border-radius:4px;margin-right:6px;">❓ Solo Imballo (conferma richiesta)</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff3e0;border-radius:4px;margin-right:6px;">⚠️ DDT Entrata ≠ WA Entrata</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff;border:1px solid #eee;border-radius:4px;">✓ Bianco = tutto ok</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
+      <button class="btn btn-blue btn-sm" id="rc-f-tutti" style="flex:1;" onclick="filtraRiepilogoCompleto('tutti')">Tutti</button>
+      <button class="btn btn-gray btn-sm" id="rc-f-differenze" style="flex:1;" onclick="filtraRiepilogoCompleto('differenze')">Solo differenze</button>
+      <button class="btn btn-gray btn-sm" id="rc-f-verificare" style="flex:1;" onclick="filtraRiepilogoCompleto('verificare')">Da verificare</button>
+      <button class="btn btn-gray btn-sm" id="rc-f-conferma" style="flex:1;" onclick="filtraRiepilogoCompleto('conferma')">Conferma richiesta</button>
     </div>
   </div>
   <div id="confronto-stampa">
-  <div id="cf-2" class="card" style="display:none">
-    <h2>1. WA Entrata vs DDT Entrata</h2>
-    <div id="cf-2-lista"></div>
-    <div id="cf-2-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
-  </div>
-  <div id="cf-4" class="card" style="display:none">
-    <h2>2. Verniciato vs DDT Uscita</h2>
-    <div id="cf-4-lista"></div>
-    <div id="cf-4-res" style="margin-top:10px;font-size:13px;font-weight:bold;"></div>
-  </div>
+    <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th>Articolo</th><th>WA Entr.</th><th>WA Usc.</th><th>Vern.</th><th>Imb.</th><th>DDT Entr.</th><th>DDT Usc.</th><th>Stato</th>
+          </tr>
+        </thead>
+        <tbody id="rc-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -942,6 +954,11 @@ function showPage(name,el){
 // ── HELPERS ──────────────────────────────────────────────────────────
 function oggiISO(){return new Date().toISOString().split('T')[0];}
 function fmtData(s){if(!s)return'';var d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('it-IT');}
+function iconaModalita(m){
+  if(m==='testo_libero')return '✍️';
+  if(m==='manuale')return '✋';
+  return '📱'; // 'whatsapp' o valore mancante/legacy
+}
 
 // ── TROVA ARTICOLO DA TESTO WA ────────────────────────────────────────
 function trovaArt(desc,tbl){
@@ -984,7 +1001,7 @@ async function salvaEntrataMerce(){
       resetForm('e');caricaEntrate();return;
     }
   }
-  var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,testo_seq:seq,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note,data_inserimento:dataSel});
+  var r=await apiPost('whatsapp_righe',{testo_riga:qty+' '+dsc,testo_seq:seq,quantita:qty,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,note:note,data_inserimento:dataSel,modalita:'manuale'});
   if(r){showMsg('msg-entrata','✅ '+qty+' x '+cod+' aggiunto!','ok');resetForm('e');caricaEntrate();}
 }
 
@@ -1012,7 +1029,7 @@ async function aggiungiWAEntrata(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,modalita:'whatsapp'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
@@ -1031,7 +1048,7 @@ async function caricaEntrate(){
     var isLibE=!!r.da_testo_libero&&!r.convertito;
     var isConvE=!!r.convertito;
     var libBadgeE=isConvE?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibE?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_righe" data-id="'+r.id+'">✎ Da convertire</span>':'');
-    return '<div class="row-item'+(isLibE?' libero':'')+'"><div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'">'+(r.quantita||'?')+'</div>'
+    return '<div class="row-item'+(isLibE?' libero':'')+'"><div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✎</button>'
@@ -1122,7 +1139,7 @@ async function salvaUscitaMerce(){
     }
   }
   var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
-  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel});
+  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel,modalita:'manuale'});
   if(r1&&r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
 }
 
@@ -1149,7 +1166,7 @@ async function aggiungiWAUscita(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel});
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel,modalita:'whatsapp'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-wa-text').value='';caricaUscite();mostraConfronto();}
@@ -1160,7 +1177,7 @@ async function caricaUscite(){
   if(document.getElementById('st-u'))document.getElementById('st-u').textContent=d.length;
   var l=document.getElementById('u-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
-  l.innerHTML=d.map(function(r){
+  function renderRiga(r){
     var waText = r.testo_originale? r.testo_originale : (r.descrizione||r.testo_riga||'');
     var codiceDesc = (r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> — ':'') + (r.descrizione_articolo||r.descrizione||r.testo_riga||'');
     var orig = '<div class="rdesc">'+waText+'</div>';
@@ -1169,12 +1186,26 @@ async function caricaUscite(){
     var isConvU=!!r.convertito;
     var libBadgeU=isConvU?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibU?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_uscita" data-id="'+r.id+'">✎ Da convertire</span>':'');
     var imbBtnU=!r.codice_articolo?'':(r.in_imballo?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ In Imballo</span>':'<span class="badge-libero" style="background:#DCE6F1;color:#1F4E79;cursor:pointer;" onclick="inviaWAImballo('+r.id+')">→ Imballo</span>');
-    return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';">'+(r.quantita||'?')+'</div>'
+    return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
       +'<div class="row-info">'+orig+codice+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +imbBtnU
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_uscita\','+r.id+',caricaUscite)">✕</button></div>';
+  }
+  var gruppi={};
+  d.forEach(function(r){
+    var data=(r.data_inserimento||r.created_at||'').slice(0,10)||'?';
+    if(!gruppi[data])gruppi[data]=[];
+    gruppi[data].push(r);
+  });
+  var dateOrdinate=Object.keys(gruppi).sort(function(a,b){return a<b?1:(a>b?-1:0);});
+  l.innerHTML=dateOrdinate.map(function(data){
+    var righe=gruppi[data];
+    var totaleGiorno=righe.reduce(function(a,r){return a+(r.quantita||0);},0);
+    return '<div class="wa-data-sep" style="text-align:center;font-size:12px;color:#888;font-weight:bold;margin:14px 0 6px;">─── '+(data==='?'?'Data sconosciuta':fmtData(data))+' ───</div>'
+      +righe.map(renderRiga).join('')
+      +'<div class="wa-data-tot" style="text-align:right;font-size:12px;color:#1F6B75;font-weight:bold;padding:4px 8px;">Totale giorno: '+totaleGiorno+' pz</div>';
   }).join('');
 }
 
@@ -2106,19 +2137,23 @@ async function caricaRwa(){
   var lU=document.getElementById('rwa-uscite');
   if(!we||!wu){if(lE)lE.innerHTML='<div class="empty">Errore connessione</div>';return;}
   if(we.length===0&&wu.length===0){if(lE)lE.innerHTML='<div class="empty">Nessun dato trovato</div>';return;}
+  function iconeGruppo(modSet){
+    return Object.keys(modSet).map(iconaModalita).join('');
+  }
   var mapE={};
   we.forEach(function(r){
     var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
     var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
-    if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0};
+    if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0,modSet:{}};
     mapE[k].tot+=(r.quantita||0);
+    mapE[k].modSet[r.modalita||'whatsapp']=true;
   });
   var totE=we.reduce(function(a,r){return a+(r.quantita||0);},0);
   var lE=document.getElementById('rwa-entrate');
   lE.innerHTML=Object.values(mapE).map(function(a){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
       +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
-      +'<div style="font-size:16px;font-weight:bold;color:#217346;min-width:40px;text-align:right;">'+a.tot+'</div>'
+      +'<div style="font-size:16px;font-weight:bold;color:#217346;min-width:40px;text-align:right;">'+a.tot+' <span style="font-size:12px;">'+iconeGruppo(a.modSet)+'</span></div>'
     +'</div>';
   }).join('');
   document.getElementById('rwa-tot-e').textContent='Totale: '+totE+' pz';
@@ -2127,15 +2162,16 @@ async function caricaRwa(){
   wu.forEach(function(r){
     var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
     var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
-    if(!mapU[k])mapU[k]={cod:r.codice_articolo,desc:desc,tot:0};
+    if(!mapU[k])mapU[k]={cod:r.codice_articolo,desc:desc,tot:0,modSet:{}};
     mapU[k].tot+=(r.quantita||0);
+    mapU[k].modSet[r.modalita||'whatsapp']=true;
   });
   var totU=wu.reduce(function(a,r){return a+(r.quantita||0);},0);
   var lU=document.getElementById('rwa-uscite');
   lU.innerHTML=Object.values(mapU).map(function(a){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
       +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
-      +'<div style="font-size:16px;font-weight:bold;color:#1F6B75;min-width:40px;text-align:right;">'+a.tot+'</div>'
+      +'<div style="font-size:16px;font-weight:bold;color:#1F6B75;min-width:40px;text-align:right;">'+a.tot+' <span style="font-size:12px;">'+iconeGruppo(a.modSet)+'</span></div>'
     +'</div>';
   }).join('');
   document.getElementById('rwa-tot-u').textContent='Totale: '+totU+' pz';
@@ -2155,7 +2191,7 @@ async function aggiungiTestoLiberoEntrata(){
     var qty=m?parseInt(m[1]):null;
     var desc=m?m[2]:r;
     var art=trovaArt(desc);
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
@@ -2174,81 +2210,134 @@ async function aggiungiTestoLiberoUscita(){
     var qty=m?parseInt(m[1]):null;
     var desc=m?m[2]:r;
     var art=trovaArt(desc);
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel});
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
 }
-// ── CONFRONTO ─────────────────────────────────────────────────────────
+// ── RIEPILOGO COMPLETO (ex CONFRONTO) ───────────────────────────────────
+var rcDatiCompleti=null;
+var rcFiltroAttivo='tutti';
+
 async function aggiornaConfronto(){
-  var wa=await apiGet('whatsapp_righe');
-  var ddte=await apiGet('ddt_entrata');
-  var wau=await apiGet('whatsapp_uscita');
-  var imb=await apiGet('imballo');
+  var we=await apiGet('whatsapp_righe');
+  var wu=await apiGet('whatsapp_uscita');
   var vern=await apiGet('verniciato');
-  if(!wa||!ddte||!wau||!imb||!vern)return;
-
-  var waMap={};
-  wa.forEach(function(r){
-    var k=r.codice_articolo||r.descrizione||'?';
-    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
-    if(!waMap[k])waMap[k]={cod:r.codice_articolo,desc:desc,wa:0,ddt:0};
-    waMap[k].wa+=(r.quantita||0);
-  });
-  ddte.forEach(function(r){
-    var k=r.codice_articolo||r.descrizione||'?';
-    if(!waMap[k])waMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',wa:0,ddt:0};
-    waMap[k].ddt+=(r.quantita_ddt||0);
-  });
-  document.getElementById('cf-2').style.display='block';
-  var html2='',totWA=0,totDDT=0;
-  var waArr=Object.values(waMap).sort(function(a,b){var da=Math.abs(a.wa-a.ddt),db=Math.abs(b.wa-b.ddt);return db-da;});
-  waArr.forEach(function(a){
-    var diff=a.wa-a.ddt;totWA+=a.wa;totDDT+=a.ddt;
-    var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
-    var bg=diff===0?'':'background-color:'+(diff>0?'#FFF3CD':'#FFE8E8')+';';
-    var badge=diff===0?'<span class="badge badge-ok">OK</span>':diff>0?'<span class="badge badge-warn">+'+diff+' pz</span>':'<span class="badge badge-err">'+diff+' pz</span>';
-    html2+='<div class="row-item" style="border-left-color:'+bordo+';'+bg+'">'
-      +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
-      +'<div class="rsub">WA Entrata: <strong>'+a.wa+'</strong> &nbsp;DDT Entrata: <strong>'+a.ddt+'</strong> &nbsp;Diff: <strong>'+diff+'</strong></div></div>'+badge+'</div>';
-  });
-  document.getElementById('cf-2-lista').innerHTML=html2||'<div class="empty">Nessun dato</div>';
-  var diff1=totWA-totDDT;
-  document.getElementById('cf-2-res').innerHTML=diff1===0
-    ?'<div class="ok-box">✅ WA Entrata e DDT Entrata coincidono! Totale: '+totWA+' pz</div>'
-    :'<div class="warn-box">(!) WA Entrata: '+totWA+' pz — DDT Entrata: '+totDDT+' pz — Differenza: '+(diff1>0?'+':'')+diff1+' pz</div>';
-
+  var imb=await apiGet('imballo');
+  var ddte=await apiGet('ddt_entrata');
   var ddtu=await apiGet('ddt_uscita');
-  if(ddtu){
-    var vernMap={};
-    vern.forEach(function(r){
-      var k=r.codice_articolo||r.descrizione||'?';
-      if(!vernMap[k])vernMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',vern:0,ddt:0};
-      vernMap[k].vern+=(r.quantita||0);
+  if(!we||!wu||!vern||!imb||!ddte||!ddtu)return;
+
+  function aggregaWA(arr){
+    var m={};
+    arr.forEach(function(r){
+      var k=(r.codice_articolo||r.descrizione||r.testo_riga||'?').toString();
+      if(!m[k])m[k]={cod:r.codice_articolo||'',desc:r.descrizione_articolo||r.descrizione||r.testo_riga||'',tot:0};
+      m[k].tot+=Number(r.quantita)||0;
+      if(!m[k].desc&&(r.descrizione_articolo||r.descrizione))m[k].desc=r.descrizione_articolo||r.descrizione;
     });
-    ddtu.forEach(function(r){
-      var k=r.codice_articolo||r.descrizione||'?';
-      if(!vernMap[k])vernMap[k]={cod:r.codice_articolo,desc:r.descrizione||'',vern:0,ddt:0};
-      vernMap[k].ddt+=(r.quantita_ddt||0);
-    });
-    document.getElementById('cf-4').style.display='block';
-    var html4='',tuttoOk4=true,totV=0,totDU=0;
-    var vernArr=Object.values(vernMap).sort(function(a,b){var da=Math.abs(a.vern-a.ddt),db=Math.abs(b.vern-b.ddt);return db-da;});
-    vernArr.forEach(function(a){
-      var diff=a.vern-a.ddt;totV+=a.vern;totDU+=a.ddt;
-      if(diff!==0)tuttoOk4=false;
-      var bordo=diff===0?'#217346':diff>0?'#C55A11':'#C00000';
-      var bg4=diff===0?'':'background-color:'+(diff>0?'#FFF3CD':'#FFE8E8')+';';
-      var badge=diff===0?'<span class="badge badge-ok">OK</span>':diff>0?'<span class="badge badge-warn">+'+diff+' pz</span>':'<span class="badge badge-err">'+diff+' pz</span>';
-      html4+='<div class="row-item" style="border-left-color:'+bordo+';'+bg4+'">'
-        +'<div class="row-info"><div class="rdesc">'+(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'')+a.desc+'</div>'
-        +'<div class="rsub">Verniciato: <strong>'+a.vern+'</strong> &nbsp;DDT Uscita: <strong>'+a.ddt+'</strong> &nbsp;Diff: <strong>'+diff+'</strong></div></div>'+badge+'</div>';
-    });
-    document.getElementById('cf-4-lista').innerHTML=html4||'<div class="empty">Nessun dato</div>';
-    document.getElementById('cf-4-res').innerHTML=tuttoOk4
-      ?'<div class="ok-box">✅ Verniciato e DDT Uscita coincidono!</div>'
-      :'<div class="warn-box">(!) Verniciato: '+totV+' pz — DDT Uscita: '+totDU+' pz — controlla sopra</div>';
+    return m;
   }
+  var mWE=aggregaWA(we);
+  var mWU=aggregaWA(wu);
+  var mVern={};
+  vern.forEach(function(r){
+    var k=(r.codice_articolo||r.descrizione||'?').toString();
+    if(!mVern[k])mVern[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    mVern[k].tot+=Number(r.quantita)||0;
+  });
+  var mImb={};
+  imb.forEach(function(r){
+    var k=(r.codice_articolo||r.articolo||'?').toString();
+    if(!mImb[k])mImb[k]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
+    mImb[k].tot+=Number(r.totale)||0;
+  });
+  var mDDTE={};
+  ddte.forEach(function(r){
+    var k=(r.codice_articolo||r.descrizione||'?').toString();
+    if(!mDDTE[k])mDDTE[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    mDDTE[k].tot+=Number(r.quantita_ddt)||0;
+  });
+  var mDDTU={};
+  ddtu.forEach(function(r){
+    var k=(r.codice_articolo||r.descrizione||'?').toString();
+    if(!mDDTU[k])mDDTU[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    mDDTU[k].tot+=Number(r.quantita_ddt)||0;
+  });
+
+  var keys={};
+  [mWE,mWU,mVern,mImb,mDDTE,mDDTU].forEach(function(m){Object.keys(m).forEach(function(k){keys[k]=true;});});
+
+  var righe=Object.keys(keys).map(function(k){
+    var we_=mWE[k],wu_=mWU[k],v_=mVern[k],i_=mImb[k],de_=mDDTE[k],du_=mDDTU[k];
+    var waE=we_?we_.tot:0,waU=wu_?wu_.tot:0,vernTot=v_?v_.tot:0,imbTot=i_?i_.tot:0,ddtE=de_?de_.tot:0,ddtU=du_?du_.tot:0;
+    var cod=(we_&&we_.cod)||(wu_&&wu_.cod)||(v_&&v_.cod)||(i_&&i_.cod)||(de_&&de_.cod)||(du_&&du_.cod)||'';
+    var desc=(we_&&we_.desc)||(wu_&&wu_.desc)||(v_&&v_.desc)||(i_&&i_.desc)||(de_&&de_.desc)||(du_&&du_.desc)||'';
+    var diffE=ddtE-waE,diffU=ddtU-waU;
+    var imbOnly=waU===0&&imbTot>0;
+    var ddtEntDiff=(waE>0||ddtE>0)&&diffE!==0;
+    var waUscDiff=!imbOnly&&waU>0&&imbTot>0&&waU!==imbTot;
+    var soloWA=!imbOnly&&!ddtEntDiff&&!waUscDiff&&(waE>0||waU>0)&&vernTot===0&&imbTot===0&&ddtE===0&&ddtU===0;
+    var stato='ok',badge='✓ Ok',colore='';
+    if(imbOnly){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
+    else if(ddtEntDiff){stato='ddtdiff';badge='⚠️ DDT≠WA';colore='#fff3e0';}
+    else if(waUscDiff){stato='wadiff';badge='🟡 WA≠Imb';colore='#fffde7';}
+    else if(soloWA){stato='solowa';badge='📱 Solo WA';colore='';}
+    return {cod:cod,desc:desc,waE:waE,waU:waU,vern:vernTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,diffE:diffE,diffU:diffU,stato:stato,badge:badge,colore:colore};
+  });
+
+  righe.sort(function(a,b){
+    var pa=a.stato==='ok'||a.stato==='solowa'?1:0,pb=b.stato==='ok'||b.stato==='solowa'?1:0;
+    if(pa!==pb)return pa-pb;
+    return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
+  });
+
+  rcDatiCompleti=righe;
+  renderRiepilogoCompleto();
+}
+
+function filtraRiepilogoCompleto(f){
+  rcFiltroAttivo=f;
+  var mappaBtn={tutti:'rc-f-tutti',differenze:'rc-f-differenze',verificare:'rc-f-verificare',conferma:'rc-f-conferma'};
+  Object.keys(mappaBtn).forEach(function(k){
+    var btn=document.getElementById(mappaBtn[k]);
+    if(btn)btn.className='btn btn-sm '+(k===f?'btn-blue':'btn-gray');
+  });
+  renderRiepilogoCompleto();
+}
+
+function renderRiepilogoCompleto(){
+  if(!rcDatiCompleti)return;
+  var righe=rcDatiCompleti.filter(function(r){
+    if(rcFiltroAttivo==='tutti')return true;
+    if(rcFiltroAttivo==='differenze')return r.stato!=='ok'&&r.stato!=='solowa';
+    if(rcFiltroAttivo==='verificare')return r.stato==='ddtdiff'||r.stato==='wadiff';
+    if(rcFiltroAttivo==='conferma')return r.stato==='conferma';
+    return true;
+  });
+  var tb=document.getElementById('rc-tbody');
+  if(!righe.length){
+    tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
+  }else{
+    tb.innerHTML=righe.map(function(r){
+      var bg=r.colore?'background-color:'+r.colore+';':'';
+      var colE=r.diffE===0?'#217346':'#C00000';
+      var colU=r.diffU===0?'#217346':'#C00000';
+      return '<tr style="'+bg+'">'
+        +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
+        +'<td style="text-align:right;">'+r.waE+'</td>'
+        +'<td style="text-align:right;">'+r.waU+'</td>'
+        +'<td style="text-align:right;">'+r.vern+'</td>'
+        +'<td style="text-align:right;">'+r.imb+'</td>'
+        +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colE+';font-size:11px;">('+(r.diffE>0?'+':'')+r.diffE+')</span></td>'
+        +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colU+';font-size:11px;">('+(r.diffU>0?'+':'')+r.diffU+')</span></td>'
+        +'<td>'+r.badge+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+  var tot={waE:0,waU:0,vern:0,imb:0,ddtE:0,ddtU:0};
+  righe.forEach(function(r){tot.waE+=r.waE;tot.waU+=r.waU;tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
+  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; WA Entrata: <strong>'+tot.waE+'</strong> &nbsp; WA Uscita: <strong>'+tot.waU+'</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
 }
 
 // ── DDT ENTRATA ───────────────────────────────────────────────────────
@@ -3120,8 +3209,11 @@ async function esportaImballoExcel(){
   });
   d.sort(function(a,b){return a._sortDate - b._sortDate;});
 
-  // Confronto con WA Uscita: se un articolo ha più pezzi in WA Uscita che in Imballo,
-  // aggiunge una riga extra con la differenza (così si esporta sempre il valore più alto)
+  // Confronto con WA Uscita per ogni articolo, secondo 4 casi:
+  // 1) Solo WA Uscita (Imballo assente/0) -> usa WA Uscita, nessun avviso
+  // 2) WA Uscita = Imballo -> usa WA Uscita, tutto ok
+  // 3) WA Uscita e Imballo diversi (entrambi presenti) -> usa WA Uscita (la differenza viene evidenziata nel tab Riepilogo Completo)
+  // 4) Solo Imballo (WA Uscita assente/0) -> chiede conferma prima di includerlo
   var mapImb={};
   d.forEach(function(r){
     var key=(r.codice_articolo||'').toString().trim().toLowerCase();
@@ -3137,20 +3229,30 @@ async function esportaImballoExcel(){
     if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
     mapWA[key].tot+=Number(r.quantita)||0;
   });
-  var righeExtra=[];
-  Object.keys(mapWA).forEach(function(key){
+  var keys={};
+  Object.keys(mapWA).forEach(function(k){keys[k]=true;});
+  Object.keys(mapImb).forEach(function(k){keys[k]=true;});
+
+  var righeExport=[];
+  Object.keys(keys).forEach(function(key){
     var w=mapWA[key],i=mapImb[key];
-    var totImb=i?i.tot:0;
-    var diff=w.tot-totImb;
-    if(diff>0){
-      righeExtra.push({
-        codice_articolo:(i&&i.cod)||w.cod,
-        articolo:(i&&i.desc)||w.desc,
-        totale:diff,
-        _exportDate:(i&&i.lastDate)||dataOggi
-      });
+    var waTot=w?w.tot:0,imbTot=i?i.tot:0;
+    var cod=(w&&w.cod)||(i&&i.cod)||'';
+    var desc=(w&&w.desc)||(i&&i.desc)||'';
+    var dataRiga=(i&&i.lastDate)||dataOggi;
+    if(waTot>0 && imbTot===0){
+      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga});
+    }else if(waTot>0 && imbTot>0 && waTot===imbTot){
+      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga});
+    }else if(waTot>0 && imbTot>0 && waTot!==imbTot){
+      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga});
+    }else if(waTot===0 && imbTot>0){
+      var ok=confirm('Articolo '+(cod?cod+' — ':'')+desc+'\n\nPresente SOLO in Imballo ('+imbTot+' pz), nessun messaggio WhatsApp Uscita corrispondente.\n\nVuoi includerlo comunque nel DDT?');
+      if(ok)righeExport.push({codice_articolo:cod,articolo:desc,totale:imbTot,_exportDate:dataRiga});
     }
   });
+
+  if(!righeExport.length){alert('Nessuna riga da esportare!');return;}
 
   var num=1;
   function buildRiga(r){
@@ -3160,7 +3262,7 @@ async function esportaImballoExcel(){
       +String(r.articolo||'').padEnd(35)+';'
       +'n ;     '+qty+';          0,000; 0,00; 0,00; 0,00; 0,00; 0,00;           0,00;  /  /    ;  /  /    ;      0;  /  /    ;  ;                    ';
   }
-  var righe=d.map(buildRiga).concat(righeExtra.map(buildRiga)).join('\r\n');
+  var righe=righeExport.map(buildRiga).join('\r\n');
   var csv=bom+intestazione+righe+'\r\n';
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
