@@ -3203,7 +3203,7 @@ async function esportaImballoExcel(){
     return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
   }
   d.forEach(function(r){
-    var dt=parseDate(r.data_inserimento||r.created_at||r.data) || new Date();
+    var dt=(r.data_inserimento&&parseDate(r.data_inserimento))||(r.created_at&&parseDate(r.created_at))||new Date();
     r._sortDate=dt;
     r._exportDate=fmtData(dt);
   });
@@ -3304,7 +3304,7 @@ async function esportaVerniciatoExcel(){
     return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
   }
   d.forEach(function(r){
-    var dt=parseDate(r.data_inserimento||r.created_at||r.data) || new Date();
+    var dt=(r.data_inserimento&&parseDate(r.data_inserimento))||(r.created_at&&parseDate(r.created_at))||new Date();
     r._sortDate=dt;
     r._exportDate=fmtData(dt);
   });
