@@ -490,6 +490,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div id="pdf-usc-prev" style="display:none"></div>
     <button class="btn btn-green" id="btn-importa-usc" style="display:none" onclick="importaPDFUscita()">IMPORTA DAL PDF</button>
   </div>
+  <div class="card" id="azzurra-pdf-multi-card" style="display:none;">
+    <h2>Carica PDF DDT Uscita (multi-DDT)</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica un PDF con uno o più DDT (es. C6000167) e scegli quali importare.</p>
+    <button class="btn btn-orange" type="button" onclick="document.getElementById('pdf-multi-usc-inp').click()">CARICA PDF</button>
+    <input type="file" id="pdf-multi-usc-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiUscita(this)">
+    <div id="pdf-multi-usc-status" style="margin-top:8px;"></div>
+  </div>
   <div class="card">
     <h2>Nuovo DDT Uscita</h2>
     <label>N. DDT</label><input type="text" id="du-nddt">
@@ -510,6 +517,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>DDT Uscita salvati</h2>
+    <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;margin-bottom:10px;" onclick="rimuoviDoppioniDDTUscita()">RIMUOVI DOPPIONI</button>
     <div id="du-lista"><div class="empty">Nessun record</div></div>
   </div>
 </div>
@@ -745,6 +753,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <br>
     <button class="btn btn-orange" onclick="salvaModificaVern()">SALVA</button>
     <button class="btn btn-gray" onclick="document.getElementById('modal-vern').style.display='none'">ANNULLA</button>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW PDF MULTI-DDT (DDT USCITA AZZURRA) -->
+<div class="modal" id="modal-pdf-multi">
+  <div class="modal-box" style="max-width:640px;">
+    <h3 style="color:#C55A11;">DDT trovati nel PDF</h3>
+    <div id="pdf-multi-lista" style="margin-bottom:14px;"></div>
+    <button class="btn btn-green" id="btn-importa-pdf-multi" onclick="importaPDFMultiUscita()">IMPORTA SELEZIONATI</button>
+    <button class="btn btn-gray" id="btn-annulla-pdf-multi" onclick="chiudiModalePdfMulti()">ANNULLA</button>
   </div>
 </div>
 
@@ -2500,11 +2518,45 @@ async function salvaDDTUscita(){
 }
 
 async function caricaDDTU(){
+  var pdfMultiCard=document.getElementById('azzurra-pdf-multi-card');
+  if(pdfMultiCard)pdfMultiCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var d=await apiGet('ddt_uscita');if(!d)return;
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
+  d.sort(function(a,b){
+    var na=a.numero_ddt||'',nb=b.numero_ddt||'';
+    if(na!==nb)return na<nb?-1:1;
+    return (a.id||0)-(b.id||0);
+  });
   l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+}
+
+async function rimuoviDoppioniDDTUscita(){
+  var d=await apiGet('ddt_uscita');
+  if(!d||!d.length){alert('Nessun record DDT Uscita.');return;}
+  var gruppi={};
+  d.forEach(function(r){
+    var key=(r.numero_ddt||'')+'|'+(r.codice_articolo||'')+'|'+(r.quantita_ddt||0);
+    if(!gruppi[key])gruppi[key]=[];
+    gruppi[key].push(r);
+  });
+  var daCancellare=[];
+  Object.keys(gruppi).forEach(function(key){
+    var righe=gruppi[key];
+    if(righe.length<2)return;
+    righe.sort(function(a,b){return (a.id||0)-(b.id||0);});
+    for(var i=1;i<righe.length;i++)daCancellare.push(righe[i]);
+  });
+  if(!daCancellare.length){alert('Nessun doppione trovato.');return;}
+  if(!confirm('Trovate '+daCancellare.length+' righe duplicate (stesso numero DDT + codice articolo + quantità). Verrà mantenuta solo la prima copia di ciascuna. Procedere?'))return;
+  var n=0;
+  for(var i=0;i<daCancellare.length;i++){
+    await apiDel('ddt_uscita','id=eq.'+daCancellare[i].id);
+    n++;
+  }
+  showMsg('msg-ddt-u',n+' righe duplicate rimosse!','ok');
+  caricaDDTU();
 }
 
 async function leggiPDFUscita(input){
@@ -2575,6 +2627,139 @@ async function importaPDFUscita(){
   document.getElementById('pdf-usc-prev').style.display='none';
   document.getElementById('btn-importa-usc').style.display='none';
   document.getElementById('pdf-usc-inp').value='';pdfUscDati=null;caricaDDTU();
+}
+
+// ── PDF MULTI-DDT USCITA (AZZURRA) ──────────────────────────────────────
+var pdfMultiUscDati=null;
+
+async function leggiPDFMultiUscita(input){
+  var file=input.files[0];if(!file)return;
+  var status=document.getElementById('pdf-multi-usc-status');
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    var ddts=parsePdfMultiAzzurra(testo);
+    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
+    var numeri=ddts.map(function(d){return d.nddt;});
+    var esistentiNum={};
+    var esistenti=await apiGet('ddt_uscita','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
+    if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
+    ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
+    pdfMultiUscDati=ddts;
+    status.innerHTML='';
+    apriModalePdfMulti();
+  }catch(e){status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+
+function parsePdfMultiAzzurra(testo){
+  var mesi={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+  var re=/C6\d{6}/g;
+  var matches=[],m;
+  while((m=re.exec(testo)))matches.push({nddt:m[0],index:m.index});
+  if(!matches.length)return [];
+  var mappa={},ordine=[];
+  for(var i=0;i<matches.length;i++){
+    var start=matches[i].index;
+    var end=(i+1<matches.length)?matches[i+1].index:testo.length;
+    var blocco=testo.slice(start,end);
+    var nddt=matches[i].nddt;
+    if(!mappa[nddt]){mappa[nddt]={nddt:nddt,data:'',righe:[]};ordine.push(nddt);}
+    if(!mappa[nddt].data){
+      var mD=blocco.match(/(\d{2})\s+([a-zA-Zàèìòù]{3})\s+(\d{4})/);
+      if(mD){
+        var meseNum=mesi[mD[2].toLowerCase()];
+        if(meseNum)mappa[nddt].data=mD[3]+'-'+('0'+meseNum).slice(-2)+'-'+mD[1];
+      }
+    }
+    blocco.split('\n').forEach(function(riga){
+      riga=riga.trim();
+      if(!riga||riga[0]==='*')return;
+      if(/^(ARTICOLO|DESCRIZIONE|UMI|U\.M\.|QUANT|PREZZO|COD\.|CODICE|TOTALE|PAGINA)\b/i.test(riga))return;
+      var mArt=riga.match(/^(A0[A-Z]+)\s+(.+?)\s+PZ\.\s+(\d+,\d{2})/);
+      if(mArt){
+        var qty=parseQty(mArt[3]);
+        if(qty>0)mappa[nddt].righe.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});
+      }
+    });
+  }
+  return ordine.map(function(k){return mappa[k];});
+}
+
+function apriModalePdfMulti(){
+  renderPdfMultiPreview();
+  document.getElementById('modal-pdf-multi').style.display='flex';
+}
+
+function chiudiModalePdfMulti(){
+  document.getElementById('modal-pdf-multi').style.display='none';
+  pdfMultiUscDati=null;
+}
+
+function renderPdfMultiPreview(){
+  var cont=document.getElementById('pdf-multi-lista');
+  if(!pdfMultiUscDati||!pdfMultiUscDati.length){cont.innerHTML='<div class="empty">Nessun DDT trovato</div>';return;}
+  cont.innerHTML=pdfMultiUscDati.map(function(d,idx){
+    var dettagli=d.righe.map(function(a){
+      return '<div class="pdf-item"><div class="pdesc"><strong>'+a.cod+'</strong> '+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';
+    }).join('');
+    var dupeBadge=d.dupe?'<span class="badge badge-warn" style="margin-left:8px;">Già presente — verrà saltato</span>':'';
+    return '<div class="row-item" style="display:block;'+(d.dupe?'opacity:0.6;':'')+'">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+        +'<input type="checkbox" '+(d.selected?'checked':'')+(d.dupe?' disabled':'')+' onchange="togglePdfMultiSel('+idx+',this.checked)" style="width:18px;height:18px;">'
+        +'<div style="flex:1;"><strong>'+d.nddt+'</strong> &nbsp; '+(d.data||'data ?')+' &nbsp; <span style="color:#666;">'+d.righe.length+' articoli</span>'+dupeBadge+'</div>'
+        +'<button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" onclick="togglePdfMultiDettagli('+idx+')">'+(d.aperto?'Nascondi':'Dettagli')+'</button>'
+      +'</div>'
+      +(d.aperto?('<div style="margin-top:8px;">'+dettagli+'</div>'):'')
+    +'</div>';
+  }).join('');
+}
+
+function togglePdfMultiSel(idx,checked){
+  if(pdfMultiUscDati&&pdfMultiUscDati[idx])pdfMultiUscDati[idx].selected=checked;
+}
+
+function togglePdfMultiDettagli(idx){
+  if(!pdfMultiUscDati||!pdfMultiUscDati[idx])return;
+  pdfMultiUscDati[idx].aperto=!pdfMultiUscDati[idx].aperto;
+  renderPdfMultiPreview();
+}
+
+var pdfMultiImportInCorso=false;
+
+async function importaPDFMultiUscita(){
+  if(pdfMultiImportInCorso)return;
+  if(!pdfMultiUscDati||!pdfMultiUscDati.length)return;
+  var selezionati=pdfMultiUscDati.filter(function(d){return d.selected&&!d.dupe;});
+  if(!selezionati.length){alert('Nessun DDT selezionato da importare.');return;}
+  pdfMultiImportInCorso=true;
+  var btnImporta=document.getElementById('btn-importa-pdf-multi');
+  var btnAnnulla=document.getElementById('btn-annulla-pdf-multi');
+  if(btnImporta){btnImporta.disabled=true;btnImporta.textContent='Importazione in corso...';}
+  if(btnAnnulla)btnAnnulla.disabled=true;
+  try{
+    var righeOk=0,ddtSaltati=0;
+    for(var i=0;i<selezionati.length;i++){
+      var d=selezionati[i];
+      var check=await apiGet('ddt_uscita','numero_ddt=eq.'+encodeURIComponent(d.nddt)+'&select=id&limit=1');
+      if(check&&check.length){ddtSaltati++;continue;}
+      for(var j=0;j<d.righe.length;j++){
+        var a=d.righe[j];
+        var r=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:a.cod,descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF multi-DDT'});
+        if(r)righeOk++;
+      }
+    }
+    document.getElementById('modal-pdf-multi').style.display='none';
+    pdfMultiUscDati=null;
+    showMsg('msg-ddt-u',righeOk+' righe importate'+(ddtSaltati?(' — '+ddtSaltati+' DDT saltati (già presenti)'):'')+'!','ok');
+    caricaDDTU();
+  }finally{
+    pdfMultiImportInCorso=false;
+    if(btnImporta){btnImporta.disabled=false;btnImporta.textContent='IMPORTA SELEZIONATI';}
+    if(btnAnnulla)btnAnnulla.disabled=false;
+  }
 }
 
 // ── IMBALLO ───────────────────────────────────────────────────────────
