@@ -3240,19 +3240,22 @@ async function esportaImballoExcel(){
     var cod=(w&&w.cod)||(i&&i.cod)||'';
     var desc=(w&&w.desc)||(i&&i.desc)||'';
     var dataRiga=(i&&i.lastDate)||dataOggi;
+    var sortRiga=(i&&i.lastSort)||new Date();
     if(waTot>0 && imbTot===0){
-      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga});
+      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga,_sortDate:sortRiga});
     }else if(waTot>0 && imbTot>0 && waTot===imbTot){
-      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga});
+      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga,_sortDate:sortRiga});
     }else if(waTot>0 && imbTot>0 && waTot!==imbTot){
-      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga});
+      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga,_sortDate:sortRiga});
     }else if(waTot===0 && imbTot>0){
       var ok=confirm('Articolo '+(cod?cod+' — ':'')+desc+'\n\nPresente SOLO in Imballo ('+imbTot+' pz), nessun messaggio WhatsApp Uscita corrispondente.\n\nVuoi includerlo comunque nel DDT?');
-      if(ok)righeExport.push({codice_articolo:cod,articolo:desc,totale:imbTot,_exportDate:dataRiga});
+      if(ok)righeExport.push({codice_articolo:cod,articolo:desc,totale:imbTot,_exportDate:dataRiga,_sortDate:sortRiga});
     }
   });
 
   if(!righeExport.length){alert('Nessuna riga da esportare!');return;}
+
+  righeExport.sort(function(a,b){return a._sortDate-b._sortDate;});
 
   var num=1;
   function buildRiga(r){
