@@ -3202,32 +3202,36 @@ async function esportaImballoExcel(){
     if(!(dt instanceof Date) || isNaN(dt)) return dataOggi;
     return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
   }
-  d.forEach(function(r){
+  function assegnaData(r){
     var dt=(r.data_inserimento&&parseDate(r.data_inserimento))||(r.created_at&&parseDate(r.created_at))||new Date();
     r._sortDate=dt;
     r._exportDate=fmtData(dt);
-  });
-  d.sort(function(a,b){return a._sortDate - b._sortDate;});
+  }
+  d.forEach(assegnaData);
+  wa.forEach(assegnaData);
 
-  // Confronto con WA Uscita per ogni articolo, secondo 4 casi:
-  // 1) Solo WA Uscita (Imballo assente/0) -> usa WA Uscita, nessun avviso
-  // 2) WA Uscita = Imballo -> usa WA Uscita, tutto ok
-  // 3) WA Uscita e Imballo diversi (entrambi presenti) -> usa WA Uscita (la differenza viene evidenziata nel tab Riepilogo Completo)
-  // 4) Solo Imballo (WA Uscita assente/0) -> chiede conferma prima di includerlo
+  // Confronto con WA Uscita per ogni articolo, secondo 4 casi (solo per DECIDERE quali righe includere,
+  // mai per sommare/unire quantita' di date diverse: ogni riga esportata resta quella originale
+  // con la propria data_inserimento e la propria quantita'):
+  // 1) Solo WA Uscita (Imballo assente/0) -> esporta le singole righe WA Uscita, nessun avviso
+  // 2) WA Uscita = Imballo -> esporta le singole righe Imballo, tutto ok
+  // 3) WA Uscita e Imballo diversi (entrambi presenti) -> esporta le singole righe Imballo (la differenza viene evidenziata nel tab Riepilogo Completo)
+  // 4) Solo Imballo (WA Uscita assente/0) -> chiede conferma una volta per articolo, poi esporta le singole righe Imballo
   var mapImb={};
   d.forEach(function(r){
     var key=(r.codice_articolo||'').toString().trim().toLowerCase();
     if(!key)return;
-    if(!mapImb[key])mapImb[key]={cod:r.codice_articolo,desc:r.articolo,tot:0,lastDate:r._exportDate,lastSort:r._sortDate};
+    if(!mapImb[key])mapImb[key]={cod:r.codice_articolo,desc:r.articolo,tot:0,righe:[]};
     mapImb[key].tot+=Number(r.totale)||0;
-    if(r._sortDate>mapImb[key].lastSort){mapImb[key].lastSort=r._sortDate;mapImb[key].lastDate=r._exportDate;}
+    mapImb[key].righe.push(r);
   });
   var mapWA={};
   wa.forEach(function(r){
     if(!r.codice_articolo)return;
     var key=r.codice_articolo.toString().trim().toLowerCase();
-    if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
+    if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0,righe:[]};
     mapWA[key].tot+=Number(r.quantita)||0;
+    mapWA[key].righe.push(r);
   });
   var keys={};
   Object.keys(mapWA).forEach(function(k){keys[k]=true;});
@@ -3239,17 +3243,21 @@ async function esportaImballoExcel(){
     var waTot=w?w.tot:0,imbTot=i?i.tot:0;
     var cod=(w&&w.cod)||(i&&i.cod)||'';
     var desc=(w&&w.desc)||(i&&i.desc)||'';
-    var dataRiga=(i&&i.lastDate)||dataOggi;
-    var sortRiga=(i&&i.lastSort)||new Date();
     if(waTot>0 && imbTot===0){
-      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga,_sortDate:sortRiga});
-    }else if(waTot>0 && imbTot>0 && waTot===imbTot){
-      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga,_sortDate:sortRiga});
-    }else if(waTot>0 && imbTot>0 && waTot!==imbTot){
-      righeExport.push({codice_articolo:cod,articolo:desc,totale:waTot,_exportDate:dataRiga,_sortDate:sortRiga});
+      w.righe.forEach(function(r){
+        righeExport.push({codice_articolo:cod,articolo:desc,totale:r.quantita||0,_exportDate:r._exportDate,_sortDate:r._sortDate});
+      });
+    }else if(waTot>0 && imbTot>0){
+      i.righe.forEach(function(r){
+        righeExport.push({codice_articolo:cod,articolo:desc,totale:r.totale||0,_exportDate:r._exportDate,_sortDate:r._sortDate});
+      });
     }else if(waTot===0 && imbTot>0){
       var ok=confirm('Articolo '+(cod?cod+' — ':'')+desc+'\n\nPresente SOLO in Imballo ('+imbTot+' pz), nessun messaggio WhatsApp Uscita corrispondente.\n\nVuoi includerlo comunque nel DDT?');
-      if(ok)righeExport.push({codice_articolo:cod,articolo:desc,totale:imbTot,_exportDate:dataRiga,_sortDate:sortRiga});
+      if(ok){
+        i.righe.forEach(function(r){
+          righeExport.push({codice_articolo:cod,articolo:desc,totale:r.totale||0,_exportDate:r._exportDate,_sortDate:r._sortDate});
+        });
+      }
     }
   });
 
