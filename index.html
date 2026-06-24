@@ -552,23 +552,41 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Riepilogo Completo</h2>
     <button class="btn btn-blue" onclick="aggiornaConfronto()">↻ AGGIORNA</button>
     <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('confronto-stampa')">STAMPA</button>
-    <div style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
+    <!-- LEGENDA AZZURRA -->
+    <div id="rc-legenda-azzurra" style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
       <strong>Legenda:</strong><br>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fffde7;border-radius:4px;margin-right:6px;">🟡 WA Uscita ≠ Imballo</span>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fce4ec;border-radius:4px;margin-right:6px;">❓ Solo Imballo (conferma richiesta)</span>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff3e0;border-radius:4px;margin-right:6px;">⚠️ DDT Entrata ≠ WA Entrata</span>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff;border:1px solid #eee;border-radius:4px;">✓ Bianco = tutto ok</span>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
+    <!-- LEGENDA BERGAMASCO -->
+    <div id="rc-legenda-ber" style="display:none;margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
+      <strong>Legenda:</strong><br>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fffde7;border-radius:4px;margin-right:6px;">🟡 Verniciato ≠ Imballo</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fce4ec;border-radius:4px;margin-right:6px;">❓ Solo Imballo senza Verniciato</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff3e0;border-radius:4px;margin-right:6px;">⚠️ DDT Entrata ≠ Verniciato</span>
+      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff;border:1px solid #eee;border-radius:4px;">✓ Bianco = tutto ok</span>
+    </div>
+    <!-- FILTRI AZZURRA -->
+    <div id="rc-filtri-azzurra" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
       <button class="btn btn-blue btn-sm" id="rc-f-tutti" style="flex:1;" onclick="filtraRiepilogoCompleto('tutti')">Tutti</button>
       <button class="btn btn-gray btn-sm" id="rc-f-differenze" style="flex:1;" onclick="filtraRiepilogoCompleto('differenze')">Solo differenze</button>
       <button class="btn btn-gray btn-sm" id="rc-f-verificare" style="flex:1;" onclick="filtraRiepilogoCompleto('verificare')">Da verificare</button>
       <button class="btn btn-gray btn-sm" id="rc-f-conferma" style="flex:1;" onclick="filtraRiepilogoCompleto('conferma')">Conferma richiesta</button>
     </div>
+    <!-- FILTRI BERGAMASCO -->
+    <div id="rc-filtri-ber" style="display:none;gap:6px;flex-wrap:wrap;margin-top:12px;">
+      <button class="btn btn-blue btn-sm" id="rc-ber-f-tutti" style="flex:1;" onclick="filtraRiepilogoBer('tutti')">Tutti</button>
+      <button class="btn btn-gray btn-sm" id="rc-ber-f-differenze" style="flex:1;" onclick="filtraRiepilogoBer('differenze')">Solo differenze</button>
+      <button class="btn btn-gray btn-sm" id="rc-ber-f-verificare" style="flex:1;" onclick="filtraRiepilogoBer('verificare')">Da verificare</button>
+      <button class="btn btn-gray btn-sm" id="rc-ber-f-conferma" style="flex:1;" onclick="filtraRiepilogoBer('conferma')">Conferma richiesta</button>
+    </div>
   </div>
   <div id="confronto-stampa">
     <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
-    <div class="card" style="overflow-x:auto;">
+    <!-- TABELLA AZZURRA -->
+    <div id="rc-table-azzurra" class="card" style="overflow-x:auto;">
       <table class="rc-table">
         <thead>
           <tr>
@@ -576,6 +594,17 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           </tr>
         </thead>
         <tbody id="rc-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+      </table>
+    </div>
+    <!-- TABELLA BERGAMASCO -->
+    <div id="rc-table-ber" class="card" style="display:none;overflow-x:auto;">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th>Articolo</th><th>Verniciato</th><th>Imballo</th><th>DDT Entr. (Δ Vern.)</th><th>DDT Usc. (Δ Imb.)</th><th>Stato</th>
+          </tr>
+        </thead>
+        <tbody id="rc-ber-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2220,6 +2249,18 @@ var rcDatiCompleti=null;
 var rcFiltroAttivo='tutti';
 
 async function aggiornaConfronto(){
+  var isBer=getCliente()==='BERGAMASCO';
+  var elLA=document.getElementById('rc-legenda-azzurra'),elLB=document.getElementById('rc-legenda-ber');
+  var elFA=document.getElementById('rc-filtri-azzurra'),elFB=document.getElementById('rc-filtri-ber');
+  var elTA=document.getElementById('rc-table-azzurra'),elTB=document.getElementById('rc-table-ber');
+  if(elLA)elLA.style.display=isBer?'none':'';
+  if(elLB)elLB.style.display=isBer?'':'none';
+  if(elFA)elFA.style.display=isBer?'none':'flex';
+  if(elFB)elFB.style.display=isBer?'flex':'none';
+  if(elTA)elTA.style.display=isBer?'none':'';
+  if(elTB)elTB.style.display=isBer?'':'none';
+  if(isBer){await aggiornaConfrrontoBer();return;}
+
   var we=await apiGet('whatsapp_righe');
   var wu=await apiGet('whatsapp_uscita');
   var vern=await apiGet('verniciato');
@@ -2338,6 +2379,138 @@ function renderRiepilogoCompleto(){
   var tot={waE:0,waU:0,vern:0,imb:0,ddtE:0,ddtU:0};
   righe.forEach(function(r){tot.waE+=r.waE;tot.waU+=r.waU;tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
   document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; WA Entrata: <strong>'+tot.waE+'</strong> &nbsp; WA Uscita: <strong>'+tot.waU+'</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
+}
+
+// ── CONFRONTO BERGAMASCO ──────────────────────────────────────────────
+var rcDatiBer=null;
+var rcFiltroBer='tutti';
+
+async function aggiornaConfrrontoBer(){
+  var vern=await apiGet('verniciato');
+  var imb=await apiGet('imballo');
+  var ddte=await apiGet('ddt_entrata');
+  var ddtu=await apiGet('ddt_uscita');
+  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
+  if(!vern||!imb||!ddte||!ddtu)return;
+
+  // Build abbinamenti maps (keys uppercase)
+  var b0ToBers={};  // b0 -> [ber, ...]
+  var berToB0s={};  // ber -> [b0, ...]
+  (abb||[]).forEach(function(r){
+    var b0=(r.codice_b0||'').trim().toUpperCase();
+    var ber=(r.codice_ber||'').trim().toUpperCase();
+    if(!b0||!ber)return;
+    if(!b0ToBers[b0])b0ToBers[b0]=[];
+    if(b0ToBers[b0].indexOf(ber)<0)b0ToBers[b0].push(ber);
+    if(!berToB0s[ber])berToB0s[ber]=[];
+    if(berToB0s[ber].indexOf(b0)<0)berToB0s[ber].push(b0);
+  });
+
+  // Aggregate per B0 code
+  var mVern={},mImb={},mDDTU={};
+  vern.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
+    if(!mVern[k])mVern[k]={cod:r.codice_articolo||k,desc:r.descrizione||'',tot:0};
+    mVern[k].tot+=Number(r.quantita)||0;
+  });
+  imb.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
+    if(!mImb[k])mImb[k]={cod:r.codice_articolo||k,desc:r.articolo||'',tot:0};
+    mImb[k].tot+=Number(r.totale)||0;
+  });
+  ddtu.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
+    if(!mDDTU[k])mDDTU[k]={cod:r.codice_articolo||k,desc:r.descrizione||'',tot:0};
+    mDDTU[k].tot+=Number(r.quantita_ddt)||0;
+  });
+
+  // DDT Entrata: sum by BER code, then map to B0 via abbinamenti
+  var berEntrata={};
+  ddte.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
+    if(!berEntrata[k])berEntrata[k]=0;
+    berEntrata[k]+=Number(r.quantita_ddt)||0;
+  });
+  var mDDTE={};  // b0 key (uppercase) -> total
+  Object.keys(berEntrata).forEach(function(berK){
+    (berToB0s[berK]||[]).forEach(function(b0){
+      if(!mDDTE[b0])mDDTE[b0]=0;
+      mDDTE[b0]+=berEntrata[berK];
+    });
+  });
+
+  // Unified B0 key set
+  var keys={};
+  [mVern,mImb,mDDTU].forEach(function(m){Object.keys(m).forEach(function(k){keys[k]=true;});});
+  Object.keys(mDDTE).forEach(function(k){keys[k]=true;});
+
+  var righe=Object.keys(keys).map(function(k){
+    var v_=mVern[k],i_=mImb[k],u_=mDDTU[k];
+    var vernTot=v_?v_.tot:0,imbTot=i_?i_.tot:0,ddtU=u_?u_.tot:0,ddtE=mDDTE[k]||0;
+    var cod=(v_&&v_.cod)||(i_&&i_.cod)||(u_&&u_.cod)||k;
+    var desc=(v_&&v_.desc)||(i_&&i_.desc)||(u_&&u_.desc)||'';
+    var diffVernImb=vernTot-imbTot;
+    var diffDDTEVern=ddtE-vernTot;
+    var diffDDTUImb=ddtU-imbTot;
+    var stato='ok',badge='✓ Ok',colore='';
+    if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
+    else if(ddtE>0&&ddtE!==vernTot){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
+    else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+    return {cod:cod,desc:desc,vern:vernTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
+            diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,
+            stato:stato,badge:badge,colore:colore};
+  });
+
+  righe.sort(function(a,b){
+    var pa=a.stato==='ok'?1:0,pb=b.stato==='ok'?1:0;
+    if(pa!==pb)return pa-pb;
+    return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
+  });
+
+  rcDatiBer=righe;
+  renderRiepilogoCompletoBer();
+}
+
+function filtraRiepilogoBer(f){
+  rcFiltroBer=f;
+  var mappaBtn={tutti:'rc-ber-f-tutti',differenze:'rc-ber-f-differenze',verificare:'rc-ber-f-verificare',conferma:'rc-ber-f-conferma'};
+  Object.keys(mappaBtn).forEach(function(k){
+    var btn=document.getElementById(mappaBtn[k]);
+    if(btn)btn.className='btn btn-sm '+(k===f?'btn-blue':'btn-gray');
+  });
+  renderRiepilogoCompletoBer();
+}
+
+function renderRiepilogoCompletoBer(){
+  if(!rcDatiBer)return;
+  var righe=rcDatiBer.filter(function(r){
+    if(rcFiltroBer==='tutti')return true;
+    if(rcFiltroBer==='differenze')return r.stato!=='ok';
+    if(rcFiltroBer==='verificare')return r.stato==='ddtvern'||r.stato==='vernimb';
+    if(rcFiltroBer==='conferma')return r.stato==='conferma';
+    return true;
+  });
+  var tb=document.getElementById('rc-ber-tbody');if(!tb)return;
+  if(!righe.length){
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
+  }else{
+    tb.innerHTML=righe.map(function(r){
+      var bg=r.colore?'background-color:'+r.colore+';':'';
+      var colDE=r.diffDDTEVern===0?'#217346':'#C00000';
+      var colDU=r.diffDDTUImb===0?'#217346':'#C00000';
+      return '<tr style="'+bg+'">'
+        +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
+        +'<td style="text-align:right;">'+r.vern+'</td>'
+        +'<td style="text-align:right;">'+r.imb+'</td>'
+        +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colDE+';font-size:11px;">('+(r.diffDDTEVern>0?'+':'')+r.diffDDTEVern+')</span></td>'
+        +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+')</span></td>'
+        +'<td>'+r.badge+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+  var tot={vern:0,imb:0,ddtE:0,ddtU:0};
+  righe.forEach(function(r){tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
+  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
 }
 
 // ── DDT ENTRATA ───────────────────────────────────────────────────────
@@ -3428,7 +3601,7 @@ function setWAMode(mode){
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
   AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','confronto','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','cfg']
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','confronto','cfg']
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
