@@ -108,6 +108,43 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   .print-section, .print-section * { visibility: visible !important; }
   .print-section { position: relative; top: 0; left: 0; width: 100%; }
   .print-section button { display: none !important; }
+
+  /* Riepilogo Completo — tabella leggibile su carta */
+  .rc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .rc-table th {
+    background: #eeeeee !important;
+    color: #000 !important;
+    font-weight: bold;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    text-align: left;
+    white-space: nowrap;
+    position: static;
+  }
+  .rc-table td {
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .rc-table td:first-child {
+    white-space: normal;
+    min-width: 220px;
+    font-size: 11px;
+  }
+  .rc-table tbody tr:nth-child(even) {
+    background: #f8f8f8 !important;
+  }
+  /* Mantieni i colori di stato definiti inline (colore riga) */
+  .rc-table tbody tr[style*="background-color"] td {
+    background: inherit !important;
+  }
 }
 </style>
 </head>
