@@ -896,7 +896,27 @@ function printSection(id){
   var el=document.getElementById(id);
   if(!el) return;
   var html = '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Stampa</title>' +
-             '<style>body{font-family:Arial,sans-serif;color:#222;padding:16px;} .card{background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:16px;} h2{font-size:16px;color:#1F4E79;margin-bottom:12px;} .ok-box{background:#E2EFDA;border-radius:8px;padding:10px 14px;color:#375623;font-size:13px;margin-top:8px;} .warn-box{background:#FCE4D6;border-radius:8px;padding:10px 14px;color:#7B2C2C;font-size:13px;margin-top:8px;} .empty{color:#999;font-size:14px;padding:10px 0;} </style></head><body>' +
+             '<style>' +
+             'body{font-family:Arial,sans-serif;color:#222;padding:16px;}' +
+             '.card{background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:16px;}' +
+             'h2{font-size:16px;color:#1F4E79;margin-bottom:12px;}' +
+             '.ok-box{background:#E2EFDA;border-radius:8px;padding:10px 14px;color:#375623;font-size:13px;margin-top:8px;}' +
+             '.warn-box{background:#FCE4D6;border-radius:8px;padding:10px 14px;color:#7B2C2C;font-size:13px;margin-top:8px;}' +
+             '.empty{color:#999;font-size:14px;padding:10px 0;}' +
+             /* rc-table: Riepilogo Completo AZZURRA e BERGAMASCO */
+             '.rc-table{width:100%;border-collapse:collapse;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+             '.rc-table th{background-color:#eeeeee;font-weight:bold;font-size:10px;padding:4px 6px;border:1px solid #999;text-align:left;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+             '.rc-table td{padding:4px 6px;border:1px solid #ddd;white-space:nowrap;font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+             '.rc-table td:first-child{white-space:normal;min-width:240px;font-size:11px;}' +
+             '.rc-table tbody tr:nth-child(even) td{background-color:#f8f8f8;}' +
+             '.rc-table tbody tr[style*="background-color"] td{background:inherit;}' +
+             /* row-item: Riepilogo Bergamasco (Grezzi / Finiti) */
+             '.row-item{display:block;border:1px solid #ccc;border-left:3px solid #1F4E79;border-radius:0;padding:4px 8px;margin-bottom:3px;font-size:10px;background:white;}' +
+             '.row-item:nth-child(even){background:#f8f8f8;}' +
+             '.rdesc{font-size:10px;font-weight:bold;}' +
+             '.rsub{font-size:9px;color:#555;}' +
+             '.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:bold;}' +
+             '</style></head><body>' +
              el.innerHTML + '</body></html>';
   var printWindow = window.open('', '_blank');
   if(!printWindow){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
