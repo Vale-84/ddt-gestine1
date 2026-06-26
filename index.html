@@ -1774,46 +1774,37 @@ async function caricaVerniciato2(){
   var d=await apiGet('verniciato');if(!d)return;
   var l=document.getElementById('imb2-vern-lista');if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo</div>';return;}
-  // Ordina tutte le righe per data crescente
-  d.sort(function(a,b){
-    var da=(a.data_inserimento||a.created_at||'');
-    var db=(b.data_inserimento||b.created_at||'');
-    return da.localeCompare(db);
-  });
-  // Spunte salvate in localStorage
+  d.sort(function(a,b){return (a.data_inserimento||a.created_at||'').localeCompare(b.data_inserimento||b.created_at||'');});
   var spunteKey='vern2_spunte';
   var spunte={};
   try{spunte=JSON.parse(localStorage.getItem(spunteKey)||'{}');}catch(e){}
-  function toggleSpunta(id){
+  window._toggleSpuntaVern2=function(id){
     try{spunte=JSON.parse(localStorage.getItem(spunteKey)||'{}');}catch(e){}
     if(spunte[id])delete spunte[id];else spunte[id]=true;
     localStorage.setItem(spunteKey,JSON.stringify(spunte));
     caricaVerniciato2();
-  }
-  window._toggleSpuntaVern2=toggleSpunta;
+  };
   l.innerHTML=d.map(function(r){
     var seqStr=r.sequenza||String(r.quantita||0);
     var data=fmtData(r.data_inserimento||r.created_at);
     var done=!!spunte[r.id];
-    var borderCol=done?'#217346':'#C55A11';
-    var dataCol=done?'#217346':'#C55A11';
-    var checkHtml=done
+    var col=done?'#217346':'#C55A11';
+    var check=done
       ?'<div onclick="window._toggleSpuntaVern2('+r.id+')" style="width:26px;height:26px;border-radius:50%;background:#217346;border:2px solid #217346;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:white;font-size:14px;font-weight:700;">✓</div>'
       :'<div onclick="window._toggleSpuntaVern2('+r.id+')" style="width:26px;height:26px;border-radius:50%;border:2px solid #217346;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"></div>';
-    var descStr=r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> '+r.descrizione:r.descrizione;
-    return '<div class="row-item" style="border-left-color:'+borderCol+';padding:7px 12px;'+(done?'opacity:0.7;':'')+'">'
+    return '<div class="row-item" style="border-left-color:'+col+';padding:7px 12px;'+(done?'opacity:0.7;':'')+'">'
       +'<div style="display:flex;align-items:center;gap:10px;width:100%;">'
-        +'<span style="font-weight:600;color:'+dataCol+';min-width:70px;font-size:13px;">'+data+'</span>'
-        +'<span class="row-qty" style="color:'+dataCol+';min-width:36px;">'+r.quantita+'</span>'
+        +'<span style="font-weight:600;color:'+col+';min-width:70px;font-size:13px;">'+data+'</span>'
+        +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.quantita+'</span>'
         +'<div class="row-info" style="flex:1;">'
-          +'<div class="rdesc">'+descStr+'</div>'
+          +'<div class="rdesc">'+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
           +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:4px;align-items:center;">'
-          +'<button class="edit-btn" title="Modifica" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'_BER\',\''+seqStr.replace(/'/g,"\\'")+'_BER\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
-          +'<button class="del-btn" title="Elimina" onclick="eliminaRiga2('+r.id+')">✕</button>'
+          +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'_BER\',\''+seqStr.replace(/'/g,"\\'")+'_BER\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
+          +'<button class="del-btn" onclick="eliminaRiga2('+r.id+')">✕</button>'
         +'</div>'
-        +checkHtml
+        +check
       +'</div>'
     +'</div>';
   }).join('');
