@@ -1624,6 +1624,7 @@ async function caricaVerniciato(){
 
 async function svuotaVerniciato(){
   if(!confirm('Cancellare tutto il verniciato di oggi?'))return;
+  localStorage.removeItem('vernp_spunte');
   var oggi=oggiISO();
   await apiDel('verniciato','data_inserimento=eq.'+oggi);
   showMsg('msg-verniciato','Svuotato!','ok');
