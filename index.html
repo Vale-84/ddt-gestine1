@@ -3250,7 +3250,42 @@ async function caricaImballo(){
     +'</div>';
   }).join('');
   if(l)l.innerHTML=html;
-  if(l2)l2.innerHTML=html;
+  if(l2){
+    var spunteKey='imb2_spunte';
+    var spunte={};
+    try{spunte=JSON.parse(localStorage.getItem(spunteKey)||'{}');}catch(e){}
+    window._toggleSpuntaImb2=function(id){
+      try{spunte=JSON.parse(localStorage.getItem(spunteKey)||'{}');}catch(e){}
+      if(spunte[id])delete spunte[id];else spunte[id]=true;
+      localStorage.setItem(spunteKey,JSON.stringify(spunte));
+      caricaImballo();
+    };
+    var dSorted=d.slice().sort(function(a,b){return (a.data_inserimento||a.created_at||'').localeCompare(b.data_inserimento||b.created_at||'');});
+    l2.innerHTML=dSorted.map(function(r){
+      var seqStr=r.sequenza||String(r.totale||0);
+      var data=fmtData(r.data_inserimento||r.created_at);
+      var done=!!spunte[r.id];
+      var col=done?'#217346':'#5B2C8D';
+      var check=done
+        ?'<div onclick="window._toggleSpuntaImb2('+r.id+')" style="width:26px;height:26px;border-radius:50%;background:#217346;border:2px solid #217346;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:white;font-size:14px;font-weight:700;">✓</div>'
+        :'<div onclick="window._toggleSpuntaImb2('+r.id+')" style="width:26px;height:26px;border-radius:50%;border:2px solid #217346;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"></div>';
+      return '<div class="row-item" style="border-left-color:'+col+';padding:7px 12px;'+(done?'opacity:0.7;':'')+'">'
+        +'<div style="display:flex;align-items:center;gap:10px;width:100%;">'
+          +'<span style="font-weight:600;color:'+col+';min-width:70px;font-size:13px;">'+data+'</span>'
+          +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.totale+'</span>'
+          +'<div class="row-info" style="flex:1;">'
+            +'<div class="rdesc">'+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.articolo+'</div>'
+            +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
+          +'</div>'
+          +'<div style="display:flex;gap:4px;align-items:center;">'
+            +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||'').replace(/\'/g,"\\'")+'\',\''+seqStr.replace(/\'/g,"\\'")+'\',\''+String(r.note||'').replace(/\'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✎</button>'
+            +'<button class="del-btn" onclick="eliminaRigaImb('+r.id+')">✕</button>'
+          +'</div>'
+          +check
+        +'</div>'
+      +'</div>';
+    }).join('');
+  }
 }
 
 async function eliminaRigaImb(id){
