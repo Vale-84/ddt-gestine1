@@ -2895,7 +2895,18 @@ async function rimuoviDoppioniDDTUscita(){
     for(var i=1;i<righe.length;i++)daCancellare.push(righe[i]);
   });
   if(!daCancellare.length){alert('Nessun doppione trovato.');return;}
-  if(!confirm('Trovate '+daCancellare.length+' righe duplicate (stesso numero DDT + codice articolo + quantità). Verrà mantenuta solo la prima copia di ciascuna. Procedere?'))return;
+  var dettaglio=[];
+  Object.keys(gruppi).forEach(function(key){
+    var righe=gruppi[key];
+    if(righe.length<2)return;
+    righe.sort(function(a,b){return (a.id||0)-(b.id||0);});
+    var cod=righe[0].codice_articolo||'—';
+    var desc=righe[0].descrizione||'';
+    var nddt=righe[0].numero_ddt||'?';
+    var qtys=righe.map(function(r){return r.quantita_ddt||0;}).join(' + ');
+    dettaglio.push('• '+cod+(desc?' - '+desc:'')+' (DDT '+nddt+'): '+qtys);
+  });
+  if(!confirm('Trovate '+daCancellare.length+' righe duplicate:\n'+dettaglio.join('\n')+'\n\nVerrà mantenuta solo la prima copia di ciascuna. Procedere?'))return;
   var n=0;
   for(var i=0;i<daCancellare.length;i++){
     await apiDel('ddt_uscita','id=eq.'+daCancellare[i].id);
