@@ -1960,11 +1960,14 @@ async function caricaRiepilogoBerNew(){
   var lFin=document.getElementById('ber-new-finiti');
   var lTot=document.getElementById('ber-new-finiti-tot');
   if(lFin){
-    var finList=Object.values(mapFin).sort(function(a,b){return b.vern-a.vern;});
-    if(!finList.length){lFin.innerHTML='<div class="empty">Nessun articolo</div>';}
+    var allB0Codes=Object.keys(mapFin);
+    if(!allB0Codes.length){lFin.innerHTML='<div class="empty">Nessun articolo</div>';}
     else{
       var totV=0,totI=0,totS=0,totDiff=0;
-      lFin.innerHTML=finList.map(function(a){
+      var html='';
+      allB0Codes.sort(function(a,b){return (mapFin[a].desc||a).localeCompare(mapFin[b].desc||b);});
+      allB0Codes.forEach(function(b0c){
+        var a=mapFin[b0c];
         var codUp=(a.cod||'').toUpperCase();
         var ber=b0ToBer[codUp]||'';
         var ambiguo=!ber&&berToB0[codUp]&&berToB0[codUp].length>1;
@@ -1972,20 +1975,45 @@ async function caricaRiepilogoBerNew(){
         var diff=a.vern-a.imb-scarto;
         totV+=a.vern;totI+=a.imb;totS+=scarto;totDiff+=diff;
         var bordo=ambiguo?'#C00000':diff===0?'#217346':diff>0?'#C55A11':'#C00000';
-        return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
-          +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
-            +(ber?'<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+ber+'</span><span style="color:#999;">&rarr;</span>':'')
-            +(ambiguo?'<span class="badge badge-err">&#9888; DDT Uscita su '+berToB0[codUp].length+' B0 abbinati: verifica manuale</span> ':'')
-            +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
-            +'<span>'+a.desc+'</span>'
-            +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
-              +'<span>Verniciato: <strong>'+a.vern+'</strong></span>'
-              +'<span>Imballato: <strong>'+a.imb+'</strong></span>'
-              +'<span>Scarti: <strong>'+scarto+'</strong></span>'
-              +'<span style="color:'+bordo+';">Diff: <strong>'+(diff>0?'+':'')+diff+'</strong> pz</span>'
-            +'</span>'
-          +'</div></div>';
-      }).join('');
+        html+='<div style="margin-top:14px;padding:6px 12px;background:#f0f4f8;border-left:4px solid '+bordo+';border-radius:4px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;">'
+          +(ber?'<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+ber+'</span><span style="color:#999;">&rarr;</span>':'')
+          +(ambiguo?'<span class="badge badge-err">&#9888; verifica manuale</span> ':'')
+          +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
+          +'<span><strong>'+a.desc+'</strong></span>'
+          +'<span style="margin-left:auto;display:flex;gap:10px;white-space:nowrap;color:'+bordo+';">'
+            +'V:<strong>'+a.vern+'</strong> I:<strong>'+a.imb+'</strong>'
+            +(scarto?' Scarti:<strong>'+scarto+'</strong>':'')
+            +' Diff:<strong>'+(diff>0?'+':'')+diff+'</strong>'
+          +'</span>'
+        +'</div>';
+        var vernRows=vern.filter(function(r){return (r.codice_articolo||'').trim().toUpperCase()===codUp;});
+        vernRows.sort(function(x,y){return (x.data_inserimento||x.created_at||'').localeCompare(y.data_inserimento||y.created_at||'');});
+        vernRows.forEach(function(r){
+          var qty=Number(r.quantita)||0;
+          var data=fmtData(r.data_inserimento||r.created_at);
+          var seq=r.sequenza||'';
+          html+='<div class="row-item" style="border-left-color:#4A90D9;padding:5px 12px 5px 28px;margin-top:2px;">'
+            +'<div class="row-qty" style="color:#4A90D9;min-width:40px;">'+qty+'</div>'
+            +'<div class="row-info">'
+              +'<div class="rdesc">🎨 <strong>Verniciato</strong>'+(seq?' <span style="color:#888;font-size:12px;">'+seq+'</span>':'')+'</div>'
+              +'<div class="rsub">'+data+'</div>'
+            +'</div></div>';
+        });
+        var imbRows=imb.filter(function(r){return (r.codice_articolo||'').trim().toUpperCase()===codUp;});
+        imbRows.sort(function(x,y){return (x.data_inserimento||x.created_at||'').localeCompare(y.data_inserimento||y.created_at||'');});
+        imbRows.forEach(function(r){
+          var qty=Number(r.totale)||0;
+          var data=fmtData(r.data_inserimento||r.created_at);
+          var seq=r.sequenza||'';
+          html+='<div class="row-item" style="border-left-color:#217346;padding:5px 12px 5px 28px;margin-top:2px;">'
+            +'<div class="row-qty" style="color:#217346;min-width:40px;">'+qty+'</div>'
+            +'<div class="row-info">'
+              +'<div class="rdesc">📦 <strong>Imballo</strong>'+(seq?' <span style="color:#888;font-size:12px;">'+seq+'</span>':'')+'</div>'
+              +'<div class="rsub">'+data+'</div>'
+            +'</div></div>';
+        });
+      });
+      lFin.innerHTML=html;
       if(lTot){
         var allOk=totDiff===0;
         lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> pz</div>';
