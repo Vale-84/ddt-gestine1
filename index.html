@@ -3589,7 +3589,9 @@ async function unisciDuplicatiUscita(){
     if(gruppo.length<=1)continue;
     var primo=gruppo[0];
     var totQty=gruppo.reduce(function(a,r){return a+(r.quantita||0);},0);
-    await apiPatch('whatsapp_uscita','id=eq.'+primo.id,{quantita:totQty,testo_riga:totQty+' '+(primo.descrizione||primo.testo_riga||'')});
+    var seqParts=gruppo.map(function(r){return r.testo_seq||String(r.quantita||0);}).filter(Boolean);
+    var nuovaSeq=seqParts.join('+');
+    await apiPatch('whatsapp_uscita','id=eq.'+primo.id,{quantita:totQty,testo_seq:nuovaSeq,testo_riga:totQty+' '+(primo.descrizione||primo.testo_riga||'')});
     for(var i=1;i<gruppo.length;i++){await apiDel('whatsapp_uscita','id=eq.'+gruppo[i].id);}
     uniti+=gruppo.length-1;
   }
