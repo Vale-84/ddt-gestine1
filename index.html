@@ -2300,11 +2300,12 @@ async function aggiungiTestoLiberoEntrata(){
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i];
-    var m=r.match(/^(\d+)\s+(.+)$/);
-    var qty=m?parseInt(m[1]):null;
+    var m=r.match(/^(\d+(?:\+\d+)*)\s+(.+)$/);
+    var seqStr=m?m[1]:null;
+    var qty=seqStr?seqStr.split('+').reduce(function(a,v){return a+(parseInt(v)||0);},0):null;
     var desc=m?m[2]:r;
     var art=trovaArt(desc);
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,testo_seq:seqStr||null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
@@ -2319,11 +2320,12 @@ async function aggiungiTestoLiberoUscita(){
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i];
-    var m=r.match(/^(\d+)\s+(.+)$/);
-    var qty=m?parseInt(m[1]):null;
+    var m=r.match(/^(\d+(?:\+\d+)*)\s+(.+)$/);
+    var seqStr=m?m[1]:null;
+    var qty=seqStr?seqStr.split('+').reduce(function(a,v){return a+(parseInt(v)||0);},0):null;
     var desc=m?m[2]:r;
     var art=trovaArt(desc);
-    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
+    var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,testo_seq:seqStr||null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
