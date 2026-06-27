@@ -564,6 +564,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="file" id="pdf-multi-usc-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiUscita(this)">
     <div id="pdf-multi-usc-status" style="margin-top:8px;"></div>
   </div>
+  <div class="card" id="bergamasco-pdf-multi-card" style="display:none;">
+    <h2>Carica PDF DDT Uscita BERGAMASCO (multi-DDT)</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica un PDF con uno o più DDT e scegli quali importare.</p>
+    <button class="btn btn-orange" type="button" onclick="document.getElementById('pdf-multi-ber-inp').click()">CARICA PDF</button>
+    <input type="file" id="pdf-multi-ber-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiBergamasco(this)">
+    <div id="pdf-multi-ber-status" style="margin-top:8px;"></div>
+  </div>
   <div class="card">
     <h2>Nuovo DDT Uscita</h2>
     <label>N. DDT</label><input type="text" id="du-nddt">
@@ -2920,6 +2927,8 @@ async function salvaDDTUscita(){
 async function caricaDDTU(){
   var pdfMultiCard=document.getElementById('azzurra-pdf-multi-card');
   if(pdfMultiCard)pdfMultiCard.style.display=getCliente()==='AZZURRA'?'':'none';
+  var pdfMultiBerCard=document.getElementById('bergamasco-pdf-multi-card');
+  if(pdfMultiBerCard)pdfMultiBerCard.style.display=getCliente()==='BERGAMASCO'?'':'none';
   var d=await apiGet('ddt_uscita');if(!d)return;
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
@@ -3171,6 +3180,87 @@ async function importaPDFMultiUscita(){
     if(btnImporta){btnImporta.disabled=false;btnImporta.textContent='IMPORTA SELEZIONATI';}
     if(btnAnnulla)btnAnnulla.disabled=false;
   }
+}
+
+async function leggiPDFMultiBergamasco(input){
+  var file=input.files[0];if(!file)return;
+  var status=document.getElementById('pdf-multi-ber-status');
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    var ddts=parsePdfMultiBergamasco(testo);
+    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';input.value='';return;}
+    var numeri=ddts.map(function(d){return d.nddt;});
+    var esistentiNum={};
+    var esistenti=await apiGet('ddt_uscita','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
+    if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
+    ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
+    pdfMultiUscDati=ddts;
+    status.innerHTML='';
+    apriModalePdfMulti();
+  }catch(e){status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+
+function parsePdfMultiBergamasco(testo){
+  var mesi={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+  // Cerca qualsiasi codice DDT tipo C6xxxxxx, Cxxxxxxx, ecc.
+  var re=/[A-Z]\d{6,8}/g;
+  var matches=[],m;
+  while((m=re.exec(testo))){
+    // escludi codici articolo B0...
+    if(!/^B0/.test(m[0])&&!/^A0/.test(m[0]))matches.push({nddt:m[0],index:m.index});
+  }
+  // rimuovi duplicati mantenendo primo occorrenza
+  var seen={};
+  matches=matches.filter(function(x){if(seen[x.nddt])return false;seen[x.nddt]=true;return true;});
+  if(!matches.length)return [];
+  var mappa={},ordine=[];
+  for(var i=0;i<matches.length;i++){
+    var start=matches[i].index;
+    var end=(i+1<matches.length)?matches[i+1].index:testo.length;
+    var blocco=testo.slice(start,end);
+    var nddt=matches[i].nddt;
+    if(!mappa[nddt]){mappa[nddt]={nddt:nddt,data:'',righe:[]};ordine.push(nddt);}
+    if(!mappa[nddt].data){
+      var mD=blocco.match(/(\d{2})\s+([a-zA-Zàèìòù]{3})\s+(\d{4})/);
+      if(!mD)mD=blocco.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if(mD){
+        if(mD[2]&&isNaN(parseInt(mD[2]))){
+          var meseNum=mesi[mD[2].toLowerCase()];
+          if(meseNum)mappa[nddt].data=mD[3]+'-'+('0'+meseNum).slice(-2)+'-'+mD[1];
+        } else {
+          mappa[nddt].data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+        }
+      }
+    }
+    blocco.split('\n').forEach(function(riga){
+      riga=riga.trim();
+      if(!riga||riga[0]==='*')return;
+      if(/^(ARTICOLO|DESCRIZIONE|UMI|U\.M\.|QUANT|PREZZO|COD\.|CODICE|TOTALE|PAGINA)\b/i.test(riga))return;
+      // Formato con codice B0: "B0XXXXX descrizione PZ. 123,00"
+      var mArt=riga.match(/^(B0[A-Z0-9]+)\s+(.+?)\s+PZ\.\s+([\d,.]+)/);
+      if(mArt){
+        var qty=parseQty(mArt[3]);
+        if(qty>0)mappa[nddt].righe.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});
+        return;
+      }
+      // Formato senza codice: "DESCRIZIONE PZ. 123,00"
+      var mDesc=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
+      if(mDesc){
+        var qty2=parseQty(mDesc[2]);
+        var desc=mDesc[1].trim().replace(/\s+/g,' ');
+        if(qty2>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/)){
+          // cerca codice articolo nella cache
+          var art=trovaArt(desc,artCache.filter(function(a){return (a.codice_articolo||'').startsWith('B0');}));
+          mappa[nddt].righe.push({cod:art?art.codice_articolo:'',desc:desc,qty:qty2});
+        }
+      }
+    });
+  }
+  return ordine.map(function(k){return mappa[k];}).filter(function(d){return d.righe.length>0;});
 }
 
 // ── IMBALLO ───────────────────────────────────────────────────────────
