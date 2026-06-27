@@ -944,7 +944,7 @@ async function apiGet(t,p){
 
 async function apiPost(t,b){
   var c=getConfig();if(!c.url){alert('Configura Supabase!');return null;}
-  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli'];
+  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','archivio'];
   if(tables.indexOf(t)>=0) b.cliente=getCliente();
   try{var r=await fetch(c.url+'/rest/v1/'+t,{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'},body:JSON.stringify(b)});
   if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){alert('Errore: '+e.message);return null;}
