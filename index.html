@@ -3250,7 +3250,6 @@ async function caricaImballo(){
     +'</div>';
   }).join('');
   if(l)l.innerHTML=html;
-  // BERGAMASCO imb2-lista: righe per data con spunta
   if(l2){
     var spunteKey='imb2_spunte';
     var spunte={};
@@ -3279,7 +3278,7 @@ async function caricaImballo(){
             +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
           +'</div>'
           +'<div style="display:flex;gap:4px;align-items:center;">'
-            +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||'').replace(/\'/g,\'\\\'\')+'\'+'\',\''+seqStr.replace(/\'/g,\'\\\'\')+'\'+'\',\''+String(r.note||'').replace(/\'/g,\'\\\'\')+'\'+'\',\'imballo\',\'Modifica imballo\')">✎</button>'
+            +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||'').replace(/\'/g,"\\'")+'\',\''+seqStr.replace(/\'/g,"\\'")+'\',\''+String(r.note||'').replace(/\'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✎</button>'
             +'<button class="del-btn" onclick="eliminaRigaImb('+r.id+')">✕</button>'
           +'</div>'
           +check
