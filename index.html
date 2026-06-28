@@ -2628,11 +2628,13 @@ function filtraRiepilogoBer(f){
 
 function renderRiepilogoCompletoBer(){
   if(!rcDatiBer)return;
+  var okManuali={};
+  try{okManuali=JSON.parse(localStorage.getItem('ber_ok_manuali')||'{}');}catch(e){}
   var righe=rcDatiBer.filter(function(r){
     if(rcFiltroBer==='tutti')return true;
-    if(rcFiltroBer==='differenze')return r.stato!=='ok';
-    if(rcFiltroBer==='verificare')return r.stato==='ddtvern'||r.stato==='vernimb';
-    if(rcFiltroBer==='conferma')return r.stato==='conferma';
+    if(rcFiltroBer==='differenze')return r.stato!=='ok'&&!okManuali[r.cod];
+    if(rcFiltroBer==='verificare')return (r.stato==='ddtvern'||r.stato==='vernimb')&&!okManuali[r.cod];
+    if(rcFiltroBer==='conferma')return r.stato==='conferma'&&!okManuali[r.cod];
     return true;
   });
   var tb=document.getElementById('rc-ber-tbody');if(!tb)return;
@@ -2640,22 +2642,43 @@ function renderRiepilogoCompletoBer(){
     tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
   }else{
     tb.innerHTML=righe.map(function(r){
-      var bg=r.colore?'background-color:'+r.colore+';':'';
+      var manuale=!!okManuali[r.cod];
+      var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
       var colDE=r.diffDDTEVern===0?'#217346':'#C00000';
       var colDU=r.diffDDTUImb===0?'#217346':'#C00000';
+      var badge=manuale?'✓ OK (manuale)':r.badge;
+      var btnOk=(!manuale&&r.stato!=='ok')
+        ?'<button onclick="setOkManualeBer(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">✓ OK</button>'
+        :(manuale?'<button onclick="removeOkManualeBer(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
       return '<tr style="'+bg+'">'
         +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
         +'<td style="text-align:right;">'+r.vern+'</td>'
         +'<td style="text-align:right;">'+r.imb+'</td>'
         +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colDE+';font-size:11px;">('+(r.diffDDTEVern>0?'+':'')+r.diffDDTEVern+')</span></td>'
         +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+')</span></td>'
-        +'<td>'+r.badge+'</td>'
+        +'<td>'+badge+btnOk+'</td>'
       +'</tr>';
     }).join('');
   }
   var tot={vern:0,imb:0,ddtE:0,ddtU:0};
   righe.forEach(function(r){tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
   document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
+}
+
+function setOkManualeBer(cod){
+  var okManuali={};
+  try{okManuali=JSON.parse(localStorage.getItem('ber_ok_manuali')||'{}');}catch(e){}
+  okManuali[cod]=true;
+  localStorage.setItem('ber_ok_manuali',JSON.stringify(okManuali));
+  renderRiepilogoCompletoBer();
+}
+
+function removeOkManualeBer(cod){
+  var okManuali={};
+  try{okManuali=JSON.parse(localStorage.getItem('ber_ok_manuali')||'{}');}catch(e){}
+  delete okManuali[cod];
+  localStorage.setItem('ber_ok_manuali',JSON.stringify(okManuali));
+  renderRiepilogoCompletoBer();
 }
 
 // ── DDT ENTRATA ───────────────────────────────────────────────────────
@@ -3574,6 +3597,7 @@ async function selDettaglioArt(cod,desc){
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
 async function chiudiMese(){
+  localStorage.removeItem('ber_ok_manuali');
   if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati. I DDT restano.'))return;
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
   var cl=getCliente();
