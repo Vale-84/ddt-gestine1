@@ -538,7 +538,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>DDT Entrata salvati</h2>
     <div id="de-bulk-actions" style="display:none;margin-bottom:10px;">
-      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="de-sel-all" onchange="toggleSelAllDDTE(this.checked)"> Seleziona tutti</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="de-sel-all" onchange="toggleSelAllDDTE(this.checked)" style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;"> Seleziona tutti</label>
       <button class="btn btn-red" type="button" style="width:auto;padding:6px 14px;margin-left:10px;" onclick="eliminaSelezionatiDDTE()">🗑 Elimina selezionati</button>
     </div>
     <div id="de-lista"><div class="empty">Nessun record</div></div>
@@ -604,7 +604,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>DDT Uscita salvati</h2>
     <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;margin-bottom:10px;" onclick="rimuoviDoppioniDDTUscita()">RIMUOVI DOPPIONI</button>
     <div id="du-bulk-actions" style="display:none;margin-bottom:10px;">
-      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="du-sel-all" onchange="toggleSelAllDDTU(this.checked)"> Seleziona tutti</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="du-sel-all" onchange="toggleSelAllDDTU(this.checked)" style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;"> Seleziona tutti</label>
       <button class="btn btn-red" type="button" style="width:auto;padding:6px 14px;margin-left:10px;" onclick="eliminaSelezionatiDDTU()">🗑 Elimina selezionati</button>
     </div>
     <div id="du-lista"><div class="empty">Nessun record</div></div>
@@ -2803,7 +2803,7 @@ async function caricaDDTE(){
     var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);
     var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';
     return '<div class="row-item">'
-      +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="margin-right:8px;">'
+      +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
       +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+' | '+(r.cliente||'')+'</div></div>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
@@ -3004,7 +3004,7 @@ async function caricaDDTU(){
     if(na!==nb)return na<nb?-1:1;
     return (a.id||0)-(b.id||0);
   });
-  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="margin-right:8px;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
 }
 
 function toggleSelAllDDTU(checked){
