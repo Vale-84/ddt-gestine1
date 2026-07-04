@@ -3438,7 +3438,7 @@ async function importaPDFMultiEntrata(){
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
         var cod=a.cod||'';
-        if(cod&&/^IA/i.test(cod)){
+        if(cod&&getCliente()==='AZZURRA'&&/^IA/i.test(cod)){
           var codConv=cod.toUpperCase().replace(/^IA/i,'A0');
           if(artCache.some(function(x){return x.codice_articolo.toUpperCase()===codConv;}))cod=codConv;
         }
