@@ -3367,8 +3367,18 @@ function parsePdfMultiEntrata(testo){
       if(/^(ARTICOLO|DESCRIZIONE|UMI|U\.M\.|QUANT|PREZZO|COD\.|CODICE|TOTALE|PAGINA)\b/i.test(riga))return;
       var mArt=riga.match(/^([A-Z][A-Z0-9]{2,14})\s+(.+?)\s+PZ\.\s+([\d,.]+)/);
       if(mArt){
+        var codCandidate=mArt[1].toUpperCase();
+        var codConv=codCandidate.replace(/^IA/i,'A0');
+        var codeEsiste=artCache.some(function(x){return x.codice_articolo.toUpperCase()===codCandidate||x.codice_articolo.toUpperCase()===codConv;});
         var qty=parseQty(mArt[3]);
-        if(qty>0){mappa[nddt].righe.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});return;}
+        if(qty>0){
+          if(codeEsiste){
+            mappa[nddt].righe.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});
+          }else{
+            mappa[nddt].righe.push({cod:'',desc:(mArt[1]+' '+mArt[2]).trim().replace(/\s+/g,' '),qty:qty});
+          }
+          return;
+        }
       }
       var mDesc=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
       if(mDesc){
