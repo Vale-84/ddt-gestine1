@@ -3332,7 +3332,7 @@ function parsePdfMultiEntrata(testo){
   var re=/[A-Z]\d{6,8}/g;
   var matches=[],m;
   while((m=re.exec(testo))){
-    if(!/^B0/.test(m[0])&&!/^A0/.test(m[0])&&!/^BER/.test(m[0]))matches.push({nddt:m[0],index:m.index});
+    if(!/^B0/.test(m[0])&&!/^A0/.test(m[0])&&!/^BER/.test(m[0])&&!/^T0/.test(m[0]))matches.push({nddt:m[0],index:m.index});
   }
   var seen={};
   matches=matches.filter(function(x){if(seen[x.nddt])return false;seen[x.nddt]=true;return true;});
