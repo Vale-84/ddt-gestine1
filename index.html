@@ -500,6 +500,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-orange" id="btn-importa" style="display:none" onclick="importaDaPDF()">IMPORTA DAL PDF</button>
 <button class="btn btn-blue" id="btn-associa-ddt" style="display:none" onclick="associaCodiciDDT()">ASSOCIA CODICI</button>
   </div>
+  <div class="card" id="entrata-pdf-multi-card">
+    <h2>Carica PDF DDT Entrata (multi-DDT)</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica un PDF con uno o più DDT estratti da Nova e scegli quali importare.</p>
+    <button class="btn btn-orange" type="button" onclick="document.getElementById('pdf-multi-ent-inp').click()">CARICA PDF</button>
+    <input type="file" id="pdf-multi-ent-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiEntrata(this)">
+    <div id="pdf-multi-ent-status" style="margin-top:8px;"></div>
+  </div>
   <div class="card">
     <h2>Carica Excel DDT Entrata</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Per chi ti manda il DDT in Excel (es. Bergamasco). I codici nuovi vengono aggiunti automaticamente alla lista articoli.</p>
@@ -874,6 +881,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div id="pdf-multi-lista" style="margin-bottom:14px;"></div>
     <button class="btn btn-green" id="btn-importa-pdf-multi" onclick="importaPDFMultiUscita()">IMPORTA SELEZIONATI</button>
     <button class="btn btn-gray" id="btn-annulla-pdf-multi" onclick="chiudiModalePdfMulti()">ANNULLA</button>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW PDF MULTI-DDT (DDT ENTRATA) -->
+<div class="modal" id="modal-pdf-multi-ent">
+  <div class="modal-box" style="max-width:640px;">
+    <h3 style="color:#C55A11;">DDT trovati nel PDF</h3>
+    <div id="pdf-multi-ent-lista" style="margin-bottom:14px;"></div>
+    <button class="btn btn-green" id="btn-importa-pdf-multi-ent" onclick="importaPDFMultiEntrata()">IMPORTA SELEZIONATI</button>
+    <button class="btn btn-gray" id="btn-annulla-pdf-multi-ent" onclick="chiudiModalePdfMultiEnt()">ANNULLA</button>
   </div>
 </div>
 
@@ -3284,6 +3301,160 @@ function parsePdfMultiBergamasco(testo){
     });
   }
   return ordine.map(function(k){return mappa[k];}).filter(function(d){return d.righe.length>0;});
+}
+
+var pdfMultiEntDati=null;
+
+async function leggiPDFMultiEntrata(input){
+  var file=input.files[0];if(!file)return;
+  var status=document.getElementById('pdf-multi-ent-status');
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    var ddts=parsePdfMultiEntrata(testo);
+    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';input.value='';return;}
+    var numeri=ddts.map(function(d){return d.nddt;});
+    var esistentiNum={};
+    var esistenti=await apiGet('ddt_entrata','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
+    if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
+    ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
+    pdfMultiEntDati=ddts;
+    status.innerHTML='';
+    apriModalePdfMultiEnt();
+  }catch(e){status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+
+function parsePdfMultiEntrata(testo){
+  var mesi={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+  var re=/[A-Z]\d{6,8}/g;
+  var matches=[],m;
+  while((m=re.exec(testo))){
+    if(!/^B0/.test(m[0])&&!/^A0/.test(m[0])&&!/^BER/.test(m[0]))matches.push({nddt:m[0],index:m.index});
+  }
+  var seen={};
+  matches=matches.filter(function(x){if(seen[x.nddt])return false;seen[x.nddt]=true;return true;});
+  if(!matches.length)return [];
+  var mappa={},ordine=[];
+  for(var i=0;i<matches.length;i++){
+    var start=matches[i].index;
+    var end=(i+1<matches.length)?matches[i+1].index:testo.length;
+    var blocco=testo.slice(start,end);
+    var nddt=matches[i].nddt;
+    if(!mappa[nddt]){mappa[nddt]={nddt:nddt,data:'',righe:[]};ordine.push(nddt);}
+    if(!mappa[nddt].data){
+      var mD=blocco.match(/(\d{2})\s+([a-zA-Zàèìòù]{3})\s+(\d{4})/);
+      if(!mD)mD=blocco.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if(mD){
+        if(mD[2]&&isNaN(parseInt(mD[2]))){
+          var meseNum=mesi[mD[2].toLowerCase()];
+          if(meseNum)mappa[nddt].data=mD[3]+'-'+('0'+meseNum).slice(-2)+'-'+mD[1];
+        } else {
+          mappa[nddt].data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+        }
+      }
+    }
+    blocco.split('\n').forEach(function(riga){
+      riga=riga.trim();
+      if(!riga||riga[0]==='*')return;
+      if(/^(ARTICOLO|DESCRIZIONE|UMI|U\.M\.|QUANT|PREZZO|COD\.|CODICE|TOTALE|PAGINA)\b/i.test(riga))return;
+      var mArt=riga.match(/^([A-Z][A-Z0-9]{2,14})\s+(.+?)\s+PZ\.\s+([\d,.]+)/);
+      if(mArt){
+        var qty=parseQty(mArt[3]);
+        if(qty>0){mappa[nddt].righe.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});return;}
+      }
+      var mDesc=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);
+      if(mDesc){
+        var qty2=parseQty(mDesc[2]);
+        var desc=mDesc[1].trim().replace(/\s+/g,' ');
+        if(qty2>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/)){
+          mappa[nddt].righe.push({cod:'',desc:desc,qty:qty2});
+        }
+      }
+    });
+  }
+  return ordine.map(function(k){return mappa[k];}).filter(function(d){return d.righe.length>0;});
+}
+
+function apriModalePdfMultiEnt(){
+  renderPdfMultiEntPreview();
+  document.getElementById('modal-pdf-multi-ent').style.display='flex';
+}
+
+function chiudiModalePdfMultiEnt(){
+  document.getElementById('modal-pdf-multi-ent').style.display='none';
+  pdfMultiEntDati=null;
+}
+
+function renderPdfMultiEntPreview(){
+  var cont=document.getElementById('pdf-multi-ent-lista');
+  if(!pdfMultiEntDati||!pdfMultiEntDati.length){cont.innerHTML='<div class="empty">Nessun DDT trovato</div>';return;}
+  cont.innerHTML=pdfMultiEntDati.map(function(d,idx){
+    var dettagli=d.righe.map(function(a){
+      return '<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';
+    }).join('');
+    var dupeBadge=d.dupe?'<span class="badge badge-warn" style="margin-left:8px;">Già presente — verrà saltato</span>':'';
+    return '<div class="row-item" style="display:block;'+(d.dupe?'opacity:0.6;':'')+'">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+        +'<input type="checkbox" '+(d.selected?'checked':'')+(d.dupe?' disabled':'')+' onchange="togglePdfMultiEntSel('+idx+',this.checked)" style="width:18px;height:18px;">'
+        +'<div style="flex:1;"><strong>'+d.nddt+'</strong> &nbsp; '+(d.data||'data ?')+' &nbsp; <span style="color:#666;">'+d.righe.length+' articoli</span>'+dupeBadge+'</div>'
+        +'<button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" onclick="togglePdfMultiEntDettagli('+idx+')">'+(d.aperto?'Nascondi':'Dettagli')+'</button>'
+      +'</div>'
+      +(d.aperto?('<div style="margin-top:8px;">'+dettagli+'</div>'):'')
+    +'</div>';
+  }).join('');
+}
+
+function togglePdfMultiEntSel(idx,checked){
+  if(pdfMultiEntDati&&pdfMultiEntDati[idx])pdfMultiEntDati[idx].selected=checked;
+}
+
+function togglePdfMultiEntDettagli(idx){
+  if(!pdfMultiEntDati||!pdfMultiEntDati[idx])return;
+  pdfMultiEntDati[idx].aperto=!pdfMultiEntDati[idx].aperto;
+  renderPdfMultiEntPreview();
+}
+
+var pdfMultiEntImportInCorso=false;
+
+async function importaPDFMultiEntrata(){
+  if(pdfMultiEntImportInCorso)return;
+  if(!pdfMultiEntDati||!pdfMultiEntDati.length)return;
+  var selezionati=pdfMultiEntDati.filter(function(d){return d.selected&&!d.dupe;});
+  if(!selezionati.length){alert('Nessun DDT selezionato da importare.');return;}
+  pdfMultiEntImportInCorso=true;
+  var btnImporta=document.getElementById('btn-importa-pdf-multi-ent');
+  var btnAnnulla=document.getElementById('btn-annulla-pdf-multi-ent');
+  if(btnImporta){btnImporta.disabled=true;btnImporta.textContent='Importazione in corso...';}
+  if(btnAnnulla)btnAnnulla.disabled=true;
+  try{
+    var righeOk=0,ddtSaltati=0;
+    for(var i=0;i<selezionati.length;i++){
+      var d=selezionati[i];
+      var check=await apiGet('ddt_entrata','numero_ddt=eq.'+encodeURIComponent(d.nddt)+'&select=id&limit=1');
+      if(check&&check.length){ddtSaltati++;continue;}
+      for(var j=0;j<d.righe.length;j++){
+        var a=d.righe[j];
+        var cod=a.cod||'';
+        if(!cod){
+          var art=trovaArt(a.desc,artCache);
+          if(art)cod=art.codice_articolo;
+        }
+        var r=await apiPost('ddt_entrata',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF multi-DDT'});
+        if(r)righeOk++;
+      }
+    }
+    document.getElementById('modal-pdf-multi-ent').style.display='none';
+    pdfMultiEntDati=null;
+    showMsg('msg-ddt-e',righeOk+' righe importate'+(ddtSaltati?(' — '+ddtSaltati+' DDT saltati (già presenti)'):'')+'!','ok');
+    caricaDDTE();
+  }finally{
+    pdfMultiEntImportInCorso=false;
+    if(btnImporta){btnImporta.disabled=false;btnImporta.textContent='IMPORTA SELEZIONATI';}
+    if(btnAnnulla)btnAnnulla.disabled=false;
+  }
 }
 
 // ── IMBALLO ───────────────────────────────────────────────────────────
