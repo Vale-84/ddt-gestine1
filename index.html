@@ -3438,8 +3438,16 @@ async function importaPDFMultiEntrata(){
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
         var cod=a.cod||'';
-        if(!cod){
-          var art=trovaArt(a.desc,artCache);
+        if(cod&&/^IA/i.test(cod)){
+          var codConv=cod.toUpperCase().replace(/^IA/i,'A0');
+          if(artCache.some(function(x){return x.codice_articolo.toUpperCase()===codConv;}))cod=codConv;
+        }
+        if(!cod||!artCache.some(function(x){return x.codice_articolo.toUpperCase()===cod.toUpperCase();})){
+          var pfxMap2={'AZZURRA':'A0','BERGAMASCO':'B0'};
+          var pfx2=pfxMap2[getCliente()]||'';
+          var artFiltrato2=pfx2?artCache.filter(function(x){return (x.codice_articolo||'').toUpperCase().startsWith(pfx2);}):artCache;
+          var descNorm=a.desc.toUpperCase().replace(/\s+DA\s+LACCARE\b/g,'').replace(/\s+DA\s+VERNICIARE\b/g,'').replace(/\s+SUI\s+BORDI\b/g,'').replace(/\s+/g,' ').trim();
+          var art=trovaArt(descNorm,artFiltrato2);
           if(art)cod=art.codice_articolo;
         }
         var r=await apiPost('ddt_entrata',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF multi-DDT'});
