@@ -504,7 +504,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Carica PDF DDT Entrata (multi-DDT)</h2>
     <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica un PDF con uno o più DDT estratti da Nova e scegli quali importare.</p>
     <button class="btn btn-orange" type="button" onclick="document.getElementById('pdf-multi-ent-inp').click()">CARICA PDF</button>
-    <input type="file" id="pdf-multi-ent-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiEntrata(this)">
+    <input type="file" id="pdf-multi-ent-inp" class="pdf-input" accept="application/pdf,.pdf" multiple onchange="leggiPDFMultiEntrata(this)">
     <div id="pdf-multi-ent-status" style="margin-top:8px;"></div>
   </div>
   <div class="card">
@@ -3306,15 +3306,20 @@ function parsePdfMultiBergamasco(testo){
 var pdfMultiEntDati=null;
 
 async function leggiPDFMultiEntrata(input){
-  var file=input.files[0];if(!file)return;
+  var files=Array.prototype.slice.call(input.files||[]);
+  if(!files.length)return;
   var status=document.getElementById('pdf-multi-ent-status');
-  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura '+files.length+' PDF...</div>';
   try{
-    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
-    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    for(var f=0;f<files.length;f++){
+      var file=files[f];
+      var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+      for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+      testo+='\n';
+    }
     var ddts=parsePdfMultiEntrata(testo);
-    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';input.value='';return;}
+    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nei PDF.</div>';input.value='';return;}
     var numeri=ddts.map(function(d){return d.nddt;});
     var esistentiNum={};
     var esistenti=await apiGet('ddt_entrata','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
