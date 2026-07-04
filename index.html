@@ -2519,11 +2519,13 @@ function filtraRiepilogoCompleto(f){
 
 function renderRiepilogoCompleto(){
   if(!rcDatiCompleti)return;
+  var okManuali={};
+  try{okManuali=JSON.parse(localStorage.getItem('az_ok_manuali')||'{}');}catch(e){}
   var righe=rcDatiCompleti.filter(function(r){
     if(rcFiltroAttivo==='tutti')return true;
-    if(rcFiltroAttivo==='differenze')return r.stato!=='ok'&&r.stato!=='solowa';
-    if(rcFiltroAttivo==='verificare')return r.stato==='ddtdiff'||r.stato==='wadiff';
-    if(rcFiltroAttivo==='conferma')return r.stato==='conferma';
+    if(rcFiltroAttivo==='differenze')return r.stato!=='ok'&&r.stato!=='solowa'&&!okManuali[r.cod];
+    if(rcFiltroAttivo==='verificare')return (r.stato==='ddtdiff'||r.stato==='wadiff')&&!okManuali[r.cod];
+    if(rcFiltroAttivo==='conferma')return r.stato==='conferma'&&!okManuali[r.cod];
     return true;
   });
   var tb=document.getElementById('rc-tbody');
@@ -2531,9 +2533,14 @@ function renderRiepilogoCompleto(){
     tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
   }else{
     tb.innerHTML=righe.map(function(r){
-      var bg=r.colore?'background-color:'+r.colore+';':'';
+      var manuale=!!okManuali[r.cod];
+      var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
       var colE=r.diffE===0?'#217346':'#C00000';
       var colU=r.diffU===0?'#217346':'#C00000';
+      var badge=manuale?'✓ OK (manuale)':r.badge;
+      var btnOk=(!manuale&&r.stato!=='ok'&&r.stato!=='solowa')
+        ?'<button onclick="setOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">✓ OK</button>'
+        :(manuale?'<button onclick="removeOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
       return '<tr style="'+bg+'">'
         +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
         +'<td style="text-align:right;">'+r.waE+'</td>'
@@ -2542,13 +2549,29 @@ function renderRiepilogoCompleto(){
         +'<td style="text-align:right;">'+r.imb+'</td>'
         +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colE+';font-size:11px;">('+(r.diffE>0?'+':'')+r.diffE+')</span></td>'
         +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colU+';font-size:11px;">('+(r.diffU>0?'+':'')+r.diffU+')</span></td>'
-        +'<td>'+r.badge+'</td>'
+        +'<td>'+badge+btnOk+'</td>'
       +'</tr>';
     }).join('');
   }
   var tot={waE:0,waU:0,vern:0,imb:0,ddtE:0,ddtU:0};
   righe.forEach(function(r){tot.waE+=r.waE;tot.waU+=r.waU;tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
   document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; WA Entrata: <strong>'+tot.waE+'</strong> &nbsp; WA Uscita: <strong>'+tot.waU+'</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
+}
+
+function setOkManualeAz(cod){
+  var okManuali={};
+  try{okManuali=JSON.parse(localStorage.getItem('az_ok_manuali')||'{}');}catch(e){}
+  okManuali[cod]=true;
+  localStorage.setItem('az_ok_manuali',JSON.stringify(okManuali));
+  renderRiepilogoCompleto();
+}
+
+function removeOkManualeAz(cod){
+  var okManuali={};
+  try{okManuali=JSON.parse(localStorage.getItem('az_ok_manuali')||'{}');}catch(e){}
+  delete okManuali[cod];
+  localStorage.setItem('az_ok_manuali',JSON.stringify(okManuali));
+  renderRiepilogoCompleto();
 }
 
 // ── CONFRONTO BERGAMASCO ──────────────────────────────────────────────
@@ -3831,6 +3854,7 @@ async function selDettaglioArt(cod,desc){
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
 async function chiudiMese(){
   localStorage.removeItem('ber_ok_manuali');
+  localStorage.removeItem('az_ok_manuali');
   if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati. I DDT restano.'))return;
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
   var cl=getCliente();
