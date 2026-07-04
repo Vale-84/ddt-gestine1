@@ -537,6 +537,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>DDT Entrata salvati</h2>
+    <div id="de-bulk-actions" style="display:none;margin-bottom:10px;">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="de-sel-all" onchange="toggleSelAllDDTE(this.checked)"> Seleziona tutti</label>
+      <button class="btn btn-red" type="button" style="width:auto;padding:6px 14px;margin-left:10px;" onclick="eliminaSelezionatiDDTE()">🗑 Elimina selezionati</button>
+    </div>
     <div id="de-lista"><div class="empty">Nessun record</div></div>
   </div>
 </div>
@@ -599,6 +603,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>DDT Uscita salvati</h2>
     <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;margin-bottom:10px;" onclick="rimuoviDoppioniDDTUscita()">RIMUOVI DOPPIONI</button>
+    <div id="du-bulk-actions" style="display:none;margin-bottom:10px;">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="du-sel-all" onchange="toggleSelAllDDTU(this.checked)"> Seleziona tutti</label>
+      <button class="btn btn-red" type="button" style="width:auto;padding:6px 14px;margin-left:10px;" onclick="eliminaSelezionatiDDTU()">🗑 Elimina selezionati</button>
+    </div>
     <div id="du-lista"><div class="empty">Nessun record</div></div>
   </div>
 </div>
@@ -2785,6 +2793,8 @@ async function salvaDDTEntrata(){
 }
 
 async function caricaDDTE(){
+  var bulkE=document.getElementById('de-bulk-actions');
+  if(bulkE)bulkE.style.display=getCliente()==='AZZURRA'?'':'none';
   var d=await apiGet('ddt_entrata');if(!d)return;
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
@@ -2793,6 +2803,7 @@ async function caricaDDTE(){
     var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);
     var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';
     return '<div class="row-item">'
+      +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="margin-right:8px;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
       +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+' | '+(r.cliente||'')+'</div></div>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
@@ -2800,6 +2811,19 @@ async function caricaDDTE(){
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_entrata\','+r.id+',caricaDDTE)">✕</button>'
       +'</div>';
   }).join('');
+}
+
+function toggleSelAllDDTE(checked){
+  document.querySelectorAll('.de-chk').forEach(function(cb){cb.checked=checked;});
+}
+
+async function eliminaSelezionatiDDTE(){
+  var ids=Array.prototype.slice.call(document.querySelectorAll('.de-chk:checked')).map(function(cb){return cb.value;});
+  if(!ids.length){alert('Nessun DDT selezionato.');return;}
+  if(!confirm('Eliminare '+ids.length+' righe di DDT Entrata selezionate? Operazione non reversibile.'))return;
+  await apiDel('ddt_entrata','id=in.('+ids.join(',')+')');
+  showMsg('msg-ddt-e',ids.length+' righe eliminate.','ok');
+  caricaDDTE();
 }
 
 // ── DDT ENTRATA: IMPORT EXCEL ─────────────────────────────────────────
@@ -2965,6 +2989,8 @@ async function salvaDDTUscita(){
 }
 
 async function caricaDDTU(){
+  var bulkU=document.getElementById('du-bulk-actions');
+  if(bulkU)bulkU.style.display=getCliente()==='AZZURRA'?'':'none';
   var pdfMultiCard=document.getElementById('azzurra-pdf-multi-card');
   if(pdfMultiCard)pdfMultiCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var pdfMultiBerCard=document.getElementById('bergamasco-pdf-multi-card');
@@ -2978,7 +3004,20 @@ async function caricaDDTU(){
     if(na!==nb)return na<nb?-1:1;
     return (a.id||0)-(b.id||0);
   });
-  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="margin-right:8px;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+}
+
+function toggleSelAllDDTU(checked){
+  document.querySelectorAll('.du-chk').forEach(function(cb){cb.checked=checked;});
+}
+
+async function eliminaSelezionatiDDTU(){
+  var ids=Array.prototype.slice.call(document.querySelectorAll('.du-chk:checked')).map(function(cb){return cb.value;});
+  if(!ids.length){alert('Nessun DDT selezionato.');return;}
+  if(!confirm('Eliminare '+ids.length+' righe di DDT Uscita selezionate? Operazione non reversibile.'))return;
+  await apiDel('ddt_uscita','id=in.('+ids.join(',')+')');
+  showMsg('msg-ddt-u',ids.length+' righe eliminate.','ok');
+  caricaDDTU();
 }
 
 async function rimuoviDoppioniDDTUscita(){
