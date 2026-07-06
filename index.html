@@ -2817,7 +2817,7 @@ async function salvaDDTEntrata(){
 
 async function caricaDDTE(){
   var bulkE=document.getElementById('de-bulk-actions');
-  if(bulkE)bulkE.style.display=getCliente()==='AZZURRA'?'':'none';
+  if(bulkE)bulkE.style.display='';
   var d=await apiGet('ddt_entrata');if(!d)return;
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
@@ -3013,7 +3013,7 @@ async function salvaDDTUscita(){
 
 async function caricaDDTU(){
   var bulkU=document.getElementById('du-bulk-actions');
-  if(bulkU)bulkU.style.display=getCliente()==='AZZURRA'?'':'none';
+  if(bulkU)bulkU.style.display='';
   var pdfMultiCard=document.getElementById('azzurra-pdf-multi-card');
   if(pdfMultiCard)pdfMultiCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var pdfMultiBerCard=document.getElementById('bergamasco-pdf-multi-card');
