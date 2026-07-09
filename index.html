@@ -3178,7 +3178,7 @@ async function leggiPDFMultiUscita(input){
 
 function parsePdfMultiAzzurra(testo){
   var mesi={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
-  var re=/C6\d{6}/g;
+  var re=/C6\d{6}(?=\s+\d{2}\s+[a-zA-Zàèìòù]{3}\s+\d{4})/g;
   var matches=[],m;
   while((m=re.exec(testo)))matches.push({nddt:m[0],index:m.index});
   if(!matches.length)return [];
