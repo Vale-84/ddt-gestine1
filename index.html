@@ -3313,7 +3313,7 @@ function parsePdfMultiBergamasco(testo){
   var matches=[],m;
   while((m=re.exec(testo))){
     // escludi codici articolo B0...
-    if(!/^B0/.test(m[0])&&!/^A0/.test(m[0]))matches.push({nddt:m[0],index:m.index});
+    if(!/^B0/.test(m[0])&&!/^A0/.test(m[0])&&!/^T0/.test(m[0]))matches.push({nddt:m[0],index:m.index});
   }
   // rimuovi duplicati mantenendo primo occorrenza
   var seen={};
