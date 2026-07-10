@@ -2617,18 +2617,59 @@ async function aggiornaConfrrontoBer(){
     mDDTU[k].tot+=Number(r.quantita_ddt)||0;
   });
 
-  // DDT Entrata: sum by BER code, then map to B0 via abbinamenti
+  // DDT Entrata: sum by BER code
   var berEntrata={};
   ddte.forEach(function(r){
     var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
     if(!berEntrata[k])berEntrata[k]=0;
     berEntrata[k]+=Number(r.quantita_ddt)||0;
   });
-  var mDDTE={};  // b0 key (uppercase) -> total
-  Object.keys(berEntrata).forEach(function(berK){
-    (berToB0s[berK]||[]).forEach(function(b0){
+
+  // Map BER totals to B0 codes with group logic for multi-B0 BERs
+  var mDDTE={};          // b0 key (uppercase) -> ddtE for display
+  var b0GroupAnomaly={}; // b0 key -> {anomaly:bool, residuo:number} — only set for multi-B0 BERs
+
+  Object.keys(berToB0s).forEach(function(berK){
+    var b0List=berToB0s[berK];
+    var berTotal=berEntrata[berK]||0;
+
+    if(b0List.length===1){
+      // Single B0: original behaviour unchanged
+      var b0=b0List[0];
       if(!mDDTE[b0])mDDTE[b0]=0;
-      mDDTE[b0]+=berEntrata[berK];
+      mDDTE[b0]+=berTotal;
+      return;
+    }
+
+    // Multi-B0 group: split active (any movement) from inactive (all zero)
+    var active=b0List.filter(function(b0){
+      return (mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0);
+    });
+    var inactive=b0List.filter(function(b0){
+      return !((mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0));
+    });
+
+    var sumVernActive=active.reduce(function(s,b0){return s+(mVern[b0]?mVern[b0].tot:0);},0);
+    var groupAnomaly=berTotal>0&&sumVernActive!==berTotal;
+    var residuo=Math.max(0,berTotal-sumVernActive);
+
+    // Scalare assignment among actives: each gets min(vernTot, remaining)
+    var remaining=berTotal;
+    active.forEach(function(b0){
+      var vernB0=mVern[b0]?mVern[b0].tot:0;
+      var assigned=Math.min(vernB0,remaining);
+      if(!mDDTE[b0])mDDTE[b0]=0;
+      mDDTE[b0]+=assigned;
+      remaining-=assigned;
+      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false,residuo:0};
+      b0GroupAnomaly[b0].anomaly=b0GroupAnomaly[b0].anomaly||groupAnomaly;
+      b0GroupAnomaly[b0].residuo+=residuo;
+    });
+
+    // Inactive: ddtE stays 0, mark as group member with no anomaly
+    inactive.forEach(function(b0){
+      if(!mDDTE[b0])mDDTE[b0]=0;
+      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false,residuo:0};
     });
   });
 
@@ -2646,9 +2687,22 @@ async function aggiornaConfrrontoBer(){
     var diffDDTEVern=ddtE-vernTot;
     var diffDDTUImb=ddtU-imbTot;
     var stato='ok',badge='✓ Ok',colore='';
-    if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
-    else if(ddtE>0&&ddtE!==vernTot){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
-    else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+    var grp=b0GroupAnomaly[k];
+    if(grp){
+      // Multi-B0 group: anomaly decided at group level
+      if(grp.anomaly){
+        var residuoLabel=grp.residuo>0?' (+'+grp.residuo+' scoperti)':'';
+        stato='ddtvern';badge='⚠️ DDT≠Vern'+residuoLabel;colore='#fff3e0';
+      } else {
+        if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
+        else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+      }
+    } else {
+      // Single B0 or no abbinamento: original logic
+      if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
+      else if(ddtE>0&&ddtE!==vernTot){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
+      else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+    }
     return {cod:cod,desc:desc,vern:vernTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
             diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,
             stato:stato,badge:badge,colore:colore};
