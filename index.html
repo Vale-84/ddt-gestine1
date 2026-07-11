@@ -2535,20 +2535,24 @@ function renderRiepilogoCompleto(){
     tb.innerHTML=righe.map(function(r){
       var manuale=!!okManuali[r.cod];
       var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
-      var colE=r.diffE===0?'#217346':'#C00000';
-      var colU=r.diffU===0?'#217346':'#C00000';
       var badge=manuale?'✓ OK (manuale)':r.badge;
       var btnOk=(!manuale&&r.stato!=='ok'&&r.stato!=='solowa')
         ?'<button onclick="setOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">✓ OK</button>'
         :(manuale?'<button onclick="removeOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
+      var lblE=r.diffE===0?'':(r.waE===0
+        ?'<span style="color:#C00000;font-size:11px;"> ⚠️ senza WA</span>'
+        :'<span style="color:#C00000;font-size:11px;"> ⚠️ diff: '+(r.diffE>0?'+':'')+r.diffE+'</span>');
+      var lblU=r.diffU===0?'':(r.waU===0
+        ?'<span style="color:#C00000;font-size:11px;"> ⚠️ senza WA</span>'
+        :'<span style="color:#C00000;font-size:11px;"> ⚠️ diff: '+(r.diffU>0?'+':'')+r.diffU+'</span>');
       return '<tr style="'+bg+'">'
         +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
         +'<td style="text-align:right;">'+r.waE+'</td>'
         +'<td style="text-align:right;">'+r.waU+'</td>'
         +'<td style="text-align:right;">'+r.vern+'</td>'
         +'<td style="text-align:right;">'+r.imb+'</td>'
-        +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colE+';font-size:11px;">('+(r.diffE>0?'+':'')+r.diffE+')</span></td>'
-        +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colU+';font-size:11px;">('+(r.diffU>0?'+':'')+r.diffU+')</span></td>'
+        +'<td style="text-align:right;">'+r.ddtE+lblE+'</td>'
+        +'<td style="text-align:right;">'+r.ddtU+lblU+'</td>'
         +'<td>'+badge+btnOk+'</td>'
       +'</tr>';
     }).join('');
