@@ -808,7 +808,14 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-green" onclick="salvaArticolo()">SALVA ARTICOLO</button>
     <div id="msg-articolo"></div>
   </div>
-  <div id="msg-cfg"></div><div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella WA, Imballo e Verniciato. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button></div>
+  <div id="msg-cfg"></div>
+  <div class="card" style="border:2px solid #1F4E79;">
+    <h2 style="color:#1F4E79;">Imposta data inizio Confronto (senza cancellare dati)</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Usa questo campo se hai già chiuso il mese in passato e il Confronto mostra ancora differenze vecchie. Imposta la data dell'ultima chiusura mese reale (es. fine mese scorso) <strong>SENZA cancellare nessun dato</strong>.</p>
+    <input type="date" id="cfg-data-chiusura" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:10px;">
+    <button class="btn btn-blue" onclick="salvaCfgDataChiusura()">SALVA DATA</button>
+  </div>
+  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella WA, Imballo e Verniciato. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button></div>
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
@@ -3942,6 +3949,16 @@ async function selDettaglioArt(cod,desc){
       +renderBreakdown('Verniciato',totVern,breakdownByData(vern,'quantita'))
       +renderBreakdown('Imballo',totImb,breakdownByData(imb,'totale'))
     +'</div>';
+}
+
+function salvaCfgDataChiusura(){
+  var val=document.getElementById('cfg-data-chiusura').value;
+  if(!val){showMsg('msg-cfg','Seleziona una data prima di salvare.','err');return;}
+  localStorage.setItem('chiusura_'+getCliente(),val);
+  showMsg('msg-cfg','✓ Data inizio Confronto salvata: '+val,'ok');
+  if(document.getElementById('page-confronto')&&document.getElementById('page-confronto').style.display!=='none'){
+    aggiornaConfronto();
+  }
 }
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
