@@ -667,6 +667,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <button class="btn btn-gray btn-sm" id="rc-ber-f-verificare" style="flex:1;" onclick="filtraRiepilogoBer('verificare')">Da verificare</button>
       <button class="btn btn-gray btn-sm" id="rc-ber-f-conferma" style="flex:1;" onclick="filtraRiepilogoBer('conferma')">Conferma richiesta</button>
     </div>
+    <div id="rc-periodo-info" style="display:none;margin-top:8px;font-size:12px;color:#555;padding:6px 10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #1F4E79;"></div>
   </div>
   <div id="confronto-stampa">
     <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
@@ -2439,6 +2440,23 @@ async function aggiornaConfronto(){
   var ddtu=await apiGet('ddt_uscita');
   if(!we||!wu||!vern||!imb||!ddte||!ddtu)return;
 
+  var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
+  if(dataChiusuraAz){
+    ddte=ddte.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
+    ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
+  }
+  var periodoElAz=document.getElementById('rc-periodo-info');
+  if(periodoElAz){
+    if(dataChiusuraAz){
+      var dcAz=new Date(dataChiusuraAz);
+      var dcLabelAz=dcAz.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      periodoElAz.style.display='';
+      periodoElAz.innerHTML='📅 Confronto DDT dal <strong>'+dcLabelAz+'</strong> (data ultima chiusura mese)';
+    } else {
+      periodoElAz.style.display='none';
+    }
+  }
+
   function aggregaWA(arr){
     var m={};
     arr.forEach(function(r){
@@ -2589,6 +2607,23 @@ async function aggiornaConfrrontoBer(){
   var ddtu=await apiGet('ddt_uscita');
   var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
   if(!vern||!imb||!ddte||!ddtu)return;
+
+  var dataChiusuraBer=localStorage.getItem('chiusura_'+getCliente())||'';
+  if(dataChiusuraBer){
+    ddte=ddte.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraBer;});
+    ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraBer;});
+  }
+  var periodoElBer=document.getElementById('rc-periodo-info');
+  if(periodoElBer){
+    if(dataChiusuraBer){
+      var dcBer=new Date(dataChiusuraBer);
+      var dcLabelBer=dcBer.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      periodoElBer.style.display='';
+      periodoElBer.innerHTML='📅 Confronto DDT dal <strong>'+dcLabelBer+'</strong> (data ultima chiusura mese)';
+    } else {
+      periodoElBer.style.display='none';
+    }
+  }
 
   // Build abbinamenti maps (keys uppercase)
   var b0ToBers={};  // b0 -> [ber, ...]
@@ -3938,6 +3973,7 @@ async function chiudiMese(){
     for(var i=0;i<tables.length;i++){
       await fetch(cfg.url+'/rest/v1/'+tables[i]+'?cliente=eq.'+encodeURIComponent(cl),{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});
     }
+    localStorage.setItem('chiusura_'+cl, new Date().toISOString().slice(0,10));
     showMsg('msg-cfg','✓ Mese chiuso! DDT ancora visibili nel Confronto.','ok');
   }catch(e){showMsg('msg-cfg','Errore: '+e.message,'err');}
 }
