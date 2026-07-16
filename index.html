@@ -1284,15 +1284,12 @@ async function salvaUscitaMerce(){
     if(dup){
       var nuovaQty=(dup.quantita||0)+tot;
       await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+dsc});
-      // Aggiorna anche imballo
-      var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
       showMsg('msg-uscita','✅ Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
       resetForm('u');caricaUscite();mostraConfronto();return;
     }
   }
-  var r1=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
   var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel,modalita:'manuale'});
-  if(r1&&r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
+  if(r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
 }
 
 async function aggiungiWAUscita(){
@@ -4181,19 +4178,39 @@ async function unisciDuplicatiImballo(){
     if(!map[k])map[k]=[];
     map[k].push(r);
   });
-  var uniti=0;
+  var doppioniRimossi=0;
+  var righeUnite=0;
   for(var k in map){
     var gruppo=map[k];
     if(gruppo.length<=1)continue;
-    var primo=gruppo[0];
-    var totQty=gruppo.reduce(function(a,r){return a+(r.totale||0);},0);
-    var seqParts=gruppo.map(function(r){return r.sequenza||String(r.totale||0);}).filter(Boolean);
+    // 1. Rimuovi duplicati esatti (stessa sequenza e stesso totale) senza sommarli
+    var esattiMap={};
+    gruppo.forEach(function(r){
+      var ke=(r.sequenza||'')+'__'+(r.totale||0);
+      if(!esattiMap[ke])esattiMap[ke]=[];
+      esattiMap[ke].push(r);
+    });
+    var superstiti=[];
+    for(var ke in esattiMap){
+      var sotto=esattiMap[ke];
+      superstiti.push(sotto[0]);
+      for(var j=1;j<sotto.length;j++){await apiDel('imballo','id=eq.'+sotto[j].id);}
+      doppioniRimossi+=sotto.length-1;
+    }
+    // 2. Se restano righe distinte, uniscile come prima
+    if(superstiti.length<=1)continue;
+    var primo=superstiti[0];
+    var totQty=superstiti.reduce(function(a,r){return a+(r.totale||0);},0);
+    var seqParts=superstiti.map(function(r){return r.sequenza||String(r.totale||0);}).filter(Boolean);
     var nuovaSeq=seqParts.join('+');
     await apiPatch('imballo','id=eq.'+primo.id,{totale:totQty,sequenza:nuovaSeq});
-    for(var i=1;i<gruppo.length;i++){await apiDel('imballo','id=eq.'+gruppo[i].id);}
-    uniti+=gruppo.length-1;
+    for(var i=1;i<superstiti.length;i++){await apiDel('imballo','id=eq.'+superstiti[i].id);}
+    righeUnite+=superstiti.length-1;
   }
-  showMsg('msg-imballo2',uniti>0?'Uniti '+uniti+' duplicati!':'Nessun duplicato trovato.','ok');
+  var msgParti=[];
+  if(doppioniRimossi>0)msgParti.push('rimossi '+doppioniRimossi+' doppioni esatti');
+  if(righeUnite>0)msgParti.push('unite '+righeUnite+' righe distinte');
+  showMsg('msg-imballo2',msgParti.length?'✅ '+msgParti.join(', ')+'!':'Nessun duplicato trovato.','ok');
   caricaImballo();caricaRiepilogoBer();
 }
 
