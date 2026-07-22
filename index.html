@@ -212,7 +212,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div id="msg-entrata"></div>
   <div id="msg-uscita"></div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+  <div style="display:grid;grid-template-columns:1fr;gap:14px;align-items:start;">
 
     <!-- COLONNA 1: WA ENTRATA + USCITA -->
     <div>
@@ -317,35 +317,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           </div>
           <div id="u-lista" style="margin-top:8px;"><div class="empty">Nessuna uscita</div></div>
         </div>
-      </div>
-    </div>
-
-    <!-- COLONNA 2: VERNICIATO -->
-    <div>
-      <div class="card" style="margin-bottom:10px;">
-        <h2 style="color:#C55A11;">Verniciato</h2>
-        <label>Cerca articolo</label>
-        <div class="cerca-box">
-          <input class="cerca-input" id="vern-cerca" placeholder="Codice o descrizione..." oninput="cerca('vern')" autocomplete="off">
-          <div class="cerca-risultati" id="vern-ris"></div>
-        </div>
-        <div class="art-sel" id="vern-sel"></div>
-        <input type="hidden" id="vern-cod"><input type="hidden" id="vern-dsc">
-        <label>Data</label><input type="date" id="vern-date" style="margin-bottom:6px;">
-        <label>Quantità (es. 10+10+10)</label>
-        <div class="imb-row">
-          <input type="text" id="vern-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('vern-qty','vern-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
-          <div class="imb-tot" id="vern-tot">0</div>
-        </div>
-        <label>Note</label>
-        <input type="text" id="vern-note" placeholder="">
-        <button class="btn btn-orange btn-sm" onclick="salvaVerniciato()">SALVA</button>
-        <div id="msg-verniciato" style="margin-top:6px;"></div>
-      </div>
-      <div class="card">
-        <h2 style="color:#C55A11;">Verniciato oggi</h2>
-        <button class="btn btn-red btn-sm" onclick="svuotaVerniciato()">SVUOTA</button>
-        <div id="vern-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
       </div>
     </div>
 
@@ -1086,7 +1057,7 @@ function showPage(name,el){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   document.getElementById('page-'+name).classList.add('active');
   if(el)el.classList.add('active');
-  if(name==='wa'){setWAMode('entrata');caricaVerniciato();caricaImballo();}
+  if(name==='wa'){setWAMode('entrata');caricaImballo();}
   if(name==='imballo'){
     caricaImballo();caricaRiepilogoBer();
     var ic=document.getElementById('imb-cerca');if(ic)ic.value='';
@@ -1631,6 +1602,7 @@ async function salvaVerniciato(){
 }
 
 async function caricaVerniciato(){
+  if(!document.getElementById('vern-lista'))return;
   var d=await apiGet('verniciato');if(!d)return;
   var l=document.getElementById('vern-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
@@ -4324,7 +4296,7 @@ function setWAMode(mode){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','confronto','cfg'],
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','confronto','cfg'],
   BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','confronto','cfg']
 };
 
