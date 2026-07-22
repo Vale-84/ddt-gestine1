@@ -537,6 +537,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>DDT Entrata salvati</h2>
+    <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;margin-bottom:10px;" onclick="rimuoviDoppioniDDTEntrata()">RIMUOVI DOPPIONI</button>
     <div id="de-bulk-actions" style="display:none;margin-bottom:10px;">
       <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="de-sel-all" onchange="toggleSelAllDDTE(this.checked)" style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;"> Seleziona tutti</label>
       <button class="btn btn-red" type="button" style="width:auto;padding:6px 14px;margin-left:10px;" onclick="eliminaSelezionatiDDTE()">🗑 Elimina selezionati</button>
@@ -2925,7 +2926,7 @@ async function caricaDDTE(){
     return '<div class="row-item">'
       +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
-      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+' | '+(r.cliente||'')+'</div></div>'
+      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_entrata\','+r.id+',caricaDDTE)">✕</button>'
@@ -3124,7 +3125,7 @@ async function caricaDDTU(){
     if(na!==nb)return na<nb?-1:1;
     return (a.id||0)-(b.id||0);
   });
-  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+  l.innerHTML=d.map(function(r){var diff=(r.quantita_ddt||0)-(r.quantita_imballato||0);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+'</div></div><span class="badge '+(diff===0?'badge-ok':'badge-warn')+'">'+(diff===0?'OK':diff)+'</span>'+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
 }
 
 function toggleSelAllDDTU(checked){
@@ -3176,6 +3177,44 @@ async function rimuoviDoppioniDDTUscita(){
   }
   showMsg('msg-ddt-u',n+' righe duplicate rimosse!','ok');
   caricaDDTU();
+}
+
+async function rimuoviDoppioniDDTEntrata(){
+  var d=await apiGet('ddt_entrata');
+  if(!d||!d.length){alert('Nessun record DDT Entrata.');return;}
+  var gruppi={};
+  d.forEach(function(r){
+    var key=(r.numero_ddt||'')+'|'+(r.codice_articolo||'')+'|'+(r.quantita_ddt||0);
+    if(!gruppi[key])gruppi[key]=[];
+    gruppi[key].push(r);
+  });
+  var daCancellare=[];
+  Object.keys(gruppi).forEach(function(key){
+    var righe=gruppi[key];
+    if(righe.length<2)return;
+    righe.sort(function(a,b){return (a.id||0)-(b.id||0);});
+    for(var i=1;i<righe.length;i++)daCancellare.push(righe[i]);
+  });
+  if(!daCancellare.length){alert('Nessun doppione trovato.');return;}
+  var dettaglio=[];
+  Object.keys(gruppi).forEach(function(key){
+    var righe=gruppi[key];
+    if(righe.length<2)return;
+    righe.sort(function(a,b){return (a.id||0)-(b.id||0);});
+    var cod=righe[0].codice_articolo||'—';
+    var desc=righe[0].descrizione||'';
+    var nddt=righe[0].numero_ddt||'?';
+    var qtys=righe.map(function(r){return r.quantita_ddt||0;}).join(' + ');
+    dettaglio.push('• '+cod+(desc?' - '+desc:'')+' (DDT '+nddt+'): '+qtys);
+  });
+  if(!confirm('Trovate '+daCancellare.length+' righe duplicate:\n'+dettaglio.join('\n')+'\n\nVerrà mantenuta solo la prima copia di ciascuna. Procedere?'))return;
+  var n=0;
+  for(var i=0;i<daCancellare.length;i++){
+    await apiDel('ddt_entrata','id=eq.'+daCancellare[i].id);
+    n++;
+  }
+  showMsg('msg-ddt-e',n+' righe duplicate rimosse!','ok');
+  caricaDDTE();
 }
 
 async function leggiPDFUscita(input){
