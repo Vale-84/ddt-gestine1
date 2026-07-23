@@ -4360,7 +4360,15 @@ window.onload=function(){
   ['e-date','u-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
 };
 
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(reg){
+    reg.update();
+    setInterval(function(){reg.update();}, 60000);
+  }).catch(function(){});
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    location.reload();
+  });
+}
 </script>
 </body>
 </html>

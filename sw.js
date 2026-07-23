@@ -1,4 +1,4 @@
-var CACHE = 'ddt-v4';
+var CACHE = 'ddt-v5';
 var FILES = ['/', '/index.html'];
 
 self.addEventListener('install', function(e) {
@@ -16,7 +16,7 @@ self.addEventListener('activate', function(e) {
 
 self.addEventListener('fetch', function(e) {
   e.respondWith(
-    fetch(e.request).catch(function() {
+    fetch(e.request, {cache: 'no-store'}).catch(function() {
       return caches.match(e.request);
     })
   );
