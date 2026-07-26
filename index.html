@@ -3005,10 +3005,14 @@ async function caricaControlloDate(){
         anomalia:true
       });
     } else {
+      var precedenti=entrateTrovate.filter(function(e){return e.data.getTime()<=dataU.getTime();}).sort(function(a,b){return b.data.getTime()-a.data.getTime();});
+      var entrataUsata=precedenti.length?precedenti[0]:null;
       righe.push({
         cod:r.codice_articolo||codU,desc:desc,
         dataUscita:r.data_ddt,numeroUscita:r.numero_ddt||'',
-        dataEntrata:null,numeroEntrata:null,giorni:null,
+        dataEntrata:entrataUsata?entrataUsata.dataStr:null,
+        numeroEntrata:entrataUsata?entrataUsata.numero:null,
+        giorni:entrataUsata?cdDiffGiorni(entrataUsata.data,dataU):null,
         suggerimento:'',
         anomalia:false
       });
