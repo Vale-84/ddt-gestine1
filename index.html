@@ -2844,9 +2844,26 @@ function removeOkManualeBer(cod){
 var cdDatiTutti=null;
 var cdSoloAnomalie=true;
 
+// data_ddt arriva da Supabase come colonna "date" (sempre ISO YYYY-MM-DD),
+// ma per sicurezza gestiamo anche un eventuale formato italiano DD/MM/YYYY:
+// new Date(str) va sempre evitato qui perché interpreta "19/06/2026" come MM/DD/YYYY.
+function parseDataIta(str){
+  if(!str)return null;
+  str=String(str).trim();
+  var mIso=str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(mIso){
+    var dIso=new Date(parseInt(mIso[1],10),parseInt(mIso[2],10)-1,parseInt(mIso[3],10));
+    return isNaN(dIso.getTime())?null:dIso;
+  }
+  var parti=str.split('/');
+  var g=parti[0],m=parti[1],a=parti[2];
+  if(!g||!m||!a)return null;
+  var d=new Date(parseInt(a,10),parseInt(m,10)-1,parseInt(g,10));
+  return isNaN(d.getTime())?null:d;
+}
+
 function cdDiffGiorni(dataPrima,dataDopo){
-  var a=new Date(dataPrima+'T00:00:00'),b=new Date(dataDopo+'T00:00:00');
-  return Math.round((b-a)/86400000);
+  return Math.round((dataDopo.getTime()-dataPrima.getTime())/86400000);
 }
 
 async function caricaControlloDate(){
@@ -2857,6 +2874,35 @@ async function caricaControlloDate(){
   var ddtu=await apiGet('ddt_uscita');
   if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   var abb=isBer?await apiGet('abbinamenti_ber','order=id.asc&limit=5000'):null;
+
+  // ── DEBUG TEMPORANEO A0PASGLUBI (da rimuovere) ──────────────────────
+  console.log('[DEBUG PASGLUBI] cliente attivo:', getCliente());
+  console.log('[DEBUG PASGLUBI] totale righe ddt_entrata caricate:', ddte.length);
+  console.log('[DEBUG PASGLUBI] totale righe ddt_uscita caricate:', ddtu.length);
+
+  // ── Controlli aggiuntivi richiesti (prima del filtro per codice) ────
+  console.log('[DEBUG] TOTALE righe ddt_entrata AZZURRA:', ddte.length);
+  console.log('[DEBUG] Chiavi prima riga ddt_entrata:', ddte[0] ? Object.keys(ddte[0]) : 'array vuoto');
+  var rigaTest = ddte.find(function(r){return r.numero_ddt === 'C6000905';});
+  console.log('[DEBUG] Riga C6000905 trovata?', rigaTest ? JSON.stringify(rigaTest) : 'NON PRESENTE NELL\'ARRAY');
+  console.log('[DEBUG] Parametri query apiGet(\'ddt_entrata\') usati: order=created_at.desc&limit=5000&cliente=eq.'+encodeURIComponent(getCliente()));
+  // ── fine controlli aggiuntivi ────────────────────────────────────────
+
+  var dbgEntrataMatch=ddte.filter(function(r){return (r.codice_articolo||'').toUpperCase().indexOf('PASGLUBI')>=0;});
+  var dbgUscitaMatch=ddtu.filter(function(r){return (r.codice_articolo||'').toUpperCase().indexOf('PASGLUBI')>=0;});
+  console.log('[DEBUG PASGLUBI] righe ddt_entrata con codice contenente PASGLUBI:', dbgEntrataMatch.length);
+  dbgEntrataMatch.forEach(function(r){
+    console.log('[DEBUG PASGLUBI][ENTRATA] CODICE:', '|'+r.codice_articolo+'|', '| data_ddt:', '|'+r.data_ddt+'|', '| numero_ddt:', r.numero_ddt, '| riga completa:', r);
+    var parsed=(typeof parseDataIta==='function')?parseDataIta(r.data_ddt):new Date(r.data_ddt);
+    console.log('[DEBUG PASGLUBI][ENTRATA] parsing data_ddt ->', parsed, '| valido?', parsed instanceof Date && !isNaN(parsed.getTime()));
+  });
+  console.log('[DEBUG PASGLUBI] righe ddt_uscita con codice contenente PASGLUBI:', dbgUscitaMatch.length);
+  dbgUscitaMatch.forEach(function(r){
+    console.log('[DEBUG PASGLUBI][USCITA] CODICE:', '|'+r.codice_articolo+'|', '| data_ddt:', '|'+r.data_ddt+'|', '| numero_ddt:', r.numero_ddt, '| riga completa:', r);
+    var parsed=(typeof parseDataIta==='function')?parseDataIta(r.data_ddt):new Date(r.data_ddt);
+    console.log('[DEBUG PASGLUBI][USCITA] parsing data_ddt ->', parsed, '| valido?', parsed instanceof Date && !isNaN(parsed.getTime()));
+  });
+  // ── FINE DEBUG TEMPORANEO ────────────────────────────────────────────
 
   // BERGAMASCO: mappa B0 (ddt_uscita) -> lista codici BER (ddt_entrata) abbinati
   var b0ToBers={};
@@ -2873,19 +2919,19 @@ async function caricaControlloDate(){
   // Entrata raggruppata per chiave: codice diretto (AZZURRA) o codice BER (BERGAMASCO)
   var entrataByKey={};
   ddte.forEach(function(r){
-    var dataR=(r.data_ddt||'').slice(0,10);
+    var dataR=parseDataIta(r.data_ddt);
     var kRaw=(r.codice_articolo||'').trim();
     if(!dataR||!kRaw)return;
     var k=isBer?kRaw.toUpperCase():kRaw;
     if(!entrataByKey[k])entrataByKey[k]=[];
-    entrataByKey[k].push({data:dataR,numero:r.numero_ddt||''});
+    entrataByKey[k].push({data:dataR,dataStr:r.data_ddt,numero:r.numero_ddt||''});
   });
 
   var nonAbbinatiSet={};
   var righe=[];
 
   ddtu.forEach(function(r){
-    var dataU=(r.data_ddt||'').slice(0,10);
+    var dataU=parseDataIta(r.data_ddt);
     var codRaw=(r.codice_articolo||'').trim();
     if(!dataU||!codRaw)return;
     var codU=isBer?codRaw.toUpperCase():codRaw;
@@ -2908,17 +2954,17 @@ async function caricaControlloDate(){
       (entrataByKey[k]||[]).forEach(function(e){entrateTrovate.push(e);});
     });
 
-    var haEntrataPrecedente=entrateTrovate.some(function(e){return e.data<=dataU;});
+    var haEntrataPrecedente=entrateTrovate.some(function(e){return e.data.getTime()<=dataU.getTime();});
     var artInfo=(artCache||[]).find(function(a){return (a.codice_articolo||'').trim().toUpperCase()===codU;});
     var desc=r.descrizione||(artInfo?artInfo.descrizione:'')||'';
 
     if(!haEntrataPrecedente){
-      var successive=entrateTrovate.filter(function(e){return e.data>dataU;}).sort(function(a,b){return a.data<b.data?-1:(a.data>b.data?1:0);});
+      var successive=entrateTrovate.filter(function(e){return e.data.getTime()>dataU.getTime();}).sort(function(a,b){return a.data.getTime()-b.data.getTime();});
       var entrataVicina=successive.length?successive[0]:null;
       righe.push({
         cod:r.codice_articolo||codU,desc:desc,
-        dataUscita:dataU,numeroUscita:r.numero_ddt||'',
-        dataEntrata:entrataVicina?entrataVicina.data:null,
+        dataUscita:r.data_ddt,numeroUscita:r.numero_ddt||'',
+        dataEntrata:entrataVicina?entrataVicina.dataStr:null,
         numeroEntrata:entrataVicina?entrataVicina.numero:null,
         giorni:entrataVicina?cdDiffGiorni(dataU,entrataVicina.data):null,
         anomalia:true
@@ -2926,7 +2972,7 @@ async function caricaControlloDate(){
     } else {
       righe.push({
         cod:r.codice_articolo||codU,desc:desc,
-        dataUscita:dataU,numeroUscita:r.numero_ddt||'',
+        dataUscita:r.data_ddt,numeroUscita:r.numero_ddt||'',
         dataEntrata:null,numeroEntrata:null,giorni:null,
         anomalia:false
       });
@@ -2935,7 +2981,8 @@ async function caricaControlloDate(){
 
   righe.sort(function(a,b){
     if(a.anomalia!==b.anomalia)return a.anomalia?-1:1;
-    return (a.dataUscita||'').localeCompare(b.dataUscita||'');
+    var da=parseDataIta(a.dataUscita),db=parseDataIta(b.dataUscita);
+    return (da&&db)?da.getTime()-db.getTime():0;
   });
 
   cdDatiTutti={righe:righe,nonAbbinati:Object.values(nonAbbinatiSet)};
