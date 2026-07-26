@@ -201,6 +201,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab" data-page="dettaglio" onclick="showPage('dettaglio',this)">Dettaglio</div>
   <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
+  <div class="tab admin-tab" data-page="controllo-date" onclick="showPage('controllo-date',this)" style="display:none">Controllo Date</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
   <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
   <div class="tab" data-page="cfg" onclick="showPage('cfg',this)">Config</div>
@@ -668,6 +669,34 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- CONTROLLO DATE -->
+<div id="page-controllo-date" class="page">
+  <div class="card">
+    <h2>Controllo Date</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Verifica per ogni codice articolo se esiste una DDT Uscita con data precedente a tutte le DDT Entrata dello stesso codice (spedito prima di essere ricevuto).</p>
+    <button class="btn btn-blue btn-sm" onclick="caricaControlloDate()">↻ AGGIORNA</button>
+    <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('cd-stampa')">STAMPA</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
+      <button class="btn btn-red btn-sm" id="cd-btn-anomalie" style="flex:1;" onclick="toggleControlloDate(true)">Mostra solo anomalie</button>
+      <button class="btn btn-gray btn-sm" id="cd-btn-tutto" style="flex:1;" onclick="toggleControlloDate(false)">Mostra tutto</button>
+    </div>
+  </div>
+  <div id="cd-stampa">
+    <div class="card" id="cd-contatore"><div class="empty">Premi Aggiorna</div></div>
+    <div class="card" id="cd-non-abbinati" style="display:none;"></div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th>Codice</th><th>Descrizione</th><th>Data DDT Uscita</th><th>Numero DDT Uscita</th><th>Data DDT Entrata trovata</th><th>Giorni anticipo</th><th>Stato</th>
+          </tr>
+        </thead>
+        <tbody id="cd-tbody"><tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- RIEPILOGO -->
 <!-- (Riepilogo page removed) -->
 
@@ -1071,6 +1100,7 @@ function showPage(name,el){
   if(name==='dettaglio')resetDettaglioArt();
   if(name==='sost-ber')caricaSostituzioni();
   if(name==='riepilogo-ber')caricaRiepilogoBerNew();
+  if(name==='controllo-date')caricaControlloDate();
   if(name==='confronto')aggiornaConfronto();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
@@ -2810,6 +2840,164 @@ function removeOkManualeBer(cod){
   renderRiepilogoCompletoBer();
 }
 
+// ── CONTROLLO DATE (Uscita spedita prima di qualsiasi Entrata) ────────
+var cdDatiTutti=null;
+var cdSoloAnomalie=true;
+
+function cdDiffGiorni(dataPrima,dataDopo){
+  var a=new Date(dataPrima+'T00:00:00'),b=new Date(dataDopo+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+
+async function caricaControlloDate(){
+  var tb=document.getElementById('cd-tbody');
+  if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  var isBer=getCliente()==='BERGAMASCO';
+  var ddte=await apiGet('ddt_entrata');
+  var ddtu=await apiGet('ddt_uscita');
+  if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  var abb=isBer?await apiGet('abbinamenti_ber','order=id.asc&limit=5000'):null;
+
+  // BERGAMASCO: mappa B0 (ddt_uscita) -> lista codici BER (ddt_entrata) abbinati
+  var b0ToBers={};
+  if(isBer&&abb){
+    abb.forEach(function(r){
+      var b0=(r.codice_b0||'').trim().toUpperCase();
+      var ber=(r.codice_ber||'').trim().toUpperCase();
+      if(!b0||!ber)return;
+      if(!b0ToBers[b0])b0ToBers[b0]=[];
+      if(b0ToBers[b0].indexOf(ber)<0)b0ToBers[b0].push(ber);
+    });
+  }
+
+  // Entrata raggruppata per chiave: codice diretto (AZZURRA) o codice BER (BERGAMASCO)
+  var entrataByKey={};
+  ddte.forEach(function(r){
+    var dataR=(r.data_ddt||'').slice(0,10);
+    var kRaw=(r.codice_articolo||'').trim();
+    if(!dataR||!kRaw)return;
+    var k=isBer?kRaw.toUpperCase():kRaw;
+    if(!entrataByKey[k])entrataByKey[k]=[];
+    entrataByKey[k].push({data:dataR,numero:r.numero_ddt||''});
+  });
+
+  var nonAbbinatiSet={};
+  var righe=[];
+
+  ddtu.forEach(function(r){
+    var dataU=(r.data_ddt||'').slice(0,10);
+    var codRaw=(r.codice_articolo||'').trim();
+    if(!dataU||!codRaw)return;
+    var codU=isBer?codRaw.toUpperCase():codRaw;
+
+    var entrataKeys;
+    if(isBer){
+      var berCodes=b0ToBers[codU];
+      if(!berCodes||!berCodes.length){
+        // Nessun abbinamento trovato: NON è un'anomalia data, è un codice non verificabile
+        if(!nonAbbinatiSet[codU])nonAbbinatiSet[codU]={cod:r.codice_articolo||codU,desc:r.descrizione||''};
+        return;
+      }
+      entrataKeys=berCodes;
+    } else {
+      entrataKeys=[codU];
+    }
+
+    var entrateTrovate=[];
+    entrataKeys.forEach(function(k){
+      (entrataByKey[k]||[]).forEach(function(e){entrateTrovate.push(e);});
+    });
+
+    var haEntrataPrecedente=entrateTrovate.some(function(e){return e.data<=dataU;});
+    var artInfo=(artCache||[]).find(function(a){return (a.codice_articolo||'').trim().toUpperCase()===codU;});
+    var desc=r.descrizione||(artInfo?artInfo.descrizione:'')||'';
+
+    if(!haEntrataPrecedente){
+      var successive=entrateTrovate.filter(function(e){return e.data>dataU;}).sort(function(a,b){return a.data<b.data?-1:(a.data>b.data?1:0);});
+      var entrataVicina=successive.length?successive[0]:null;
+      righe.push({
+        cod:r.codice_articolo||codU,desc:desc,
+        dataUscita:dataU,numeroUscita:r.numero_ddt||'',
+        dataEntrata:entrataVicina?entrataVicina.data:null,
+        numeroEntrata:entrataVicina?entrataVicina.numero:null,
+        giorni:entrataVicina?cdDiffGiorni(dataU,entrataVicina.data):null,
+        anomalia:true
+      });
+    } else {
+      righe.push({
+        cod:r.codice_articolo||codU,desc:desc,
+        dataUscita:dataU,numeroUscita:r.numero_ddt||'',
+        dataEntrata:null,numeroEntrata:null,giorni:null,
+        anomalia:false
+      });
+    }
+  });
+
+  righe.sort(function(a,b){
+    if(a.anomalia!==b.anomalia)return a.anomalia?-1:1;
+    return (a.dataUscita||'').localeCompare(b.dataUscita||'');
+  });
+
+  cdDatiTutti={righe:righe,nonAbbinati:Object.values(nonAbbinatiSet)};
+  renderControlloDate();
+}
+
+function toggleControlloDate(soloAnomalie){
+  cdSoloAnomalie=soloAnomalie;
+  var btnA=document.getElementById('cd-btn-anomalie'),btnT=document.getElementById('cd-btn-tutto');
+  if(btnA)btnA.className='btn btn-sm '+(soloAnomalie?'btn-red':'btn-gray');
+  if(btnT)btnT.className='btn btn-sm '+(!soloAnomalie?'btn-blue':'btn-gray');
+  renderControlloDate();
+}
+
+function renderControlloDate(){
+  if(!cdDatiTutti)return;
+  var tuttiRighe=cdDatiTutti.righe;
+  var righe=tuttiRighe.filter(function(r){return cdSoloAnomalie?r.anomalia:true;});
+  var nAnomalie=tuttiRighe.filter(function(r){return r.anomalia;}).length;
+
+  var cont=document.getElementById('cd-contatore');
+  if(cont){
+    cont.innerHTML=nAnomalie>0
+      ?'<div class="warn-box">⚠️ <strong>'+nAnomalie+'</strong> anomalie trovate: DDT Uscita con data precedente a qualsiasi DDT Entrata dello stesso codice.</div>'
+      :'<div class="ok-box">✅ Nessuna anomalia trovata.</div>';
+  }
+
+  var tb=document.getElementById('cd-tbody');
+  if(tb){
+    if(!righe.length){
+      tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
+    } else {
+      tb.innerHTML=righe.map(function(r){
+        var badge=r.anomalia?'<span class="badge badge-err">⚠️ USCITA PRIMA DI ENTRATA</span>':'<span class="badge badge-ok">✓ Ok</span>';
+        var entrataLbl=r.dataEntrata?(fmtData(r.dataEntrata)+(r.numeroEntrata?' ('+r.numeroEntrata+')':'')):'<strong style="color:#C00000;">NESSUNA ENTRATA TROVATA</strong>';
+        var giorniLbl=(r.giorni!==null&&r.giorni!==undefined)?r.giorni+' giorni':'—';
+        return '<tr style="'+(r.anomalia?'background-color:#fdecea;':'')+'">'
+          +'<td><strong>'+(r.cod||'—')+'</strong></td>'
+          +'<td>'+(r.desc||'')+'</td>'
+          +'<td>'+fmtData(r.dataUscita)+'</td>'
+          +'<td>'+(r.numeroUscita||'—')+'</td>'
+          +'<td>'+entrataLbl+'</td>'
+          +'<td>'+giorniLbl+'</td>'
+          +'<td>'+badge+'</td>'
+        +'</tr>';
+      }).join('');
+    }
+  }
+
+  var na=cdDatiTutti.nonAbbinati||[];
+  var naBox=document.getElementById('cd-non-abbinati');
+  if(naBox){
+    if(!na.length){naBox.style.display='none';naBox.innerHTML='';}
+    else{
+      naBox.style.display='block';
+      naBox.innerHTML='<h3 style="margin-bottom:8px;color:#7B4F00;">Codici non abbinati (non verificabili)</h3>'
+        +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Questi codici articolo di DDT Uscita non hanno una corrispondenza in Abbinamenti Bergamasco: non vengono segnalati come anomalia per evitare falsi positivi.</p>'
+        +na.map(function(a){return '<span class="badge" style="background:#FFF3E0;color:#7B4F00;margin:2px;">'+(a.cod||'?')+(a.desc?' - '+a.desc:'')+'</span>';}).join(' ');
+    }
+  }
+}
+
 // ── DDT ENTRATA ───────────────────────────────────────────────────────
 async function leggiPDF(input){
   var file=input.files[0];if(!file)return;
@@ -4307,8 +4495,8 @@ function setWAMode(mode){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','confronto','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','confronto','cfg']
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','cfg'],
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','cfg']
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
