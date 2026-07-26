@@ -2844,21 +2844,27 @@ function removeOkManualeBer(cod){
 var cdDatiTutti=null;
 var cdSoloAnomalie=true;
 
-// data_ddt arriva da Supabase come colonna "date" (sempre ISO YYYY-MM-DD),
-// ma per sicurezza gestiamo anche un eventuale formato italiano DD/MM/YYYY:
+// data_ddt arriva da Supabase come colonna "date" (ISO YYYY-MM-DD), ma gestiamo
+// anche un eventuale formato italiano DD/MM/YYYY rilevando '/' vs '-'.
 // new Date(str) va sempre evitato qui perché interpreta "19/06/2026" come MM/DD/YYYY.
-function parseDataIta(str){
-  if(!str)return null;
-  str=String(str).trim();
-  var mIso=str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(mIso){
-    var dIso=new Date(parseInt(mIso[1],10),parseInt(mIso[2],10)-1,parseInt(mIso[3],10));
-    return isNaN(dIso.getTime())?null:dIso;
+function parseDataIta(s){
+  if(!s)return null;
+  s=String(s).trim();
+  var d;
+  if(s.indexOf('/')>=0){
+    var parti=s.split('/');
+    var g=parti[0],m=parti[1],a=parti[2];
+    if(!g||!m||!a)return null;
+    d=new Date(parseInt(a,10),parseInt(m,10)-1,parseInt(g,10));
+  } else if(s.indexOf('-')>=0){
+    var datePart=s.split('T')[0];
+    var partiIso=datePart.split('-');
+    var anno=partiIso[0],mese=partiIso[1],giorno=partiIso[2];
+    if(!anno||!mese||!giorno)return null;
+    d=new Date(parseInt(anno,10),parseInt(mese,10)-1,parseInt(giorno,10));
+  } else {
+    return null;
   }
-  var parti=str.split('/');
-  var g=parti[0],m=parti[1],a=parti[2];
-  if(!g||!m||!a)return null;
-  var d=new Date(parseInt(a,10),parseInt(m,10)-1,parseInt(g,10));
   return isNaN(d.getTime())?null:d;
 }
 
