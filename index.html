@@ -1114,7 +1114,7 @@ async function salvaEntrataMerce(){
   var dataSel=(document.getElementById('e-date')&&document.getElementById('e-date').value)?document.getElementById('e-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
-      var dataR=(r.created_at||'').slice(0,10);
+      var dataR=(r.data_inserimento||r.created_at||'').slice(0,10);
       return dataR===dataSel && r.codice_articolo===cod;
     });
     if(dup){
@@ -1143,7 +1143,7 @@ async function aggiungiWAEntrata(){
     // Prova unione se stesso codice stesso giorno
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
-        var dataX=(x.created_at||'').slice(0,10);
+        var dataX=(x.data_inserimento||x.created_at||'').slice(0,10);
         return dataX===oggi && x.codice_articolo===art.codice_articolo;
       });
       if(dup){
@@ -1153,7 +1153,7 @@ async function aggiungiWAEntrata(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,modalita:'whatsapp'});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:oggi,modalita:'whatsapp'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
@@ -1250,7 +1250,7 @@ async function salvaUscitaMerce(){
   var dataSel=(document.getElementById('u-date')&&document.getElementById('u-date').value)?document.getElementById('u-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
-      var dataR=(r.created_at||'').slice(0,10);
+      var dataR=(r.data_inserimento||r.created_at||'').slice(0,10);
       return dataR===dataSel && r.codice_articolo===cod;
     });
     if(dup){
