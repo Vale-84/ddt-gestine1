@@ -688,10 +688,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Codice</th><th>Descrizione</th><th>Data DDT Uscita</th><th>Numero DDT Uscita</th><th>Data DDT Entrata trovata</th><th>Giorni anticipo</th><th>Stato</th>
+            <th>Codice</th><th>Descrizione</th><th>Data DDT Uscita</th><th>Numero DDT Uscita</th><th>Data DDT Entrata trovata</th><th>Giorni anticipo</th><th>Possibile corrispondenza</th><th>Stato</th>
           </tr>
         </thead>
-        <tbody id="cd-tbody"><tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="cd-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2866,6 +2866,48 @@ function cdDiffGiorni(dataPrima,dataDopo){
   return Math.round((dataDopo.getTime()-dataPrima.getTime())/86400000);
 }
 
+// Distanza di Levenshtein tra due stringhe (numero minimo di modifiche carattere per carattere)
+function cdLevenshtein(a,b){
+  a=a||'';b=b||'';
+  var m=a.length,n=b.length;
+  if(!m)return n;
+  if(!n)return m;
+  var dp=[];
+  for(var i=0;i<=m;i++)dp.push(new Array(n+1));
+  for(i=0;i<=m;i++)dp[i][0]=i;
+  for(var j=0;j<=n;j++)dp[0][j]=j;
+  for(i=1;i<=m;i++){
+    for(j=1;j<=n;j++){
+      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// Suggerisce codici simili presenti in ddt_entrata per un codice senza nessuna entrata trovata
+// (solo suggerimento visivo per correzione manuale: nessun match automatico nella logica di confronto)
+function cdSuggerisciCodiceSimile(codU,entrataCodiceStats){
+  var candidati=[];
+  Object.keys(entrataCodiceStats).forEach(function(key){
+    if(key===codU)return;
+    var dist=cdLevenshtein(codU,key);
+    var maxLen=Math.max(codU.length,key.length)||1;
+    var similarity=1-(dist/maxLen);
+    if(dist<=2||similarity>0.8){
+      candidati.push({key:key,dist:dist,similarity:similarity,info:entrataCodiceStats[key]});
+    }
+  });
+  if(!candidati.length)return '';
+  candidati.sort(function(a,b){return a.dist-b.dist;});
+  var minDist=candidati[0].dist;
+  var migliori=candidati.filter(function(c){return c.dist===minDist;});
+  var testo=migliori.map(function(c){
+    var i=c.info;
+    return i.cod+' ('+i.count+' righe, ultima '+(i.ultimaDataStr?fmtData(i.ultimaDataStr):'?')+')';
+  }).join(', ');
+  return testo+' ⚠️ verifica typo';
+}
+
 async function caricaControlloDate(){
   var tb=document.getElementById('cd-tbody');
   if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
@@ -2875,34 +2917,20 @@ async function caricaControlloDate(){
   if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   var abb=isBer?await apiGet('abbinamenti_ber','order=id.asc&limit=5000'):null;
 
-  // ── DEBUG TEMPORANEO A0PASGLUBI (da rimuovere) ──────────────────────
-  console.log('[DEBUG PASGLUBI] cliente attivo:', getCliente());
-  console.log('[DEBUG PASGLUBI] totale righe ddt_entrata caricate:', ddte.length);
-  console.log('[DEBUG PASGLUBI] totale righe ddt_uscita caricate:', ddtu.length);
-
-  // ── Controlli aggiuntivi richiesti (prima del filtro per codice) ────
-  console.log('[DEBUG] TOTALE righe ddt_entrata AZZURRA:', ddte.length);
-  console.log('[DEBUG] Chiavi prima riga ddt_entrata:', ddte[0] ? Object.keys(ddte[0]) : 'array vuoto');
-  var rigaTest = ddte.find(function(r){return r.numero_ddt === 'C6000905';});
-  console.log('[DEBUG] Riga C6000905 trovata?', rigaTest ? JSON.stringify(rigaTest) : 'NON PRESENTE NELL\'ARRAY');
-  console.log('[DEBUG] Parametri query apiGet(\'ddt_entrata\') usati: order=created_at.desc&limit=5000&cliente=eq.'+encodeURIComponent(getCliente()));
-  // ── fine controlli aggiuntivi ────────────────────────────────────────
-
-  var dbgEntrataMatch=ddte.filter(function(r){return (r.codice_articolo||'').toUpperCase().indexOf('PASGLUBI')>=0;});
-  var dbgUscitaMatch=ddtu.filter(function(r){return (r.codice_articolo||'').toUpperCase().indexOf('PASGLUBI')>=0;});
-  console.log('[DEBUG PASGLUBI] righe ddt_entrata con codice contenente PASGLUBI:', dbgEntrataMatch.length);
-  dbgEntrataMatch.forEach(function(r){
-    console.log('[DEBUG PASGLUBI][ENTRATA] CODICE:', '|'+r.codice_articolo+'|', '| data_ddt:', '|'+r.data_ddt+'|', '| numero_ddt:', r.numero_ddt, '| riga completa:', r);
-    var parsed=(typeof parseDataIta==='function')?parseDataIta(r.data_ddt):new Date(r.data_ddt);
-    console.log('[DEBUG PASGLUBI][ENTRATA] parsing data_ddt ->', parsed, '| valido?', parsed instanceof Date && !isNaN(parsed.getTime()));
+  // Statistiche per codice_articolo distinto in ddt_entrata (per suggerimenti di codici simili/typo)
+  var entrataCodiceStats={};
+  ddte.forEach(function(r){
+    var codRaw=(r.codice_articolo||'').trim();
+    if(!codRaw)return;
+    var key=codRaw.toUpperCase();
+    if(!entrataCodiceStats[key])entrataCodiceStats[key]={cod:codRaw,count:0,ultimaData:null,ultimaDataStr:null};
+    entrataCodiceStats[key].count++;
+    var dP=parseDataIta(r.data_ddt);
+    if(dP&&(!entrataCodiceStats[key].ultimaData||dP.getTime()>entrataCodiceStats[key].ultimaData.getTime())){
+      entrataCodiceStats[key].ultimaData=dP;
+      entrataCodiceStats[key].ultimaDataStr=r.data_ddt;
+    }
   });
-  console.log('[DEBUG PASGLUBI] righe ddt_uscita con codice contenente PASGLUBI:', dbgUscitaMatch.length);
-  dbgUscitaMatch.forEach(function(r){
-    console.log('[DEBUG PASGLUBI][USCITA] CODICE:', '|'+r.codice_articolo+'|', '| data_ddt:', '|'+r.data_ddt+'|', '| numero_ddt:', r.numero_ddt, '| riga completa:', r);
-    var parsed=(typeof parseDataIta==='function')?parseDataIta(r.data_ddt):new Date(r.data_ddt);
-    console.log('[DEBUG PASGLUBI][USCITA] parsing data_ddt ->', parsed, '| valido?', parsed instanceof Date && !isNaN(parsed.getTime()));
-  });
-  // ── FINE DEBUG TEMPORANEO ────────────────────────────────────────────
 
   // BERGAMASCO: mappa B0 (ddt_uscita) -> lista codici BER (ddt_entrata) abbinati
   var b0ToBers={};
@@ -2967,6 +2995,7 @@ async function caricaControlloDate(){
         dataEntrata:entrataVicina?entrataVicina.dataStr:null,
         numeroEntrata:entrataVicina?entrataVicina.numero:null,
         giorni:entrataVicina?cdDiffGiorni(dataU,entrataVicina.data):null,
+        suggerimento:entrataVicina?'':cdSuggerisciCodiceSimile(codU,entrataCodiceStats),
         anomalia:true
       });
     } else {
@@ -2974,6 +3003,7 @@ async function caricaControlloDate(){
         cod:r.codice_articolo||codU,desc:desc,
         dataUscita:r.data_ddt,numeroUscita:r.numero_ddt||'',
         dataEntrata:null,numeroEntrata:null,giorni:null,
+        suggerimento:'',
         anomalia:false
       });
     }
@@ -3013,12 +3043,13 @@ function renderControlloDate(){
   var tb=document.getElementById('cd-tbody');
   if(tb){
     if(!righe.length){
-      tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
+      tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
     } else {
       tb.innerHTML=righe.map(function(r){
         var badge=r.anomalia?'<span class="badge badge-err">⚠️ USCITA PRIMA DI ENTRATA</span>':'<span class="badge badge-ok">✓ Ok</span>';
         var entrataLbl=r.dataEntrata?(fmtData(r.dataEntrata)+(r.numeroEntrata?' ('+r.numeroEntrata+')':'')):'<strong style="color:#C00000;">NESSUNA ENTRATA TROVATA</strong>';
         var giorniLbl=(r.giorni!==null&&r.giorni!==undefined)?r.giorni+' giorni':'—';
+        var suggLbl=r.suggerimento?'<span style="color:#C55A11;">'+r.suggerimento+'</span>':'—';
         return '<tr style="'+(r.anomalia?'background-color:#fdecea;':'')+'">'
           +'<td><strong>'+(r.cod||'—')+'</strong></td>'
           +'<td>'+(r.desc||'')+'</td>'
@@ -3026,6 +3057,7 @@ function renderControlloDate(){
           +'<td>'+(r.numeroUscita||'—')+'</td>'
           +'<td>'+entrataLbl+'</td>'
           +'<td>'+giorniLbl+'</td>'
+          +'<td>'+suggLbl+'</td>'
           +'<td>'+badge+'</td>'
         +'</tr>';
       }).join('');
