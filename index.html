@@ -655,6 +655,20 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <tbody id="rc-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
+    <!-- ARTICOLI APERTI (solo AZZURRA): Entrata ≠ Uscita, codici diretti A0..., nessun abbinamenti_ber -->
+    <div id="rc-aperti-azzurra" class="card" style="overflow-x:auto;">
+      <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti (Entrata ≠ Uscita)</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:10px;">Solo articoli con quantità totale DDT Entrata diversa da DDT Uscita.</p>
+      <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaArticoliApertiAzzurra()">↻ AGGIORNA</button>
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Tot. Uscita</th><th>Differenza (Aperto)</th>
+          </tr>
+        </thead>
+        <tbody id="rc-aperti-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+      </table>
+    </div>
     <!-- TABELLA BERGAMASCO -->
     <div id="rc-table-ber" class="card" style="display:none;overflow-x:auto;">
       <table class="rc-table">
@@ -2442,13 +2456,16 @@ async function aggiornaConfronto(){
   var elLA=document.getElementById('rc-legenda-azzurra'),elLB=document.getElementById('rc-legenda-ber');
   var elFA=document.getElementById('rc-filtri-azzurra'),elFB=document.getElementById('rc-filtri-ber');
   var elTA=document.getElementById('rc-table-azzurra'),elTB=document.getElementById('rc-table-ber');
+  var elAperti=document.getElementById('rc-aperti-azzurra');
   if(elLA)elLA.style.display=isBer?'none':'';
   if(elLB)elLB.style.display=isBer?'':'none';
   if(elFA)elFA.style.display=isBer?'none':'flex';
   if(elFB)elFB.style.display=isBer?'flex':'none';
   if(elTA)elTA.style.display=isBer?'none':'';
   if(elTB)elTB.style.display=isBer?'':'none';
+  if(elAperti)elAperti.style.display=isBer?'none':'';
   if(isBer){await aggiornaConfrrontoBer();return;}
+  caricaArticoliApertiAzzurra();
 
   var we=await apiGet('whatsapp_righe');
   var wu=await apiGet('whatsapp_uscita');
@@ -2541,6 +2558,65 @@ async function aggiornaConfronto(){
 
   rcDatiCompleti=righe;
   renderRiepilogoCompleto();
+}
+
+// ── ARTICOLI APERTI (solo AZZURRA): Tot. Entrata ≠ Tot. Uscita per codice diretto ──
+async function caricaArticoliApertiAzzurra(){
+  var box=document.getElementById('rc-aperti-azzurra');
+  var tb=document.getElementById('rc-aperti-tbody');
+  if(getCliente()!=='AZZURRA'){if(box)box.style.display='none';return;}
+  if(box)box.style.display='';
+  if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+
+  var ddte=await apiGet('ddt_entrata');
+  var ddtu=await apiGet('ddt_uscita');
+  if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+
+  var mE={},mU={};
+  ddte.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(!mE[k])mE[k]={tot:0,desc:''};
+    mE[k].tot+=Number(r.quantita_ddt)||0;
+    if(!mE[k].desc&&r.descrizione)mE[k].desc=r.descrizione;
+  });
+  ddtu.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();if(!k)return;
+    if(!mU[k])mU[k]={tot:0,desc:''};
+    mU[k].tot+=Number(r.quantita_ddt)||0;
+    if(!mU[k].desc&&r.descrizione)mU[k].desc=r.descrizione;
+  });
+
+  var codici={};
+  Object.keys(mE).forEach(function(k){codici[k]=true;});
+  Object.keys(mU).forEach(function(k){codici[k]=true;});
+
+  var righeAperti=Object.keys(codici).map(function(k){
+    var totE=mE[k]?mE[k].tot:0;
+    var totU=mU[k]?mU[k].tot:0;
+    var artInfo=(artCache||[]).find(function(a){return (a.codice_articolo||'').trim().toUpperCase()===k.toUpperCase();});
+    var desc=(artInfo&&artInfo.descrizione)||(mE[k]&&mE[k].desc)||(mU[k]&&mU[k].desc)||'';
+    return {cod:k,desc:desc,totE:totE,totU:totU,diff:totE-totU};
+  }).filter(function(r){return r.diff!==0;});
+
+  righeAperti.sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
+
+  if(!tb)return;
+  if(!righeAperti.length){
+    tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessun articolo aperto: Entrata e Uscita coincidono per tutti i codici.</td></tr>';
+    return;
+  }
+  tb.innerHTML=righeAperti.map(function(r){
+    var badge=r.diff>0
+      ?'<span class="badge badge-warn">+'+r.diff+' da spedire/fatturare</span>'
+      :'<span class="badge badge-err">⚠️ '+r.diff+' verificare</span>';
+    return '<tr>'
+      +'<td><strong>'+r.cod+'</strong></td>'
+      +'<td>'+(r.desc||'')+'</td>'
+      +'<td style="text-align:right;">'+r.totE+'</td>'
+      +'<td style="text-align:right;">'+r.totU+'</td>'
+      +'<td>'+badge+'</td>'
+    +'</tr>';
+  }).join('');
 }
 
 function filtraRiepilogoCompleto(f){
