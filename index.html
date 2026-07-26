@@ -2315,40 +2315,51 @@ async function caricaRwa(){
   function iconeGruppo(modSet){
     return Object.keys(modSet).map(iconaModalita).join('');
   }
-  var mapE={};
-  we.forEach(function(r){
-    var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
-    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
-    if(!mapE[k])mapE[k]={cod:r.codice_articolo,desc:desc,tot:0,modSet:{}};
-    mapE[k].tot+=(r.quantita||0);
-    mapE[k].modSet[r.modalita||'whatsapp']=true;
-  });
+  function raggruppaRWA(righe){
+    var map={};
+    righe.forEach(function(r){
+      var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
+      var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
+      var dataR=(r.data_inserimento||r.created_at||'').slice(0,10);
+      if(!map[k])map[k]={cod:r.codice_articolo,desc:desc,tot:0,modSet:{},dateMap:{}};
+      map[k].tot+=(r.quantita||0);
+      map[k].modSet[r.modalita||'whatsapp']=true;
+      if(!map[k].dateMap[dataR])map[k].dateMap[dataR]=0;
+      map[k].dateMap[dataR]+=(r.quantita||0);
+    });
+    return map;
+  }
+  function renderRWA(map,color){
+    return Object.values(map).map(function(a){
+      var dateKeys=Object.keys(a.dateMap).sort();
+      var icons=iconeGruppo(a.modSet);
+      var header='<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>';
+      if(dateKeys.length<=1){
+        var dLabel=(dateKeys[0]&&fmtData(dateKeys[0]))||'';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+          +header
+          +'<div style="font-size:16px;font-weight:bold;color:'+color+';min-width:40px;text-align:right;">'+a.tot+(dLabel?' - '+dLabel:'')+' <span style="font-size:12px;">'+icons+'</span></div>'
+        +'</div>';
+      }
+      var righeDate=dateKeys.map(function(dk){
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;color:#555;padding:1px 0;"><span>'+(fmtData(dk)||'?')+'</span><span style="font-weight:bold;color:'+color+';">'+a.dateMap[dk]+'</span></div>';
+      }).join('');
+      return '<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;">'+header+'<div style="font-size:12px;">'+icons+'</div></div>'
+        +righeDate
+      +'</div>';
+    }).join('');
+  }
+  var mapE=raggruppaRWA(we);
   var totE=we.reduce(function(a,r){return a+(r.quantita||0);},0);
   var lE=document.getElementById('rwa-entrate');
-  lE.innerHTML=Object.values(mapE).map(function(a){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
-      +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
-      +'<div style="font-size:16px;font-weight:bold;color:#217346;min-width:40px;text-align:right;">'+a.tot+' <span style="font-size:12px;">'+iconeGruppo(a.modSet)+'</span></div>'
-    +'</div>';
-  }).join('');
+  lE.innerHTML=renderRWA(mapE,'#217346');
   document.getElementById('rwa-tot-e').textContent='Totale: '+totE+' pz';
 
-  var mapU={};
-  wu.forEach(function(r){
-    var k=r.codice_articolo||r.descrizione||r.testo_riga||'?';
-    var desc=r.descrizione_articolo||r.descrizione||r.testo_riga||'';
-    if(!mapU[k])mapU[k]={cod:r.codice_articolo,desc:desc,tot:0,modSet:{}};
-    mapU[k].tot+=(r.quantita||0);
-    mapU[k].modSet[r.modalita||'whatsapp']=true;
-  });
+  var mapU=raggruppaRWA(wu);
   var totU=wu.reduce(function(a,r){return a+(r.quantita||0);},0);
   var lU=document.getElementById('rwa-uscite');
-  lU.innerHTML=Object.values(mapU).map(function(a){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
-      +'<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>'
-      +'<div style="font-size:16px;font-weight:bold;color:#1F6B75;min-width:40px;text-align:right;">'+a.tot+' <span style="font-size:12px;">'+iconeGruppo(a.modSet)+'</span></div>'
-    +'</div>';
-  }).join('');
+  lU.innerHTML=renderRWA(mapU,'#1F6B75');
   document.getElementById('rwa-tot-u').textContent='Totale: '+totU+' pz';
 }
 
