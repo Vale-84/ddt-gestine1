@@ -2572,6 +2572,27 @@ async function caricaArticoliApertiAzzurra(){
   var ddtu=await apiGet('ddt_uscita');
   if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
 
+  // Stesso filtro periodo già usato in Confronto (aggiornaConfronto): applicato a ENTRAMBE le
+  // query, identico, così Tot. Entrata e Tot. Uscita coprono sempre lo stesso intervallo di date.
+  // Se chiusura_azzurra non è impostata, nessun filtro: tutta la storia per entrambe.
+  var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
+  if(dataChiusuraAz){
+    ddte=ddte.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
+    ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
+  }
+
+  // ── DEBUG: verifica che le due query coprano lo stesso range di date ────
+  var dateE=ddte.map(function(r){return (r.data_ddt||'').slice(0,10);}).filter(Boolean).sort();
+  var dateU=ddtu.map(function(r){return (r.data_ddt||'').slice(0,10);}).filter(Boolean).sort();
+  console.log('[DEBUG Articoli Aperti] chiusura_azzurra:', dataChiusuraAz||'(non impostata: tutta la storia)');
+  console.log('[DEBUG Articoli Aperti] ddt_entrata usate:', dateE.length, 'righe | min', dateE[0], '| max', dateE[dateE.length-1]);
+  console.log('[DEBUG Articoli Aperti] ddt_uscita usate:', dateU.length, 'righe | min', dateU[0], '| max', dateU[dateU.length-1]);
+  var entrSpec=ddte.filter(function(r){return (r.codice_articolo||'').trim()==='A0SPPINFBI';}).map(function(r){return r.data_ddt;}).sort();
+  var uscSpec=ddtu.filter(function(r){return (r.codice_articolo||'').trim()==='A0SPPINFBI';}).map(function(r){return r.data_ddt;}).sort();
+  console.log('[DEBUG Articoli Aperti] A0SPPINFBI entrata date:', entrSpec, '| min', entrSpec[0], '| max', entrSpec[entrSpec.length-1]);
+  console.log('[DEBUG Articoli Aperti] A0SPPINFBI uscita  date:', uscSpec, '| min', uscSpec[0], '| max', uscSpec[uscSpec.length-1]);
+  // ── FINE DEBUG ────────────────────────────────────────────────────────
+
   var mE={},mU={};
   ddte.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
