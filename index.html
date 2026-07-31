@@ -1461,14 +1461,15 @@ async function salvaNotaFotoOverlay(){
   var nuovaNota=document.getElementById('foto-overlay-note').value.trim();
   await apiPatch('foto_promemoria','id=eq.'+id,{note:nuovaNota});
   var r=_fotoCacheById[id];
-  var prefix=(r&&r.tipo==='uscita')?'u':'e';
   var btn=document.getElementById('foto-overlay-save-btn');
   if(btn){
     var testoOrig=btn.textContent;
     btn.textContent='✅ Salvata!';
     setTimeout(function(){btn.textContent=testoOrig;},1500);
   }
-  caricaFotoLista(prefix);
+  if(r&&r.tipo==='entrata')caricaFotoLista('e');
+  else if(r&&r.tipo==='uscita')caricaFotoLista('u');
+  else{caricaFotoLista('e');caricaFotoLista('u');}
 }
 
 function apriModale(id,desc,table){
