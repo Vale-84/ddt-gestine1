@@ -256,6 +256,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-green btn-sm" onclick="salvaEntrataMerce()">AGGIUNGI</button>
           </div>
           <div id="e-sezione-wa" style="display:none">
+            <label>Data</label><input type="date" id="e-wa-date" style="margin-bottom:6px;">
             <textarea id="e-wa-text" placeholder="Incolla messaggio WhatsApp..." style="min-height:80px;"></textarea>
             <button class="btn btn-green btn-sm" onclick="aggiungiWAEntrata()">AGGIUNGI RIGHE</button>
           </div>
@@ -272,8 +273,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div class="card" style="margin-bottom:10px;">
           <h2 style="color:#217346;">Articoli entrati <span id="foto-badge-e" style="display:none;background:#FFD966;color:#7B4F00;font-size:12px;font-weight:bold;padding:2px 8px;border-radius:20px;margin-left:6px;"></span></h2>
-          <div style="display:flex;gap:6px;margin-bottom:8px;">
-            <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuota('whatsapp_righe','msg-wa')">SVUOTA</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:0;cursor:pointer;white-space:nowrap;">
+              <input type="checkbox" id="e-sel-tutto" onchange="toggleSelezionaTutto('e')" style="width:auto;margin-bottom:0;"> Tutto
+            </label>
+            <button class="btn btn-red btn-sm" id="e-btn-elimina-sel" style="flex:1;" disabled onclick="eliminaSelezionati('e')">🗑 Elimina selezionati</button>
             <button class="btn btn-blue btn-sm" style="flex:1;" onclick="unisciDuplicatiEntrata()">UNISCI</button>
           </div>
           <div id="e-lista" style="margin-top:8px;"><div class="empty">Nessun articolo</div></div>
@@ -332,8 +336,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div class="card" style="margin-bottom:10px;">
           <h2 style="color:#1F6B75;">Uscite registrate <span id="foto-badge-u" style="display:none;background:#FFD966;color:#7B4F00;font-size:12px;font-weight:bold;padding:2px 8px;border-radius:20px;margin-left:6px;"></span></h2>
-          <div style="display:flex;gap:6px;margin-bottom:8px;">
-            <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaUscite()">SVUOTA</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:0;cursor:pointer;white-space:nowrap;">
+              <input type="checkbox" id="u-sel-tutto" onchange="toggleSelezionaTutto('u')" style="width:auto;margin-bottom:0;"> Tutto
+            </label>
+            <button class="btn btn-red btn-sm" id="u-btn-elimina-sel" style="flex:1;" disabled onclick="eliminaSelezionati('u')">🗑 Elimina selezionati</button>
             <button class="btn btn-teal btn-sm" style="flex:1;" onclick="unisciDuplicatiUscita()">UNISCI</button><button class="btn btn-blue btn-sm" style="flex:1;" onclick="associaCodiciUscita()">ASSOCIA</button>
           </div>
           <div id="u-lista" style="margin-top:8px;"><div class="empty">Nessuna uscita</div></div>
@@ -1230,19 +1237,19 @@ async function salvaEntrataMerce(){
 async function aggiungiWAEntrata(){
   var testo=document.getElementById('e-wa-text').value.trim();
   if(!testo){showMsg('msg-entrata','Incolla prima un messaggio!','err');return;}
+  var dataSel=(document.getElementById('e-wa-date')&&document.getElementById('e-wa-date').value)?document.getElementById('e-wa-date').value:oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var esistenti=await apiGet('whatsapp_righe','order=created_at.desc&limit=200');
-  var oggi=oggiISO();
   var n=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
     var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
     var art=trovaArt(desc);
-    // Prova unione se stesso codice stesso giorno
+    // Prova unione se stesso codice stessa data selezionata
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
         var dataX=(x.data_inserimento||x.created_at||'').slice(0,10);
-        return dataX===oggi && x.codice_articolo===art.codice_articolo;
+        return dataX===dataSel && x.codice_articolo===art.codice_articolo;
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
@@ -1251,7 +1258,7 @@ async function aggiungiWAEntrata(){
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:oggi,modalita:'whatsapp'});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel,modalita:'whatsapp'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
@@ -1270,20 +1277,15 @@ async function caricaEntrate(){
     var isLibE=!!r.da_testo_libero&&!r.convertito;
     var isConvE=!!r.convertito;
     var libBadgeE=isConvE?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibE?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_righe" data-id="'+r.id+'">✎ Da convertire</span>':'');
-    return '<div class="row-item'+(isLibE?' libero':'')+'"><div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
+    return '<div class="row-item'+(isLibE?' libero':'')+'">'
+      +'<input type="checkbox" class="riga-check" data-prefix="e" value="'+r.id+'" onchange="aggiornaStatoElimina(\'e\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
+      +'<div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">✕</button></div>';
   }).join('');
-}
-
-async function svuota(table,msgId){
-  if(!confirm('Svuotare tutto?'))return;
-  var oggi=oggiISO();
-  await apiDel(table,'data_inserimento=eq.'+oggi);
-  showMsg(msgId,'Svuotato!','ok');
-  if(table==='whatsapp_righe'){caricaEntrate();if(document.getElementById('st-e'))document.getElementById('st-e').textContent='0';}
+  aggiornaStatoElimina('e');
 }
 
 async function eliminaRiga(table,id,callback){
@@ -1586,7 +1588,9 @@ async function caricaUscite(){
     var isConvU=!!r.convertito;
     var libBadgeU=isConvU?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ Convertito</span>':(isLibU?'<span class="badge-libero badge-converti" style="cursor:pointer;" data-table="whatsapp_uscita" data-id="'+r.id+'">✎ Da convertire</span>':'');
     var imbBtnU=!r.codice_articolo?'':(r.in_imballo?'<span class="badge-libero" style="background:#E2EFDA;color:#217346;">✅ In Imballo</span>':'<span class="badge-libero" style="background:#DCE6F1;color:#1F4E79;cursor:pointer;" onclick="inviaWAImballo('+r.id+')">→ Imballo</span>');
-    return '<div class="row-item'+(isLibU?' libero':' teal')+'"><div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
+    return '<div class="row-item'+(isLibU?' libero':' teal')+'">'
+      +'<input type="checkbox" class="riga-check" data-prefix="u" value="'+r.id+'" onchange="aggiornaStatoElimina(\'u\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
+      +'<div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
       +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
@@ -1607,6 +1611,7 @@ async function caricaUscite(){
       +righe.map(renderRiga).join('')
       +'<div class="wa-data-tot" style="text-align:right;font-size:12px;color:#1F6B75;font-weight:bold;padding:4px 8px;">Totale giorno: '+totaleGiorno+' pz</div>';
   }).join('');
+  aggiornaStatoElimina('u');
 }
 
 async function inviaWAImballo(id){
@@ -1822,12 +1827,33 @@ async function verificaTutto(){
   await verificaWAUscitaImballo();
 }
 
-async function svuotaUscite(){
-  if(!confirm('Svuotare tutte le uscite di oggi?'))return;
-  var oggi=oggiISO();
-  await apiDel('whatsapp_uscita','data_inserimento=eq.'+oggi);
-  await apiDel('imballo','data_inserimento=eq.'+oggi);
-  showMsg('msg-uscita','Svuotato!','ok');caricaUscite();
+// ── ELIMINAZIONE SELETTIVA (Entrata/Uscita) ─────────────────────────────
+function toggleSelezionaTutto(prefix){
+  var tutto=document.getElementById(prefix+'-sel-tutto').checked;
+  document.querySelectorAll('.riga-check[data-prefix="'+prefix+'"]').forEach(function(cb){cb.checked=tutto;});
+  aggiornaStatoElimina(prefix);
+}
+
+function aggiornaStatoElimina(prefix){
+  var checks=document.querySelectorAll('.riga-check[data-prefix="'+prefix+'"]');
+  var selezionati=Array.prototype.filter.call(checks,function(cb){return cb.checked;});
+  var btn=document.getElementById(prefix+'-btn-elimina-sel');
+  if(btn)btn.disabled=selezionati.length===0;
+  var tuttoCb=document.getElementById(prefix+'-sel-tutto');
+  if(tuttoCb)tuttoCb.checked=checks.length>0&&selezionati.length===checks.length;
+}
+
+async function eliminaSelezionati(prefix){
+  var table=prefix==='e'?'whatsapp_righe':'whatsapp_uscita';
+  var checks=document.querySelectorAll('.riga-check[data-prefix="'+prefix+'"]:checked');
+  var ids=Array.prototype.map.call(checks,function(cb){return cb.value;});
+  if(!ids.length)return;
+  if(!confirm('Eliminare '+ids.length+' elementi selezionati? L\'azione è definitiva.'))return;
+  for(var i=0;i<ids.length;i++){
+    await apiDel(table,'id=eq.'+ids[i]);
+  }
+  if(prefix==='e'){showMsg('msg-entrata','Eliminati '+ids.length+' elementi.','ok');caricaEntrate();}
+  else{showMsg('msg-uscita','Eliminati '+ids.length+' elementi.','ok');caricaUscite();}
 }
 
 function resetForm(p){
@@ -4977,7 +5003,7 @@ window.onload=function(){
   }
   // Imposta le date di default a oggi per i campi nuova inserzione
   var today=oggiISO();
-  ['e-date','u-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date','foto-e-date','foto-u-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
+  ['e-date','u-date','e-wa-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date','foto-e-date','foto-u-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
 };
 
 if('serviceWorker' in navigator){
