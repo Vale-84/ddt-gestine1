@@ -947,7 +947,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 
 <!-- OVERLAY FOTO PROMEMORIA A SCHERMO INTERO -->
 <div class="modal" id="foto-overlay" onclick="chiudiFotoSchermoIntero()" style="background:rgba(0,0,0,0.85);">
-  <img id="foto-overlay-img" src="" style="max-width:96vw;max-height:92vh;border-radius:8px;">
+  <button onclick="event.stopPropagation();chiudiFotoSchermoIntero()" style="position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.95);color:#222;border:none;font-size:22px;font-weight:bold;cursor:pointer;z-index:210;line-height:1;">✕</button>
+  <div onclick="event.stopPropagation()" style="display:flex;flex-direction:column;align-items:center;gap:10px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:10px;">
+    <input type="hidden" id="foto-overlay-id">
+    <img id="foto-overlay-img" src="" style="max-width:94vw;max-height:58vh;border-radius:8px;">
+    <textarea id="foto-overlay-note" placeholder="Cosa vedi in questa foto (articoli, quantità...)" style="width:100%;max-width:480px;min-height:70px;"></textarea>
+    <button id="foto-overlay-save-btn" class="btn btn-green btn-sm" style="width:auto;" onclick="salvaNotaFotoOverlay()">💾 Salva nota</button>
+  </div>
 </div>
 
 <!-- OVERLAY CONFERMA DOPPIONE FOTO -->
@@ -1311,6 +1317,10 @@ function resizeImageFile(file,maxSide){
   });
 }
 
+// Cache foto per id, popolata da caricaFotoLista: evita di dover passare base64/note
+// (che possono contenere apici o a-capo) come stringhe inline negli attributi onclick.
+var _fotoCacheById={};
+
 // Hash approssimativo (lunghezza + campionatura char-code) per rilevare la stessa foto ricaricata
 function hashString(s){
   if(!s)return '0';
@@ -1377,13 +1387,13 @@ async function caricaFotoLista(prefix){
     if(d.length){badge.style.display='inline-block';badge.textContent='📷 '+d.length;}
     else{badge.style.display='none';badge.textContent='';}
   }
+  d.forEach(function(r){_fotoCacheById[r.id]=r;});
   if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessuna foto in sospeso</div>';return;}
   l.innerHTML=d.map(function(r){
-    var safeSrc=(r.foto_base64||'').replace(/'/g,"\\'");
     var dataIso=r.data_foto||(r.created_at||'').slice(0,10);
     return '<div class="row-item" style="align-items:flex-start;">'
-      +'<img src="'+r.foto_base64+'" onclick="apriFotoSchermoIntero(\''+safeSrc+'\')" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;">'
+      +'<img src="'+r.foto_base64+'" onclick="apriFotoSchermoIntero('+r.id+')" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;">'
       +'<div class="row-info" style="margin-left:10px;">'
         +'<div class="rdesc">'+(r.note?r.note:'<span style="color:#999;">(nessuna nota)</span>')+'</div>'
         +'<span class="rsub" style="cursor:pointer;text-decoration:underline dotted;" title="Clicca per modificare la data" onclick="mostraEditDataFoto(this,'+r.id+',\''+prefix+'\',\''+dataIso+'\')">📅 '+fmtData(r.data_foto||r.created_at)+'</span>'
@@ -1421,14 +1431,44 @@ async function salvaDataFoto(id,prefix,nuovaData){
   caricaFotoLista(prefix);
 }
 
-function apriFotoSchermoIntero(base64){
-  document.getElementById('foto-overlay-img').src=base64;
+function apriFotoSchermoIntero(id){
+  var r=_fotoCacheById[id];
+  if(!r)return;
+  document.getElementById('foto-overlay-img').src=r.foto_base64;
+  document.getElementById('foto-overlay-note').value=r.note||'';
+  document.getElementById('foto-overlay-id').value=id;
   document.getElementById('foto-overlay').style.display='flex';
+  history.pushState({fotoOverlay:true},'');
 }
 
-function chiudiFotoSchermoIntero(){
+function chiudiFotoSchermoIntero(daPopstate){
   document.getElementById('foto-overlay').style.display='none';
   document.getElementById('foto-overlay-img').src='';
+  document.getElementById('foto-overlay-note').value='';
+  document.getElementById('foto-overlay-id').value='';
+  if(!daPopstate)history.back();
+}
+
+window.addEventListener('popstate',function(){
+  if(document.getElementById('foto-overlay').style.display==='flex'){
+    chiudiFotoSchermoIntero(true);
+  }
+});
+
+async function salvaNotaFotoOverlay(){
+  var id=document.getElementById('foto-overlay-id').value;
+  if(!id)return;
+  var nuovaNota=document.getElementById('foto-overlay-note').value.trim();
+  await apiPatch('foto_promemoria','id=eq.'+id,{note:nuovaNota});
+  var r=_fotoCacheById[id];
+  var prefix=(r&&r.tipo==='uscita')?'u':'e';
+  var btn=document.getElementById('foto-overlay-save-btn');
+  if(btn){
+    var testoOrig=btn.textContent;
+    btn.textContent='✅ Salvata!';
+    setTimeout(function(){btn.textContent=testoOrig;},1500);
+  }
+  caricaFotoLista(prefix);
 }
 
 function apriModale(id,desc,table){
