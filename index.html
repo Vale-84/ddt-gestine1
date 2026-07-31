@@ -269,6 +269,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <input type="date" id="foto-e-date" style="width:auto;margin-bottom:0;">
             <input type="text" id="foto-e-note" placeholder="Note (opzionale)" style="flex:1;min-width:140px;margin-bottom:0;">
           </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:0;cursor:pointer;white-space:nowrap;">
+              <input type="checkbox" id="foto-e-sel-tutto" onchange="toggleSelezionaTuttoFoto('e')" style="width:auto;margin-bottom:0;"> Tutto
+            </label>
+            <button class="btn btn-red btn-sm" id="foto-e-btn-elimina-sel" style="flex:1;" disabled onclick="eliminaFotoSelezionate('e')">🗑 Elimina selezionati</button>
+          </div>
           <div id="foto-e-lista"><div class="empty">Nessuna foto in sospeso</div></div>
         </div>
         <div class="card" style="margin-bottom:10px;">
@@ -327,6 +333,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-teal btn-sm" style="width:auto;white-space:nowrap;" onclick="document.getElementById('foto-u-input').click()">📷 Aggiungi foto</button>
             <input type="date" id="foto-u-date" style="width:auto;margin-bottom:0;">
             <input type="text" id="foto-u-note" placeholder="Note (opzionale)" style="flex:1;min-width:140px;margin-bottom:0;">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:0;cursor:pointer;white-space:nowrap;">
+              <input type="checkbox" id="foto-u-sel-tutto" onchange="toggleSelezionaTuttoFoto('u')" style="width:auto;margin-bottom:0;"> Tutto
+            </label>
+            <button class="btn btn-red btn-sm" id="foto-u-btn-elimina-sel" style="flex:1;" disabled onclick="eliminaFotoSelezionate('u')">🗑 Elimina selezionati</button>
           </div>
           <div id="foto-u-lista"><div class="empty">Nessuna foto in sospeso</div></div>
         </div>
@@ -1406,15 +1418,53 @@ async function caricaFotoLista(prefix){
   l.innerHTML=d.map(function(r){
     var dataIso=r.data_foto||(r.created_at||'').slice(0,10);
     return '<div class="row-item" style="align-items:flex-start;">'
+      +'<input type="checkbox" class="foto-check" data-prefix="'+prefix+'" value="'+r.id+'" onchange="aggiornaStatoEliminaFoto(\''+prefix+'\')" style="width:auto;margin:4px 8px 0 0;flex-shrink:0;">'
       +'<img src="'+r.foto_base64+'" onclick="apriFotoSchermoIntero('+r.id+')" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;">'
       +'<div class="row-info" style="margin-left:10px;">'
         +'<div class="rdesc">'+(r.note?r.note:'<span style="color:#999;">(nessuna nota)</span>')+'</div>'
         +'<span class="rsub" style="cursor:pointer;text-decoration:underline dotted;" title="Clicca per modificare la data" onclick="mostraEditDataFoto(this,'+r.id+',\''+prefix+'\',\''+dataIso+'\')">📅 '+fmtData(r.data_foto||r.created_at)+'</span>'
       +'</div>'
       +'<button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;" onclick="segnaFotoFatta('+r.id+',\''+prefix+'\')">✓ Fatto</button>'
+      +'<button class="btn btn-blue btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;" onclick="spostaFotoTipo('+r.id+',\''+prefix+'\')">↔ Sposta</button>'
       +'<button class="btn btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;background:white;color:#C00000;border:1px solid #C00000;" onclick="eliminaFotoPromemoria('+r.id+',\''+prefix+'\')">🗑 Elimina</button>'
     +'</div>';
   }).join('');
+  aggiornaStatoEliminaFoto(prefix);
+}
+
+function toggleSelezionaTuttoFoto(prefix){
+  var tutto=document.getElementById('foto-'+prefix+'-sel-tutto').checked;
+  document.querySelectorAll('.foto-check[data-prefix="'+prefix+'"]').forEach(function(cb){cb.checked=tutto;});
+  aggiornaStatoEliminaFoto(prefix);
+}
+
+function aggiornaStatoEliminaFoto(prefix){
+  var checks=document.querySelectorAll('.foto-check[data-prefix="'+prefix+'"]');
+  var selezionati=Array.prototype.filter.call(checks,function(cb){return cb.checked;});
+  var btn=document.getElementById('foto-'+prefix+'-btn-elimina-sel');
+  if(btn)btn.disabled=selezionati.length===0;
+  var tuttoCb=document.getElementById('foto-'+prefix+'-sel-tutto');
+  if(tuttoCb)tuttoCb.checked=checks.length>0&&selezionati.length===checks.length;
+}
+
+async function eliminaFotoSelezionate(prefix){
+  var checks=document.querySelectorAll('.foto-check[data-prefix="'+prefix+'"]:checked');
+  var ids=Array.prototype.map.call(checks,function(cb){return cb.value;});
+  if(!ids.length)return;
+  if(!confirm('Eliminare '+ids.length+' foto selezionate? L\'azione è definitiva.'))return;
+  for(var i=0;i<ids.length;i++){
+    await apiDel('foto_promemoria','id=eq.'+ids[i]);
+  }
+  caricaFotoLista(prefix);
+}
+
+async function spostaFotoTipo(id,prefix){
+  var r=_fotoCacheById[id];
+  var tipoAttuale=r?r.tipo:(prefix==='e'?'entrata':'uscita');
+  var nuovoTipo=tipoAttuale==='entrata'?'uscita':'entrata';
+  await apiPatch('foto_promemoria','id=eq.'+id,{tipo:nuovoTipo});
+  caricaFotoLista('e');
+  caricaFotoLista('u');
 }
 
 async function segnaFotoFatta(id,prefix){
