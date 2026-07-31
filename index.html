@@ -63,10 +63,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .pdf-item .pqty { font-size: 16px; font-weight: bold; color: #1F4E79; min-width: 50px; text-align: right; }
 .row-item { background: #f7f8fa; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; border-left: 4px solid #1F4E79; gap: 8px; }
 .row-item.verde { border-left-color: #217346; }
+.rc-table-scroll { overflow: auto; max-height: 70vh; }
 .rc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rc-table th { background: #1F4E79; color: white; padding: 8px 6px; text-align: left; position: sticky; top: 0; white-space: nowrap; }
+.rc-table th { background: #1F4E79; color: white; padding: 8px 6px; text-align: left; position: sticky; top: 0; white-space: nowrap; z-index: 2; }
 .rc-table td { padding: 6px; border-bottom: 1px solid #eee; white-space: nowrap; }
-.rc-table td:first-child { white-space: normal; min-width: 180px; }
+.rc-table td:first-child { white-space: normal; min-width: 180px; position: sticky; left: 0; background: #fff; z-index: 1; }
+.rc-table th:first-child { position: sticky; left: 0; top: 0; z-index: 3; }
+.rc-table tbody tr[style*="background-color"] td:first-child { background: inherit; }
 .row-item.viola { border-left-color: #5B2C8D; }
 .row-item.teal { border-left-color: #1F6B75; }
 .row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
@@ -684,7 +687,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div id="confronto-stampa">
     <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
     <!-- TABELLA AZZURRA -->
-    <div id="rc-table-azzurra" class="card" style="overflow-x:auto;">
+    <div id="rc-table-azzurra" class="card rc-table-scroll">
       <table class="rc-table">
         <thead>
           <tr>
@@ -695,21 +698,23 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       </table>
     </div>
     <!-- ARTICOLI APERTI (solo AZZURRA): Entrata ≠ Uscita, codici diretti A0..., nessun abbinamenti_ber -->
-    <div id="rc-aperti-azzurra" class="card" style="overflow-x:auto;">
+    <div id="rc-aperti-azzurra" class="card">
       <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti (Entrata ≠ Uscita)</h3>
       <p style="font-size:12px;color:#666;margin-bottom:10px;">Solo articoli con quantità totale DDT Entrata diversa da DDT Uscita.</p>
       <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaArticoliApertiAzzurra()">↻ AGGIORNA</button>
-      <table class="rc-table">
-        <thead>
-          <tr>
-            <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Tot. Uscita</th><th>Differenza (Aperto)</th>
-          </tr>
-        </thead>
-        <tbody id="rc-aperti-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
-      </table>
+      <div class="rc-table-scroll">
+        <table class="rc-table">
+          <thead>
+            <tr>
+              <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Tot. Uscita</th><th>Differenza (Aperto)</th>
+            </tr>
+          </thead>
+          <tbody id="rc-aperti-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        </table>
+      </div>
     </div>
     <!-- TABELLA BERGAMASCO -->
-    <div id="rc-table-ber" class="card" style="display:none;overflow-x:auto;">
+    <div id="rc-table-ber" class="card rc-table-scroll" style="display:none;">
       <table class="rc-table">
         <thead>
           <tr>
@@ -737,7 +742,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div id="cd-stampa">
     <div class="card" id="cd-contatore"><div class="empty">Premi Aggiorna</div></div>
     <div class="card" id="cd-non-abbinati" style="display:none;"></div>
-    <div class="card" style="overflow-x:auto;">
+    <div class="card rc-table-scroll">
       <table class="rc-table">
         <thead>
           <tr>
