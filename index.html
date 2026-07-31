@@ -684,6 +684,28 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
     <div id="rc-periodo-info" style="display:none;margin-top:8px;font-size:12px;color:#555;padding:6px 10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #1F4E79;"></div>
   </div>
+
+  <!-- VERIFICA PDF DDT USCITA NOVA (solo AZZURRA) -->
+  <div class="card" id="rc-verifica-pdf-azzurra" style="display:none;">
+    <h2>Verifica PDF DDT Uscita (Nova)</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica il PDF Nova dei DDT Uscita (uno o più DDT, anche multi-pagina) per confrontarlo automaticamente con i dati Uscita già presenti in app nello stesso periodo di date.</p>
+    <button class="btn btn-orange" type="button" onclick="document.getElementById('rc-verifica-pdf-inp').click()">📄 CARICA PDF DDT USCITA</button>
+    <input type="file" id="rc-verifica-pdf-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPdfVerificaUscita(this)">
+    <div id="rc-verifica-pdf-status" style="margin-top:8px;"></div>
+  </div>
+  <div id="rc-verifica-pdf-risultati" style="display:none;">
+    <div class="card" id="rc-verifica-pdf-riepilogo" style="font-size:13px;"></div>
+    <div class="card" id="rc-verifica-pdf-legenda" style="font-size:12px;"></div>
+    <div class="card rc-table-scroll">
+      <table class="rc-table">
+        <thead>
+          <tr><th>Codice</th><th>Descrizione</th><th>Qtà PDF</th><th>Qtà App</th><th>Differenza</th><th>Stato</th></tr>
+        </thead>
+        <tbody id="rc-verifica-pdf-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div id="confronto-stampa">
     <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
     <!-- TABELLA AZZURRA -->
@@ -2862,6 +2884,8 @@ async function aggiornaConfronto(){
   var elFA=document.getElementById('rc-filtri-azzurra'),elFB=document.getElementById('rc-filtri-ber');
   var elTA=document.getElementById('rc-table-azzurra'),elTB=document.getElementById('rc-table-ber');
   var elAperti=document.getElementById('rc-aperti-azzurra');
+  var elVerificaPdf=document.getElementById('rc-verifica-pdf-azzurra');
+  var elVerificaPdfRis=document.getElementById('rc-verifica-pdf-risultati');
   if(elLA)elLA.style.display=isBer?'none':'';
   if(elLB)elLB.style.display=isBer?'':'none';
   if(elFA)elFA.style.display=isBer?'none':'flex';
@@ -2869,7 +2893,8 @@ async function aggiornaConfronto(){
   if(elTA)elTA.style.display=isBer?'none':'';
   if(elTB)elTB.style.display=isBer?'':'none';
   if(elAperti)elAperti.style.display=isBer?'none':'';
-  if(isBer){await aggiornaConfrrontoBer();return;}
+  if(elVerificaPdf)elVerificaPdf.style.display=isBer?'none':'';
+  if(isBer){if(elVerificaPdfRis)elVerificaPdfRis.style.display='none';await aggiornaConfrrontoBer();return;}
   caricaArticoliApertiAzzurra();
 
   var we=await apiGet('whatsapp_righe');
@@ -4180,6 +4205,129 @@ async function importaPDFMultiUscita(){
     if(btnImporta){btnImporta.disabled=false;btnImporta.textContent='IMPORTA SELEZIONATI';}
     if(btnAnnulla)btnAnnulla.disabled=false;
   }
+}
+
+// ── VERIFICA PDF DDT USCITA vs APP (Confronto, solo AZZURRA) ──────────
+// Riusa parsePdfMultiAzzurra() (stessa estrazione testo pdf.js e stessi
+// pattern C6......+data / CODICE+desc+PZ.+qtà già collaudati nell'import
+// multi-DDT), solo che qui NON scrive nulla nel database: aggrega e confronta.
+async function leggiPdfVerificaUscita(input){
+  var file=input.files[0];if(!file)return;
+  var status=document.getElementById('rc-verifica-pdf-status');
+  var risultati=document.getElementById('rc-verifica-pdf-risultati');
+  if(risultati)risultati.style.display='none';
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    var ddts=parsePdfMultiAzzurra(testo);
+    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
+    var ok=await confrontaPdfConApp(ddts);
+    if(ok)status.innerHTML='<div class="msg msg-ok">PDF letto: '+ddts.length+' DDT trovati e confrontati.</div>';
+  }catch(e){
+    status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';
+  }
+  input.value='';
+}
+
+async function confrontaPdfConApp(ddts){
+  var status=document.getElementById('rc-verifica-pdf-status');
+
+  // 1. Intervallo date coperto dal PDF (min/max tra i DDT trovati)
+  var date=ddts.map(function(d){return d.data;}).filter(Boolean).sort();
+  if(!date.length){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF.</div>';return false;}
+  var dataMin=date[0],dataMax=date[date.length-1];
+
+  // 2. Somma quantità PDF per codice articolo (tutti i DDT del PDF insieme)
+  var mPdf={};
+  ddts.forEach(function(d){
+    d.righe.forEach(function(r){
+      var k=r.cod;
+      if(!mPdf[k])mPdf[k]={cod:k,desc:r.desc,tot:0};
+      mPdf[k].tot+=r.qty;
+      if(!mPdf[k].desc&&r.desc)mPdf[k].desc=r.desc;
+    });
+  });
+
+  // 3. Stessa fonte/aggregazione già usata in aggiornaConfronto per la colonna "DDT Usc."
+  //    (ddt_uscita, quantita_ddt sommata per codice_articolo), filtrata sul periodo del PDF
+  var ddtu=await apiGet('ddt_uscita');
+  if(!ddtu){status.innerHTML='<div class="msg msg-err">Errore caricamento dati DDT Uscita dell\'app.</div>';return false;}
+  var ddtuPeriodo=ddtu.filter(function(r){
+    var d=(r.data_ddt||r.created_at||'').slice(0,10);
+    return d&&d>=dataMin&&d<=dataMax;
+  });
+  var mApp={};
+  ddtuPeriodo.forEach(function(r){
+    var k=(r.codice_articolo||r.descrizione||'?').toString();
+    if(!mApp[k])mApp[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    mApp[k].tot+=Number(r.quantita_ddt)||0;
+  });
+
+  // 4. Confronto per codice: OK / Discrepanza / Solo PDF / Solo App
+  var codici={};
+  Object.keys(mPdf).forEach(function(k){codici[k]=true;});
+  Object.keys(mApp).forEach(function(k){codici[k]=true;});
+  var righe=Object.keys(codici).map(function(k){
+    var p=mPdf[k],a=mApp[k];
+    var qtaPdf=p?p.tot:0,qtaApp=a?a.tot:0;
+    var artInfo=(artCache||[]).find(function(x){return (x.codice_articolo||'').trim().toUpperCase()===k.toUpperCase();});
+    var desc=(p&&p.desc)||(a&&a.desc)||(artInfo?artInfo.descrizione:'')||'';
+    var diff=qtaPdf-qtaApp;
+    var stato;
+    if(p&&a)stato=diff===0?'ok':'discrepanza';
+    else if(p&&!a)stato='solo_pdf';
+    else stato='solo_app';
+    return {cod:k,desc:desc,qtaPdf:qtaPdf,qtaApp:qtaApp,diff:diff,stato:stato};
+  });
+  var ordineStato={discrepanza:0,solo_pdf:1,solo_app:2,ok:3};
+  righe.sort(function(a,b){
+    if(ordineStato[a.stato]!==ordineStato[b.stato])return ordineStato[a.stato]-ordineStato[b.stato];
+    return (a.cod||'').localeCompare(b.cod||'');
+  });
+
+  renderVerificaPdfRisultati({dataMin:dataMin,dataMax:dataMax,righe:righe});
+  return true;
+}
+
+function renderVerificaPdfRisultati(dati){
+  var righe=dati.righe;
+  var totPdf=righe.reduce(function(s,r){return s+r.qtaPdf;},0);
+  var totApp=righe.reduce(function(s,r){return s+r.qtaApp;},0);
+  var diffTot=totPdf-totApp;
+
+  document.getElementById('rc-verifica-pdf-riepilogo').innerHTML=
+    '<strong>Periodo PDF:</strong> '+fmtData(dati.dataMin)+' — '+fmtData(dati.dataMax)+'<br>'
+    +'<strong>Totale pezzi PDF:</strong> '+totPdf+' &nbsp; '
+    +'<strong>Totale pezzi App (stesso periodo):</strong> '+totApp+' &nbsp; '
+    +'<strong>Differenza totale:</strong> <span style="color:'+(diffTot===0?'#217346':'#C00000')+';font-weight:bold;">'+(diffTot>0?'+':'')+diffTot+'</span>';
+
+  document.getElementById('rc-verifica-pdf-legenda').innerHTML='<strong>Legenda:</strong><br>'
+    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E2EFDA;border-radius:4px;margin-right:6px;">✓ OK</span>'
+    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFF9DB;border-radius:4px;margin-right:6px;">🟡 Discrepanza (quantità diverse)</span>'
+    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FCE4E4;border-radius:4px;margin-right:6px;">🔴 Solo PDF (mancante in app)</span>'
+    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E6F1FB;border-radius:4px;">🔵 Solo App (mancante nel PDF)</span>';
+
+  var coloriRiga={ok:'',discrepanza:'#FFF9DB',solo_pdf:'#FCE4E4',solo_app:'#E6F1FB'};
+  var etichette={ok:'✓ OK',discrepanza:'🟡 Discrepanza',solo_pdf:'🔴 Solo PDF',solo_app:'🔵 Solo App'};
+  var tb=document.getElementById('rc-verifica-pdf-tbody');
+  if(!righe.length){
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun dato</td></tr>';
+  }else{
+    tb.innerHTML=righe.map(function(r){
+      var bg=coloriRiga[r.stato];
+      return '<tr'+(bg?' style="background-color:'+bg+';"':'')+'>'
+        +'<td><strong>'+(r.cod||'—')+'</strong></td>'
+        +'<td>'+(r.desc||'')+'</td>'
+        +'<td style="text-align:right;">'+r.qtaPdf+'</td>'
+        +'<td style="text-align:right;">'+r.qtaApp+'</td>'
+        +'<td style="text-align:right;color:'+(r.diff===0?'#217346':'#C00000')+';">'+(r.diff>0?'+':'')+r.diff+'</td>'
+        +'<td>'+etichette[r.stato]+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+  document.getElementById('rc-verifica-pdf-risultati').style.display='block';
 }
 
 async function leggiPDFMultiBergamasco(input){
