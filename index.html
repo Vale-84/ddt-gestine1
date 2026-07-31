@@ -261,7 +261,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           </div>
         </div>
         <div class="card" style="margin-bottom:10px;">
-          <h2 style="color:#217346;">Articoli entrati</h2>
+          <h2 style="color:#217346;">📷 Foto promemoria</h2>
+          <input type="file" id="foto-e-input" accept="image/*" capture="environment" style="display:none" onchange="caricaFotoPromemoria('e',this)">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;" onclick="document.getElementById('foto-e-input').click()">📷 Aggiungi foto</button>
+            <input type="text" id="foto-e-note" placeholder="Note (opzionale)" style="flex:1;min-width:140px;margin-bottom:0;">
+          </div>
+          <div id="foto-e-lista"><div class="empty">Nessuna foto in sospeso</div></div>
+        </div>
+        <div class="card" style="margin-bottom:10px;">
+          <h2 style="color:#217346;">Articoli entrati <span id="foto-badge-e" style="display:none;background:#FFD966;color:#7B4F00;font-size:12px;font-weight:bold;padding:2px 8px;border-radius:20px;margin-left:6px;"></span></h2>
           <div style="display:flex;gap:6px;margin-bottom:8px;">
             <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuota('whatsapp_righe','msg-wa')">SVUOTA</button>
             <button class="btn btn-blue btn-sm" style="flex:1;" onclick="unisciDuplicatiEntrata()">UNISCI</button>
@@ -306,14 +315,23 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-teal btn-sm" onclick="aggiungiWAUscita()">AGGIUNGI RIGHE</button>
           </div>
         </div>
+        <div class="card" style="margin-bottom:10px;">
+          <h2 style="color:#1F6B75;">📷 Foto promemoria</h2>
+          <input type="file" id="foto-u-input" accept="image/*" capture="environment" style="display:none" onchange="caricaFotoPromemoria('u',this)">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="btn btn-teal btn-sm" style="width:auto;white-space:nowrap;" onclick="document.getElementById('foto-u-input').click()">📷 Aggiungi foto</button>
+            <input type="text" id="foto-u-note" placeholder="Note (opzionale)" style="flex:1;min-width:140px;margin-bottom:0;">
+          </div>
+          <div id="foto-u-lista"><div class="empty">Nessuna foto in sospeso</div></div>
+        </div>
         <div id="u-confronto" style="display:none" class="card" style="margin-bottom:10px;">
           <h2>Confronto imballo</h2>
           <div id="u-confronto-res"></div>
         </div>
         <div class="card" style="margin-bottom:10px;">
-          <h2 style="color:#1F6B75;">Uscite registrate</h2>
+          <h2 style="color:#1F6B75;">Uscite registrate <span id="foto-badge-u" style="display:none;background:#FFD966;color:#7B4F00;font-size:12px;font-weight:bold;padding:2px 8px;border-radius:20px;margin-left:6px;"></span></h2>
           <div style="display:flex;gap:6px;margin-bottom:8px;">
-            <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaUscite()">SVUOTA</button>           
+            <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaUscite()">SVUOTA</button>
             <button class="btn btn-teal btn-sm" style="flex:1;" onclick="unisciDuplicatiUscita()">UNISCI</button><button class="btn btn-blue btn-sm" style="flex:1;" onclick="associaCodiciUscita()">ASSOCIA</button>
           </div>
           <div id="u-lista" style="margin-top:8px;"><div class="empty">Nessuna uscita</div></div>
@@ -925,6 +943,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- OVERLAY FOTO PROMEMORIA A SCHERMO INTERO -->
+<div class="modal" id="foto-overlay" onclick="chiudiFotoSchermoIntero()" style="background:rgba(0,0,0,0.85);">
+  <img id="foto-overlay-img" src="" style="max-width:96vw;max-height:92vh;border-radius:8px;">
+</div>
+
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 var pdfDati=null, artCache=[];
@@ -1236,6 +1259,90 @@ async function eliminaRiga(table,id,callback){
   if(!confirm('Eliminare questa riga?'))return;
   await apiDel(table,'id=eq.'+id);
   if(callback)callback();
+}
+
+// ── FOTO PROMEMORIA (WA Entrata/Uscita) ────────────────────────────────
+// foto_promemoria non è nell'elenco di apiGet/apiPost che inietta il cliente
+// in automatico: qui il filtro cliente va sempre passato/impostato a mano.
+function resizeImageFile(file,maxSide){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onerror=function(){reject(new Error('Lettura file fallita'));};
+    reader.onload=function(){
+      var img=new Image();
+      img.onerror=function(){reject(new Error('Immagine non valida'));};
+      img.onload=function(){
+        var w=img.width,h=img.height;
+        var scale=Math.min(1,maxSide/Math.max(w,h));
+        var cw=Math.round(w*scale),ch=Math.round(h*scale);
+        var canvas=document.createElement('canvas');
+        canvas.width=cw;canvas.height=ch;
+        canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+        resolve(canvas.toDataURL('image/jpeg',0.8));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function caricaFotoPromemoria(prefix,inputEl){
+  var file=inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  var tipo=prefix==='e'?'entrata':'uscita';
+  var msgId=prefix==='e'?'msg-entrata':'msg-uscita';
+  try{
+    var base64=await resizeImageFile(file,1200);
+    var note=document.getElementById('foto-'+prefix+'-note').value.trim();
+    await apiPost('foto_promemoria',{cliente:getCliente(),tipo:tipo,foto_base64:base64,note:note,fatto:false});
+    document.getElementById('foto-'+prefix+'-note').value='';
+    inputEl.value='';
+    showMsg(msgId,'✅ Foto aggiunta!','ok');
+    caricaFotoLista(prefix);
+  }catch(e){
+    showMsg(msgId,'Errore foto: '+e.message,'err');
+  }
+}
+
+async function caricaFotoLista(prefix){
+  var tipo=prefix==='e'?'entrata':'uscita';
+  var l=document.getElementById('foto-'+prefix+'-lista');
+  var badge=document.getElementById('foto-badge-'+prefix);
+  var params='cliente=eq.'+encodeURIComponent(getCliente())+'&tipo=eq.'+tipo+'&fatto=eq.false&order=created_at.desc';
+  var d=await apiGet('foto_promemoria',params);
+  if(!d){if(l)l.innerHTML='<div class="empty">Errore connessione</div>';return;}
+  if(badge){
+    if(d.length){badge.style.display='inline-block';badge.textContent='📷 '+d.length;}
+    else{badge.style.display='none';badge.textContent='';}
+  }
+  if(!l)return;
+  if(!d.length){l.innerHTML='<div class="empty">Nessuna foto in sospeso</div>';return;}
+  l.innerHTML=d.map(function(r){
+    var safeSrc=(r.foto_base64||'').replace(/'/g,"\\'");
+    return '<div class="row-item" style="align-items:flex-start;">'
+      +'<img src="'+r.foto_base64+'" onclick="apriFotoSchermoIntero(\''+safeSrc+'\')" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;">'
+      +'<div class="row-info" style="margin-left:10px;">'
+        +'<div class="rdesc">'+(r.note?r.note:'<span style="color:#999;">(nessuna nota)</span>')+'</div>'
+        +'<div class="rsub">'+fmtData(r.created_at)+'</div>'
+      +'</div>'
+      +'<button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;" onclick="segnaFotoFatta('+r.id+',\''+prefix+'\')">✓ Fatto</button>'
+    +'</div>';
+  }).join('');
+}
+
+async function segnaFotoFatta(id,prefix){
+  await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
+  caricaFotoLista(prefix);
+}
+
+function apriFotoSchermoIntero(base64){
+  document.getElementById('foto-overlay-img').src=base64;
+  document.getElementById('foto-overlay').style.display='flex';
+}
+
+function chiudiFotoSchermoIntero(){
+  document.getElementById('foto-overlay').style.display='none';
+  document.getElementById('foto-overlay-img').src='';
 }
 
 function apriModale(id,desc,table){
@@ -4677,6 +4784,7 @@ function setWAMode(mode){
   document.getElementById('btn-wa-e').className='btn '+(isE?'btn-green':'btn-gray');
   document.getElementById('btn-wa-u').className='btn '+(isE?'btn-gray':'btn-teal');
   if(isE)caricaEntrate(); else caricaUscite();
+  caricaFotoLista('e');caricaFotoLista('u');
 }
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
@@ -4714,7 +4822,7 @@ function cambiaCliente(){
   var active=document.querySelector('.page.active');
   if(active){
     var name=active.id.replace('page-','');
-    if(name==='wa'){caricaEntrate();caricaUscite();}
+    if(name==='wa'){caricaEntrate();caricaUscite();caricaFotoLista('e');caricaFotoLista('u');}
     if(name==='imballo')caricaImballo();
     if(name==='verniciato')caricaVerniciatoP();
     if(name==='ddt-entrata')caricaDDTE();
