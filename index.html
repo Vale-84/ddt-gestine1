@@ -986,6 +986,17 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- OVERLAY ANTEPRIMA RICONOSCIMENTO NOTA FOTO -->
+<div class="modal" id="foto-anteprima-overlay">
+  <div class="modal-box" style="max-width:560px;">
+    <h3 style="color:#1F4E79;">Righe riconosciute dalla nota</h3>
+    <div class="modal-desc" id="foto-anteprima-info"></div>
+    <div id="foto-anteprima-lista" style="margin-bottom:14px;max-height:50vh;overflow-y:auto;"></div>
+    <button class="btn btn-green" onclick="confermaAnteprimaFoto()">✓ Conferma e inserisci</button>
+    <button class="btn btn-gray" onclick="chiudiAnteprimaFoto()">Annulla</button>
+  </div>
+</div>
+
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 var pdfDati=null, artCache=[];
@@ -1407,8 +1418,87 @@ async function caricaFotoLista(prefix){
 }
 
 async function segnaFotoFatta(id,prefix){
+  var r=_fotoCacheById[id];
+  var nota=(r&&r.note)?r.note.trim():'';
+  if(nota){
+    mostraAnteprimaRiconoscimentoFoto(id,prefix,nota,(r.data_foto||r.created_at));
+    return;
+  }
+  if(!confirm('Segnare questa foto come fatta?'))return;
   await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
   caricaFotoLista(prefix);
+}
+
+// Stesso parsing riga già usato in TESTO LIBERO (aggiungiTestoLiberoEntrata/Uscita):
+// "10+10 desc articolo" -> quantità totale + descrizione, poi trovaArt() per il codice.
+function estraiRigheTestoLibero(testo){
+  return testo.split('\n').map(function(r){return r.trim();}).filter(Boolean).map(function(r){
+    var m=r.match(/^(\d+(?:\+\d+)*)\s+(.+)$/);
+    var seqStr=m?m[1]:null;
+    var qty=seqStr?seqStr.split('+').reduce(function(a,v){return a+(parseInt(v)||0);},0):null;
+    var desc=m?m[2]:r;
+    var art=trovaArt(desc);
+    return {testoRiga:r,seqStr:seqStr,qty:qty,desc:desc,art:art};
+  });
+}
+
+var _fotoAnteprimaState=null;
+
+function mostraAnteprimaRiconoscimentoFoto(id,prefix,nota,dataFotoStr){
+  var righe=estraiRigheTestoLibero(nota);
+  _fotoAnteprimaState={id:id,prefix:prefix,dataFoto:dataFotoStr,righe:righe};
+  document.getElementById('foto-anteprima-info').textContent='Data foto: '+fmtData(dataFotoStr)+' — '+righe.length+' righe trovate nella nota';
+  document.getElementById('foto-anteprima-lista').innerHTML=righe.map(function(rg,i){
+    var p='fp'+i;
+    var trovato=!!rg.art;
+    var cod=trovato?rg.art.codice_articolo:'';
+    var desc=trovato?rg.art.descrizione:rg.desc;
+    return '<div class="row-item" style="align-items:flex-start;">'
+      +'<div class="row-qty" style="min-width:36px;">'+(rg.qty!==null?rg.qty:'?')+'</div>'
+      +'<div class="row-info" style="flex:1;">'
+        +'<div class="rdesc">'+rg.testoRiga+'</div>'
+        +(trovato
+          ?'<div class="rsub" style="color:#217346;">✅ <strong>'+cod+'</strong> — '+desc+' <span style="cursor:pointer;text-decoration:underline;" onclick="mostraRicercaAnteprima('+i+')">✎</span></div>'
+          :'<div class="rsub" style="color:#C55A11;">⚠️ Codice non trovato — cerca sotto</div>')
+        +'<div class="art-sel" id="'+p+'-sel" style="'+(trovato?'display:block;':'')+'">'+(trovato?'✅ '+cod+' — '+desc:'')+'</div>'
+        +'<div class="cerca-box" id="'+p+'-cercabox" style="margin-top:4px;'+(trovato?'display:none;':'')+'">'
+          +'<input class="cerca-input" id="'+p+'-cerca" placeholder="Cerca articolo..." oninput="cerca(\''+p+'\')" autocomplete="off" value="'+(trovato?(cod+' — '+desc).replace(/"/g,'&quot;'):'')+'">'
+          +'<div class="cerca-risultati" id="'+p+'-ris"></div>'
+        +'</div>'
+        +'<input type="hidden" id="'+p+'-cod" value="'+(trovato?cod:'')+'">'
+        +'<input type="hidden" id="'+p+'-dsc" value="'+(trovato?desc.replace(/"/g,'&quot;'):'')+'">'
+      +'</div>'
+    +'</div>';
+  }).join('');
+  document.getElementById('foto-anteprima-overlay').style.display='flex';
+}
+
+function mostraRicercaAnteprima(i){
+  var box=document.getElementById('fp'+i+'-cercabox');
+  if(box)box.style.display=box.style.display==='none'?'block':'none';
+}
+
+function chiudiAnteprimaFoto(){
+  document.getElementById('foto-anteprima-overlay').style.display='none';
+  _fotoAnteprimaState=null;
+}
+
+async function confermaAnteprimaFoto(){
+  if(!_fotoAnteprimaState)return;
+  var st=_fotoAnteprimaState;
+  var table=st.prefix==='e'?'whatsapp_righe':'whatsapp_uscita';
+  var dataIns=(st.dataFoto||'').slice(0,10)||oggiISO();
+  for(var i=0;i<st.righe.length;i++){
+    var rg=st.righe[i],p='fp'+i;
+    var codEl=document.getElementById(p+'-cod'),dscEl=document.getElementById(p+'-dsc');
+    var cod=codEl?codEl.value:'';
+    var dsc=dscEl?dscEl.value:rg.desc;
+    await apiPost(table,{testo_riga:rg.testoRiga,testo_originale:rg.testoRiga,testo_seq:rg.seqStr||null,quantita:rg.qty,descrizione:rg.desc,codice_articolo:cod||null,descrizione_articolo:cod?dsc:null,da_testo_libero:true,data_inserimento:dataIns,modalita:'testo_libero'});
+  }
+  await apiPatch('foto_promemoria','id=eq.'+st.id,{fatto:true});
+  chiudiAnteprimaFoto();
+  caricaFotoLista(st.prefix);
+  if(st.prefix==='e')caricaEntrate(); else caricaUscite();
 }
 
 async function eliminaFotoPromemoria(id,prefix){
