@@ -265,6 +265,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <input type="file" id="foto-e-input" accept="image/*" capture="environment" style="display:none" onchange="caricaFotoPromemoria('e',this)">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
             <button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;" onclick="document.getElementById('foto-e-input').click()">📷 Aggiungi foto</button>
+            <input type="date" id="foto-e-date" style="width:auto;margin-bottom:0;">
             <input type="text" id="foto-e-note" placeholder="Note (opzionale)" style="flex:1;min-width:140px;margin-bottom:0;">
           </div>
           <div id="foto-e-lista"><div class="empty">Nessuna foto in sospeso</div></div>
@@ -320,6 +321,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           <input type="file" id="foto-u-input" accept="image/*" capture="environment" style="display:none" onchange="caricaFotoPromemoria('u',this)">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
             <button class="btn btn-teal btn-sm" style="width:auto;white-space:nowrap;" onclick="document.getElementById('foto-u-input').click()">📷 Aggiungi foto</button>
+            <input type="date" id="foto-u-date" style="width:auto;margin-bottom:0;">
             <input type="text" id="foto-u-note" placeholder="Note (opzionale)" style="flex:1;min-width:140px;margin-bottom:0;">
           </div>
           <div id="foto-u-lista"><div class="empty">Nessuna foto in sospeso</div></div>
@@ -1286,6 +1288,16 @@ function resizeImageFile(file,maxSide){
   });
 }
 
+// Hash approssimativo (lunghezza + campionatura char-code) per rilevare la stessa foto ricaricata
+function hashString(s){
+  if(!s)return '0';
+  var len=s.length;
+  var step=Math.max(1,Math.floor(len/40));
+  var sum=0;
+  for(var i=0;i<len;i+=step){sum+=s.charCodeAt(i);}
+  return len+'-'+sum;
+}
+
 async function caricaFotoPromemoria(prefix,inputEl){
   var file=inputEl.files&&inputEl.files[0];
   if(!file)return;
@@ -1293,8 +1305,19 @@ async function caricaFotoPromemoria(prefix,inputEl){
   var msgId=prefix==='e'?'msg-entrata':'msg-uscita';
   try{
     var base64=await resizeImageFile(file,1200);
+    var nuovoHash=hashString(base64);
+    var esistenti=await apiGet('foto_promemoria','select=id,foto_base64,data_foto,created_at&cliente=eq.'+encodeURIComponent(getCliente())+'&tipo=eq.'+tipo);
+    var dup=(esistenti||[]).find(function(r){return hashString(r.foto_base64)===nuovoHash;});
+    if(dup){
+      var dataDup=fmtData(dup.data_foto||dup.created_at);
+      if(!confirm('Sembra una foto già caricata il '+dataDup+'. Vuoi caricarla comunque?')){
+        inputEl.value='';
+        return;
+      }
+    }
     var note=document.getElementById('foto-'+prefix+'-note').value.trim();
-    await apiPost('foto_promemoria',{cliente:getCliente(),tipo:tipo,foto_base64:base64,note:note,fatto:false});
+    var dataFoto=document.getElementById('foto-'+prefix+'-date').value||oggiISO();
+    await apiPost('foto_promemoria',{cliente:getCliente(),tipo:tipo,foto_base64:base64,note:note,data_foto:dataFoto,fatto:false});
     document.getElementById('foto-'+prefix+'-note').value='';
     inputEl.value='';
     showMsg(msgId,'✅ Foto aggiunta!','ok');
@@ -1319,19 +1342,43 @@ async function caricaFotoLista(prefix){
   if(!d.length){l.innerHTML='<div class="empty">Nessuna foto in sospeso</div>';return;}
   l.innerHTML=d.map(function(r){
     var safeSrc=(r.foto_base64||'').replace(/'/g,"\\'");
+    var dataIso=r.data_foto||(r.created_at||'').slice(0,10);
     return '<div class="row-item" style="align-items:flex-start;">'
       +'<img src="'+r.foto_base64+'" onclick="apriFotoSchermoIntero(\''+safeSrc+'\')" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;">'
       +'<div class="row-info" style="margin-left:10px;">'
         +'<div class="rdesc">'+(r.note?r.note:'<span style="color:#999;">(nessuna nota)</span>')+'</div>'
-        +'<div class="rsub">'+fmtData(r.created_at)+'</div>'
+        +'<span class="rsub" style="cursor:pointer;text-decoration:underline dotted;" title="Clicca per modificare la data" onclick="mostraEditDataFoto(this,'+r.id+',\''+prefix+'\',\''+dataIso+'\')">📅 '+fmtData(r.data_foto||r.created_at)+'</span>'
       +'</div>'
       +'<button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;" onclick="segnaFotoFatta('+r.id+',\''+prefix+'\')">✓ Fatto</button>'
+      +'<button class="btn btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;background:white;color:#C00000;border:1px solid #C00000;" onclick="eliminaFotoPromemoria('+r.id+',\''+prefix+'\')">🗑 Elimina</button>'
     +'</div>';
   }).join('');
 }
 
 async function segnaFotoFatta(id,prefix){
   await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
+  caricaFotoLista(prefix);
+}
+
+async function eliminaFotoPromemoria(id,prefix){
+  if(!confirm('Eliminare questa foto? L\'azione è definitiva.'))return;
+  await apiDel('foto_promemoria','id=eq.'+id);
+  caricaFotoLista(prefix);
+}
+
+function mostraEditDataFoto(el,id,prefix,valoreAttuale){
+  var input=document.createElement('input');
+  input.type='date';
+  input.value=valoreAttuale||'';
+  input.style.cssText='display:inline-block;width:auto;margin-bottom:0;font-size:12px;padding:2px 4px;';
+  input.onchange=function(){salvaDataFoto(id,prefix,input.value);};
+  el.replaceWith(input);
+  input.focus();
+}
+
+async function salvaDataFoto(id,prefix,nuovaData){
+  if(!nuovaData)return;
+  await apiPatch('foto_promemoria','id=eq.'+id,{data_foto:nuovaData});
   caricaFotoLista(prefix);
 }
 
@@ -4850,7 +4897,7 @@ window.onload=function(){
   }
   // Imposta le date di default a oggi per i campi nuova inserzione
   var today=oggiISO();
-  ['e-date','u-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
+  ['e-date','u-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date','foto-e-date','foto-u-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
 };
 
 if('serviceWorker' in navigator){
