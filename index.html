@@ -4444,20 +4444,29 @@ function parsePdfVerificaNova(testo){
   return {ddts:ddts,nonRisolte:nonRisolte};
 }
 
-// CSV export Nova: separatore ";", header con CODART/QUANT1/DESART/DATA tra le colonne
-// (stesso formato prodotto da esportaImballoExcel/esportaVerniciatoExcel in questo file).
+// CSV export Nova: separatore ";" (con spazio dopo ogni ";"), header con
+// CODART/QUANT1/DESART/DATA tra le colonne (stesso formato prodotto da
+// esportaImballoExcel/esportaVerniciatoExcel in questo file). Non esiste in
+// questo progetto un altro import CSV con lo stesso separatore da riutilizzare:
+// leggiExcelEntrata() legge un formato CSV diverso (separatore virgola).
+function stripBomIniziale(s){
+  // BOM UTF-8 corretto (\uFEFF) o mal decodificato come "\u00EF\u00BB\u00BF" (file con encoding
+  // errato) \u2014 puo' comparire sia a inizio testo sia incollato al primo valore/colonna.
+  return String(s||'').replace(/^\uFEFF/,'').replace(/^\u00EF\u00BB\u00BF/,'');
+}
 function parseCsvNovaExport(text){
-  var righe=text.replace(/^\uFEFF/,'').split(/\r?\n/);
+  var righe=stripBomIniziale(text).split(/\r\n|\r|\n/);
   var hi=-1,H={};
-  for(var i=0;i<Math.min(righe.length,10);i++){
-    var cols=righe[i].split(';').map(function(x){return x.trim().toUpperCase();});
+  for(var i=0;i<Math.min(righe.length,30);i++){
+    if(!righe[i])continue;
+    var cols=righe[i].split(';').map(function(x){return stripBomIniziale(x).trim().replace(/^"|"$/g,'').toUpperCase();});
     if(cols.indexOf('CODART')>=0&&cols.indexOf('QUANT1')>=0){hi=i;cols.forEach(function(n,idx){H[n]=idx;});break;}
   }
   if(hi<0)throw new Error('Colonne CODART/QUANT1 non trovate nel CSV');
   var out=[];
   for(var r=hi+1;r<righe.length;r++){
     if(!righe[r]||!righe[r].trim())continue;
-    var row=righe[r].split(';').map(function(x){return x.trim();});
+    var row=righe[r].split(';').map(function(x){return x.trim().replace(/^"|"$/g,'');});
     var cod=codiceValido(H['CODART']!=null?row[H['CODART']]:'')||'SENZA_CODICE';
     var dsc=String(H['DESART']!=null?row[H['DESART']]||'':'').trim();
     var qty=parseQty(H['QUANT1']!=null?row[H['QUANT1']]:'');
@@ -5120,12 +5129,16 @@ async function selDettaglioArt(cod,desc){
   }
   function breakdownByDDT(arr,field,altField){
     if(!arr)return [];
-    var map={};
+    var map={},dataMap={};
     arr.filter(matches).forEach(function(r){
       var k=r.numero_ddt||'?';
       map[k]=(map[k]||0)+(Number(r[field]||(altField?r[altField]:0))||0);
+      if(!dataMap[k]&&r.data_ddt)dataMap[k]=r.data_ddt;
     });
-    return Object.keys(map).sort().map(function(k){return{label:'DDT '+k,qty:map[k]};});
+    return Object.keys(map).sort().map(function(k){
+      var dataLbl=dataMap[k]?fmtData(dataMap[k]):'';
+      return{label:'DDT '+k+(dataLbl?' ('+dataLbl+')':''),qty:map[k]};
+    });
   }
   function breakdownByData(arr,field){
     if(!arr)return [];
