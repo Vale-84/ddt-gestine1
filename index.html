@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -652,6 +652,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Riepilogo Completo</h2>
     <button class="btn btn-blue" onclick="aggiornaConfronto()">↻ AGGIORNA</button>
     <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('confronto-stampa')">STAMPA</button>
+    <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="apriModaleVerificaPdfNova()">VERIFICA PDF NOVA</button>
     <!-- LEGENDA AZZURRA -->
     <div id="rc-legenda-azzurra" style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
       <strong>Legenda:</strong><br>
@@ -1033,6 +1034,41 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div id="foto-anteprima-lista" style="margin-bottom:14px;max-height:50vh;overflow-y:auto;"></div>
     <button class="btn btn-green" onclick="confermaAnteprimaFoto()">✓ Conferma e inserisci</button>
     <button class="btn btn-gray" onclick="chiudiAnteprimaFoto()">Annulla</button>
+  </div>
+</div>
+
+<!-- MODAL VERIFICA PDF NOVA (Confronto) -->
+<div class="modal" id="modal-verifica-pdf-nova">
+  <div class="modal-box" style="max-width:640px;">
+    <h3 style="color:#C55A11;">Verifica PDF Nova</h3>
+    <label>PDF DDT Uscita Nova (multi-pagina, un DDT per blocco)</label>
+    <input type="file" id="vpn-pdf-inp" accept="application/pdf,.pdf" style="margin-bottom:10px;">
+    <label>Confronta con</label>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
+        <input type="radio" name="vpn-fonte" value="wa" checked onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Confronta con dati WA Uscita dell'app
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
+        <input type="radio" name="vpn-fonte" value="csv" onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Confronta con CSV caricato
+      </label>
+    </div>
+    <div id="vpn-csv-box" style="display:none;">
+      <label>CSV Nova (formato export, separatore ";")</label>
+      <input type="file" id="vpn-csv-inp" accept=".csv" style="margin-bottom:10px;">
+    </div>
+    <div id="vpn-status" style="margin-bottom:10px;"></div>
+    <button class="btn btn-orange" onclick="eseguiVerificaPdfNova()">Confronta</button>
+    <button class="btn btn-gray" onclick="chiudiModaleVerificaPdfNova()">Chiudi</button>
+    <div id="vpn-risultati" style="display:none;margin-top:14px;">
+      <div id="vpn-riepilogo" class="modal-desc"></div>
+      <div class="rc-table-scroll" style="max-height:40vh;">
+        <table class="rc-table">
+          <thead><tr><th>Codice</th><th>Descrizione</th><th>Tot. PDF Nova</th><th>Tot. confronto</th><th>Differenza</th></tr></thead>
+          <tbody id="vpn-tbody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-blue btn-sm" style="margin-top:10px;" onclick="esportaDifferenzeVerificaPdfNova()">⬇ Esporta differenze in CSV</button>
+    </div>
   </div>
 </div>
 
@@ -4328,6 +4364,238 @@ function renderVerificaPdfRisultati(dati){
     }).join('');
   }
   document.getElementById('rc-verifica-pdf-risultati').style.display='block';
+}
+
+// ── MODALE "VERIFICA PDF NOVA" (Confronto): PDF vs WA Uscita app / vs CSV ──
+var _vpnUltimoConfronto=null;
+
+function apriModaleVerificaPdfNova(){
+  document.getElementById('vpn-pdf-inp').value='';
+  document.getElementById('vpn-csv-inp').value='';
+  document.getElementById('vpn-status').innerHTML='';
+  document.getElementById('vpn-risultati').style.display='none';
+  document.getElementsByName('vpn-fonte').forEach(function(r){r.checked=(r.value==='wa');});
+  aggiornaFonteVerificaPdfNova();
+  document.getElementById('modal-verifica-pdf-nova').style.display='flex';
+}
+
+function chiudiModaleVerificaPdfNova(){
+  document.getElementById('modal-verifica-pdf-nova').style.display='none';
+}
+
+function aggiornaFonteVerificaPdfNova(){
+  var fonte=(document.querySelector('input[name="vpn-fonte"]:checked')||{}).value||'wa';
+  document.getElementById('vpn-csv-box').style.display=fonte==='csv'?'block':'none';
+}
+
+// Riconosce i blocchi DDT (stesso criterio di parsePdfMultiAzzurra: C6+data),
+// ma gestisce anche i due casi particolari richiesti: codice "*" (SENZA_CODICE)
+// e token codice+descrizione uniti senza spazio (tentativo di split via artCache).
+function parsePdfVerificaNova(testo){
+  var mesi={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+  var re=/C6\d{6}(?=\s+\d{1,2}\s+[a-zA-Zàèìòù]{3}\s+\d{4})/g;
+  var matches=[],m;
+  while((m=re.exec(testo)))matches.push({nddt:m[0],index:m.index});
+  if(!matches.length)return {ddts:[],nonRisolte:[]};
+  var ddts=[],nonRisolte=[];
+  for(var i=0;i<matches.length;i++){
+    var start=matches[i].index;
+    var end=(i+1<matches.length)?matches[i+1].index:testo.length;
+    var blocco=testo.slice(start,end);
+    var nddt=matches[i].nddt;
+    var data='';
+    var mD=blocco.match(/(\d{1,2})\s+([a-zA-Zàèìòù]{3})\s+(\d{4})/);
+    if(mD){
+      var meseNum=mesi[mD[2].toLowerCase()];
+      if(meseNum)data=mD[3]+'-'+('0'+meseNum).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+    }
+    var righeArt=[];
+    blocco.split('\n').forEach(function(rigaRaw){
+      var riga=rigaRaw.trim();
+      if(!riga)return;
+      if(riga.indexOf('Composto da')>=0)return;
+      if(riga.indexOf('Arrivato con DDT')>=0)return;
+      if(riga.indexOf('ERRORE, DDT DI ENTRATA NON TROVATO')>=0)return;
+      var mArt=riga.match(/^(\S+)\s+(.+?)\s+PZ\.\s+([\d.,]+)\s*$/);
+      if(!mArt)return;
+      var codRaw=mArt[1],descRaw=mArt[2].trim().replace(/\s+/g,' '),qty=parseQty(mArt[3]);
+      if(qty<=0)return;
+      if(codRaw==='*'){righeArt.push({cod:'SENZA_CODICE',desc:descRaw,qty:qty});return;}
+      var esisteEsatto=(artCache||[]).some(function(a){return (a.codice_articolo||'').toUpperCase()===codRaw.toUpperCase();});
+      if(esisteEsatto||codRaw.length<=12){righeArt.push({cod:codRaw,desc:descRaw,qty:qty});return;}
+      // Token lungo e non riconosciuto: probabile codice+descrizione uniti senza spazio.
+      // Cerca tra i codici noti in artCache quello che è prefisso del token (il più lungo, cioè più specifico).
+      var candidati=(artCache||[]).filter(function(a){
+        var ac=(a.codice_articolo||'').toUpperCase();
+        return ac.length>=4 && codRaw.toUpperCase().indexOf(ac)===0;
+      });
+      if(candidati.length){
+        candidati.sort(function(a,b){return b.codice_articolo.length-a.codice_articolo.length;});
+        var scelto=candidati[0];
+        var restoToken=codRaw.slice(scelto.codice_articolo.length);
+        righeArt.push({cod:scelto.codice_articolo,desc:(restoToken+' '+descRaw).trim(),qty:qty});
+      } else {
+        righeArt.push({cod:'DA_VERIFICARE',desc:riga,qty:qty});
+        nonRisolte.push({nddt:nddt,testo:riga});
+      }
+    });
+    ddts.push({nddt:nddt,data:data,righe:righeArt});
+  }
+  return {ddts:ddts,nonRisolte:nonRisolte};
+}
+
+// CSV export Nova: separatore ";", header con CODART/QUANT1/DESART/DATA tra le colonne
+// (stesso formato prodotto da esportaImballoExcel/esportaVerniciatoExcel in questo file).
+function parseCsvNovaExport(text){
+  var righe=text.replace(/^\uFEFF/,'').split(/\r?\n/);
+  var hi=-1,H={};
+  for(var i=0;i<Math.min(righe.length,10);i++){
+    var cols=righe[i].split(';').map(function(x){return x.trim().toUpperCase();});
+    if(cols.indexOf('CODART')>=0&&cols.indexOf('QUANT1')>=0){hi=i;cols.forEach(function(n,idx){H[n]=idx;});break;}
+  }
+  if(hi<0)throw new Error('Colonne CODART/QUANT1 non trovate nel CSV');
+  var out=[];
+  for(var r=hi+1;r<righe.length;r++){
+    if(!righe[r]||!righe[r].trim())continue;
+    var row=righe[r].split(';').map(function(x){return x.trim();});
+    var cod=codiceValido(H['CODART']!=null?row[H['CODART']]:'')||'SENZA_CODICE';
+    var dsc=String(H['DESART']!=null?row[H['DESART']]||'':'').trim();
+    var qty=parseQty(H['QUANT1']!=null?row[H['QUANT1']]:'');
+    if(qty>0)out.push({cod:cod,desc:dsc,qty:qty});
+  }
+  return out;
+}
+
+async function eseguiVerificaPdfNova(){
+  var status=document.getElementById('vpn-status');
+  var pdfFile=document.getElementById('vpn-pdf-inp').files[0];
+  if(!pdfFile){status.innerHTML='<div class="msg msg-err">Carica un PDF!</div>';return;}
+  var fonte=(document.querySelector('input[name="vpn-fonte"]:checked')||{}).value||'wa';
+  document.getElementById('vpn-risultati').style.display='none';
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var ab=await pdfFile.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    var parse=parsePdfVerificaNova(testo);
+    if(!parse.ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';return;}
+
+    var mPdf={};
+    parse.ddts.forEach(function(d){
+      d.righe.forEach(function(r){
+        if(!mPdf[r.cod])mPdf[r.cod]={cod:r.cod,desc:r.desc,tot:0};
+        mPdf[r.cod].tot+=r.qty;
+        if(!mPdf[r.cod].desc&&r.desc)mPdf[r.cod].desc=r.desc;
+      });
+    });
+    var date=parse.ddts.map(function(d){return d.data;}).filter(Boolean).sort();
+    var dataMin=date[0]||null,dataMax=date[date.length-1]||null;
+
+    var mConfronto={},fonteLabel='';
+    if(fonte==='csv'){
+      var csvFile=document.getElementById('vpn-csv-inp').files[0];
+      if(!csvFile){status.innerHTML='<div class="msg msg-err">Carica anche il CSV da confrontare!</div>';return;}
+      var righeCsv=parseCsvNovaExport(await csvFile.text());
+      righeCsv.forEach(function(r){
+        if(!mConfronto[r.cod])mConfronto[r.cod]={cod:r.cod,desc:r.desc,tot:0};
+        mConfronto[r.cod].tot+=r.qty;
+        if(!mConfronto[r.cod].desc&&r.desc)mConfronto[r.cod].desc=r.desc;
+      });
+      fonteLabel='Confronto con: CSV caricato ('+righeCsv.length+' righe)';
+    } else {
+      if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
+      var wa=await apiGet('whatsapp_uscita');
+      if(!wa){status.innerHTML='<div class="msg msg-err">Errore caricamento WA Uscita dell\'app.</div>';return;}
+      wa.filter(function(r){
+        var d=(r.data_inserimento||r.created_at||'').slice(0,10);
+        return d&&d>=dataMin&&d<=dataMax;
+      }).forEach(function(r){
+        var k=r.codice_articolo||'SENZA_CODICE';
+        if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
+        mConfronto[k].tot+=Number(r.quantita)||0;
+      });
+      fonteLabel='Confronto con: WA Uscita app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMax);
+    }
+
+    var codici={};
+    Object.keys(mPdf).forEach(function(k){codici[k]=true;});
+    Object.keys(mConfronto).forEach(function(k){codici[k]=true;});
+    var righeRis=Object.keys(codici).map(function(k){
+      var p=mPdf[k],cf=mConfronto[k];
+      var qtaPdf=p?p.tot:0,qtaConf=cf?cf.tot:0;
+      var artInfo=(artCache||[]).find(function(x){return (x.codice_articolo||'').trim().toUpperCase()===k.toUpperCase();});
+      var desc=(p&&p.desc)||(cf&&cf.desc)||(artInfo?artInfo.descrizione:'')||'';
+      return {cod:k,desc:desc,qtaPdf:qtaPdf,qtaConf:qtaConf,diff:qtaPdf-qtaConf};
+    });
+    righeRis.sort(function(a,b){
+      var da=a.diff!==0?0:1,db=b.diff!==0?0:1;
+      if(da!==db)return da-db;
+      return (a.cod||'').localeCompare(b.cod||'');
+    });
+
+    _vpnUltimoConfronto={fonteLabel:fonteLabel,righe:righeRis,nonRisolte:parse.nonRisolte};
+    renderVerificaPdfNovaRisultati(_vpnUltimoConfronto);
+    status.innerHTML='<div class="msg msg-ok">Confronto completato: '+righeRis.length+' codici.'+(parse.nonRisolte.length?(' ⚠️ '+parse.nonRisolte.length+' righe PDF non risolte automaticamente, vedi sotto.'):'')+'</div>';
+  }catch(e){
+    status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';
+  }
+}
+
+function renderVerificaPdfNovaRisultati(dati){
+  var righe=dati.righe;
+  var totPdf=righe.reduce(function(s,r){return s+r.qtaPdf;},0);
+  var totConf=righe.reduce(function(s,r){return s+r.qtaConf;},0);
+  var diffTot=totPdf-totConf;
+  var nDiff=righe.filter(function(r){return r.diff!==0;}).length;
+  var nonRisolteHtml=(dati.nonRisolte&&dati.nonRisolte.length)
+    ?('<div class="warn-box" style="margin-top:8px;">⚠️ '+dati.nonRisolte.length+' righe del PDF non risolte automaticamente (codice e descrizione probabilmente uniti senza spazio) — controllale a mano:<br>'
+        +dati.nonRisolte.map(function(x){return '<span style="font-size:11px;">['+x.nddt+'] '+x.testo+'</span>';}).join('<br>')
+      +'</div>')
+    :'';
+  document.getElementById('vpn-riepilogo').innerHTML=
+    '<div style="margin-bottom:6px;">'+(dati.fonteLabel||'')+'</div>'
+    +'<strong>Totale pezzi PDF Nova:</strong> '+totPdf+' &nbsp; '
+    +'<strong>Totale pezzi confronto:</strong> '+totConf+' &nbsp; '
+    +'<strong>Differenza totale:</strong> <span style="color:'+(diffTot===0?'#217346':'#C00000')+';font-weight:bold;">'+(diffTot>0?'+':'')+diffTot+'</span> &nbsp; '
+    +'<strong>Codici con differenza:</strong> '+nDiff
+    +nonRisolteHtml;
+
+  var tb=document.getElementById('vpn-tbody');
+  if(!righe.length){
+    tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessun dato</td></tr>';
+  }else{
+    tb.innerHTML=righe.map(function(r){
+      var ok=r.diff===0;
+      var bg=ok?'#E2EFDA':'#FCE4E4';
+      var colDiff=ok?'#217346':'#C00000';
+      return '<tr style="background-color:'+bg+';">'
+        +'<td><strong>'+(r.cod||'—')+'</strong></td>'
+        +'<td>'+(r.desc||'')+'</td>'
+        +'<td style="text-align:right;">'+r.qtaPdf+'</td>'
+        +'<td style="text-align:right;">'+r.qtaConf+'</td>'
+        +'<td style="text-align:right;color:'+colDiff+';font-weight:bold;">'+(r.diff>0?'+':'')+r.diff+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+  document.getElementById('vpn-risultati').style.display='block';
+}
+
+function esportaDifferenzeVerificaPdfNova(){
+  if(!_vpnUltimoConfronto||!_vpnUltimoConfronto.righe.length){alert('Nessun confronto disponibile da esportare.');return;}
+  var diff=_vpnUltimoConfronto.righe.filter(function(r){return r.diff!==0;});
+  if(!diff.length){alert('Nessuna differenza da esportare: tutto combacia.');return;}
+  var bom='\uFEFF';
+  var intestazione='Codice;Descrizione;Tot. PDF Nova;Tot. confronto;Differenza\r\n';
+  var righeCsv=diff.map(function(r){
+    return [r.cod,String(r.desc||'').replace(/;/g,','),r.qtaPdf,r.qtaConf,r.diff].join(';');
+  }).join('\r\n');
+  var csv=bom+intestazione+righeCsv+'\r\n';
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='verifica_pdf_nova_differenze_'+oggiISO()+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 async function leggiPDFMultiBergamasco(input){
