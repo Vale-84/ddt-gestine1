@@ -1088,7 +1088,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div class="modal" id="modal-verifica-pdf-nova-entrata">
   <div class="modal-box" style="max-width:640px;">
     <h3 style="color:#C55A11;">Verifica PDF Nova Entrata</h3>
-    <label>PDF DDT Entrata Nova (multi-pagina, un DDT per blocco)</label>
+    <label>PDF DDT Entrata Azzurra (un file per DDT — puoi selezionarne più di uno insieme)</label>
     <input type="file" id="vpne-pdf-inp" accept="application/pdf,.pdf" multiple style="margin-bottom:10px;">
     <div id="vpne-status" style="margin-bottom:10px;"></div>
     <button class="btn btn-orange" onclick="eseguiVerificaPdfNovaEntrata()">Confronta</button>
@@ -3700,6 +3700,47 @@ function renderControlloDate(){
 }
 
 // ── DDT ENTRATA ───────────────────────────────────────────────────────
+// Parsing puro (nessun accesso al DOM) di un singolo PDF DDT Entrata gia' estratto
+// in testo: nddt, data, cliente, articoli. Usato da leggiPDF() per il flusso
+// "Carica PDF DDT Entrata" (un file alla volta) e riusato tal quale dalla
+// Verifica PDF Nova Entrata per sommare piu' file caricati insieme.
+function parsePdfEntrataSingolo(testo,fileName){
+  var nddt='',data='',cliente='',articoli=[];
+  var mN=testo.match(/NUM\.?\s*D\.?D\.?T\.?\s*:?\s*([A-Z]\d{5,8})/i);
+  if(!mN)mN=testo.match(/([C-Z]\d{6,8})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);
+  if(!mN){var allM=(testo.match(/[A-Z]\d{6,8}/g)||[]).filter(function(m){return !/^T0/.test(m);});if(allM.length)mN=[null,allM[0]];}
+  if(mN)nddt=mN[1].trim();
+  if(!nddt&&fileName){var mF=fileName.match(/([A-Z]\d{6,8})/);if(mF)nddt=mF[1];}
+  var mD=testo.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if(mD)data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+  if(!data){var mD2=testo.match(/(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s*(\d{4})/i);
+    if(mD2){var mesi={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};data=mD2[3]+'-'+mesi[mD2[2].toLowerCase()]+'-'+('0'+mD2[1]).slice(-2);}}
+  var mC=testo.match(/Intestatario[\s\S]*?\n\s*\([\d]+\)\s*\n\s*([A-Z][A-Z\s&]+(?:SRL|SPA|SNS|SAS))/i);
+  if(!mC)mC=testo.match(/([A-Z][a-zA-Z\s&]+(?:srl|spa|snc|sas))/i);
+  if(mC)cliente=mC[1].trim();
+  var codici=[],descrizioni=[],quantita=[];
+  var mCod=testo.match(/Codice\s*\n([\s\S]*?)\nDescrizione/i);
+  var mDesc=testo.match(/Descrizione\s*\n([\s\S]*?)\nUm/i);
+  var mQty=testo.match(/Quantità\s*\n([\s\S]*?)\nNote/i);
+  if(mCod&&mDesc&&mQty){
+    codici=mCod[1].trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
+    descrizioni=mDesc[1].trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
+    quantita=mQty[1].trim().split('\n').map(function(s){return s.trim();}).filter(function(s){return /^[0-9]+([\.][0-9]+)?$/.test(s);}).map(function(s){return parseFloat(s);});
+    for(var i=0;i<Math.min(codici.length,descrizioni.length,quantita.length);i++){
+      if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
+    }
+  }
+  if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseQty(m2[2]);if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
+  if(!articoli.length){
+    testo.split('\n').forEach(function(riga){
+      riga=riga.trim();
+      var m2=riga.match(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,.]+)/);
+      if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseQty(m2[2])});
+    });
+  }
+  return {nddt:nddt,data:data,cliente:cliente,articoli:articoli};
+}
+
 async function leggiPDF(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('pdf-prev');
@@ -3708,39 +3749,8 @@ async function leggiPDF(input){
     var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
-    var nddt='',data='',cliente='',articoli=[];
-    var mN=testo.match(/NUM\.?\s*D\.?D\.?T\.?\s*:?\s*([A-Z]\d{5,8})/i);
-    if(!mN)mN=testo.match(/([C-Z]\d{6,8})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);
-    if(!mN){var allM=(testo.match(/[A-Z]\d{6,8}/g)||[]).filter(function(m){return !/^T0/.test(m);});if(allM.length)mN=[null,allM[0]];}
-    if(mN)nddt=mN[1].trim();
-    if(!nddt&&file.name){var mF=file.name.match(/([A-Z]\d{6,8})/);if(mF)nddt=mF[1];}
-    var mD=testo.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
-    if(mD)data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
-    if(!data){var mD2=testo.match(/(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s*(\d{4})/i);
-      if(mD2){var mesi={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};data=mD2[3]+'-'+mesi[mD2[2].toLowerCase()]+'-'+('0'+mD2[1]).slice(-2);}}
-    var mC=testo.match(/Intestatario[\s\S]*?\n\s*\([\d]+\)\s*\n\s*([A-Z][A-Z\s&]+(?:SRL|SPA|SNS|SAS))/i);
-    if(!mC)mC=testo.match(/([A-Z][a-zA-Z\s&]+(?:srl|spa|snc|sas))/i);
-    if(mC)cliente=mC[1].trim();
-    var codici=[],descrizioni=[],quantita=[];
-    var mCod=testo.match(/Codice\s*\n([\s\S]*?)\nDescrizione/i);
-    var mDesc=testo.match(/Descrizione\s*\n([\s\S]*?)\nUm/i);
-    var mQty=testo.match(/Quantità\s*\n([\s\S]*?)\nNote/i);
-    if(mCod&&mDesc&&mQty){
-      codici=mCod[1].trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
-      descrizioni=mDesc[1].trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
-      quantita=mQty[1].trim().split('\n').map(function(s){return s.trim();}).filter(function(s){return /^[0-9]+([\.][0-9]+)?$/.test(s);}).map(function(s){return parseFloat(s);});
-      for(var i=0;i<Math.min(codici.length,descrizioni.length,quantita.length);i++){
-        if(quantita[i]>0)articoli.push({cod:codici[i],desc:descrizioni[i],qty:quantita[i]});
-      }
-    }
-    if(!articoli.length){testo.split('\n').forEach(function(riga){riga=riga.trim();var m2=riga.match(/^([A-Z][A-Z\s]{8,80})\s+PZ\.\s+([\d,.]+)/);if(m2){var desc=m2[1].trim().replace(/\s+/g,' ');var qty=parseQty(m2[2]);if(qty>0&&desc.length>5&&!desc.match(/^(ARTICOLO|DESCRIZIONE)/))articoli.push({cod:'',desc:desc,qty:qty});}});}
-    if(!articoli.length){
-      testo.split('\n').forEach(function(riga){
-        riga=riga.trim();
-        var m2=riga.match(/([A-Z][A-Z\s]{10,80})\s+PZ\.\s+([\d,.]+)/);
-        if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseQty(m2[2])});
-      });
-    }
+    var parsed=parsePdfEntrataSingolo(testo,file.name);
+    var nddt=parsed.nddt,data=parsed.data,cliente=parsed.cliente,articoli=parsed.articoli;
     pdfDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
     var html='<div class="pdf-preview"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info"><strong>Cliente:</strong> '+(cliente||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Articoli ('+articoli.length+'):</strong></div>';
     articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
@@ -5019,32 +5029,35 @@ async function eseguiVerificaPdfNovaEntrata(){
   document.getElementById('vpne-risultati').style.display='none';
   status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
   try{
-    var testo='';
-    for(var f=0;f<files.length;f++){
-      var file=files[f];
-      var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
-      for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
-      testo+='\n';
-    }
-    // Riuso diretto del parser gia' esistente per il caricamento multi-DDT Entrata
-    var ddts=parsePdfMultiEntrata(testo);
-    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';return;}
-
     function chiaveCod(s){
       var t=(s||'').trim().toUpperCase();
       return t||'SENZA_CODICE';
     }
 
+    // I DDT Entrata Azzurra arrivano come file singoli separati (un DDT per file),
+    // non come export unico multi-DDT: quindi ogni file va estratto ed elaborato a se',
+    // riusando lo stesso parser di leggiPDF() (parsePdfEntrataSingolo), poi sommiamo
+    // le quantita' di tutti i file/DDT insieme per codice articolo.
     var mPdf={};
-    ddts.forEach(function(d){
-      d.righe.forEach(function(r){
-        // Stessa risoluzione codice gia' usata da importaPDFMultiEntrata()
+    var ddtLetti=[];
+    var righeVuote=0;
+    for(var f=0;f<files.length;f++){
+      var file=files[f];
+      var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+      var testo='';
+      for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+      var parsed=parsePdfEntrataSingolo(testo,file.name);
+      if(!parsed.articoli.length){righeVuote++;continue;}
+      ddtLetti.push(parsed.nddt||file.name);
+      parsed.articoli.forEach(function(r){
+        // Stessa risoluzione codice gia' usata da importaPDFMultiEntrata()/importaDaPDF()
         var k=chiaveCod(risolviCodiceEntrataPdf(r.cod,r.desc));
         if(!mPdf[k])mPdf[k]={cod:k,desc:r.desc,tot:0};
         mPdf[k].tot+=r.qty;
         if(!mPdf[k].desc&&r.desc)mPdf[k].desc=r.desc;
       });
-    });
+    }
+    if(!ddtLetti.length){status.innerHTML='<div class="msg msg-err">Nessun articolo riconosciuto nei PDF caricati.</div>';return;}
 
     // Stesso filtro chiusura_azzurra gia' usato negli altri confronti (Confronto/Riepilogo)
     var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
@@ -5077,10 +5090,10 @@ async function eseguiVerificaPdfNovaEntrata(){
       return (a.cod||'').localeCompare(b.cod||'');
     });
 
-    var fonteLabel='Confronto con: WA Entrata app'+(dataChiusuraAz?(', dal '+fmtData(dataChiusuraAz)+' (ultima chiusura mese)'):' (tutta la storia, nessuna chiusura mese impostata)');
+    var fonteLabel='PDF letti: '+ddtLetti.length+' DDT ('+ddtLetti.join(', ')+') — Confronto con: WA Entrata app'+(dataChiusuraAz?(', dal '+fmtData(dataChiusuraAz)+' (ultima chiusura mese)'):' (tutta la storia, nessuna chiusura mese impostata)');
     _vpneUltimoConfronto={fonteLabel:fonteLabel,righe:righeRis};
     renderVerificaPdfNovaEntrataRisultati(_vpneUltimoConfronto);
-    status.innerHTML='<div class="msg msg-ok">Confronto completato: '+righeRis.length+' codici.</div>';
+    status.innerHTML='<div class="msg msg-ok">Confronto completato: '+ddtLetti.length+' DDT letti, '+righeRis.length+' codici confrontati.'+(righeVuote?(' ⚠️ '+righeVuote+' file senza articoli riconosciuti.'):'')+'</div>';
   }catch(e){
     status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';
   }
