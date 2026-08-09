@@ -521,6 +521,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="file" id="pdf-multi-ent-inp" class="pdf-input" accept="application/pdf,.pdf" multiple onchange="leggiPDFMultiEntrata(this)">
     <div id="pdf-multi-ent-status" style="margin-top:8px;"></div>
   </div>
+  <div class="card" id="entrata-verifica-pdf-nova-card" style="display:none;">
+    <h2>Verifica PDF Nova Entrata</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica un PDF DDT Entrata Nova e confrontalo con i dati già presenti in WA Entrata dell'app (rispetta l'ultima chiusura mese).</p>
+    <button class="btn btn-orange" type="button" onclick="apriModaleVerificaPdfNovaEntrata()">VERIFICA PDF NOVA ENTRATA</button>
+  </div>
   <div class="card">
     <h2>Carica Excel DDT Entrata</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Per chi ti manda il DDT in Excel (es. Bergamasco). I codici nuovi vengono aggiunti automaticamente alla lista articoli.</p>
@@ -1075,6 +1080,29 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       </div>
       <button class="btn btn-blue btn-sm" style="margin-top:10px;" onclick="esportaDifferenzeVerificaPdfNova()">⬇ Esporta differenze in CSV</button>
       <button class="btn btn-gray btn-sm" style="margin-top:10px;" onclick="esportaTuttoVerificaPdfNova()">⬇ Esporta tutto in CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VERIFICA PDF NOVA ENTRATA (DDT Entrata, solo AZZURRA) -->
+<div class="modal" id="modal-verifica-pdf-nova-entrata">
+  <div class="modal-box" style="max-width:640px;">
+    <h3 style="color:#C55A11;">Verifica PDF Nova Entrata</h3>
+    <label>PDF DDT Entrata Nova (multi-pagina, un DDT per blocco)</label>
+    <input type="file" id="vpne-pdf-inp" accept="application/pdf,.pdf" multiple style="margin-bottom:10px;">
+    <div id="vpne-status" style="margin-bottom:10px;"></div>
+    <button class="btn btn-orange" onclick="eseguiVerificaPdfNovaEntrata()">Confronta</button>
+    <button class="btn btn-gray" onclick="chiudiModaleVerificaPdfNovaEntrata()">Chiudi</button>
+    <div id="vpne-risultati" style="display:none;margin-top:14px;">
+      <div id="vpne-riepilogo" class="modal-desc"></div>
+      <div class="rc-table-scroll" style="max-height:40vh;">
+        <table class="rc-table">
+          <thead><tr><th>Codice</th><th>Descrizione</th><th>Tot. PDF Nova</th><th>Tot. WA Entrata</th><th>Differenza</th></tr></thead>
+          <tbody id="vpne-tbody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-blue btn-sm" style="margin-top:10px;" onclick="esportaCsvVerificaPdfNovaEntrata(true)">⬇ Esporta differenze in CSV</button>
+      <button class="btn btn-gray btn-sm" style="margin-top:10px;" onclick="esportaCsvVerificaPdfNovaEntrata(false)">⬇ Esporta tutto in CSV</button>
     </div>
   </div>
 </div>
@@ -3760,6 +3788,8 @@ async function salvaDDTEntrata(){
 async function caricaDDTE(){
   var bulkE=document.getElementById('de-bulk-actions');
   if(bulkE)bulkE.style.display='';
+  var verificaPdfCard=document.getElementById('entrata-verifica-pdf-nova-card');
+  if(verificaPdfCard)verificaPdfCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var d=await apiGet('ddt_entrata');if(!d)return;
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
@@ -4867,6 +4897,29 @@ function parsePdfMultiEntrata(testo){
   return ordine.map(function(k){return mappa[k];}).filter(function(d){return d.righe.length>0;});
 }
 
+// Risolve il codice articolo di una riga estratta da PDF DDT Entrata: prova la
+// conversione prefisso "IA"->"A0" (AZZURRA), poi se il codice manca o non e'
+// riconosciuto normalizza la descrizione (rimuove "DA LACCARE"/"DA VERNICIARE"/
+// "SUI BORDI") e cerca via trovaArt(). Usato sia da importaPDFMultiEntrata()
+// sia dalla Verifica PDF Nova Entrata, cosi' entrambe risolvono i codici allo
+// stesso modo invece di duplicare la logica.
+function risolviCodiceEntrataPdf(cod,desc){
+  cod=cod||'';
+  if(cod&&getCliente()==='AZZURRA'&&/^IA/i.test(cod)){
+    var codConv=cod.toUpperCase().replace(/^IA/i,'A0');
+    if(artCache.some(function(x){return x.codice_articolo.toUpperCase()===codConv;}))cod=codConv;
+  }
+  if(!cod||!artCache.some(function(x){return x.codice_articolo.toUpperCase()===cod.toUpperCase();})){
+    var pfxMap2={'AZZURRA':'A0','BERGAMASCO':'B0'};
+    var pfx2=pfxMap2[getCliente()]||'';
+    var artFiltrato2=pfx2?artCache.filter(function(x){return (x.codice_articolo||'').toUpperCase().startsWith(pfx2);}):artCache;
+    var descNorm=(desc||'').toUpperCase().replace(/\s+DA\s+LACCARE\b/g,'').replace(/\s+DA\s+VERNICIARE\b/g,'').replace(/\s+SUI\s+BORDI\b/g,'').replace(/\s+/g,' ').trim();
+    var art=trovaArt(descNorm,artFiltrato2);
+    if(art)cod=art.codice_articolo;
+  }
+  return cod;
+}
+
 function apriModalePdfMultiEnt(){
   renderPdfMultiEntPreview();
   document.getElementById('modal-pdf-multi-ent').style.display='flex';
@@ -4926,19 +4979,7 @@ async function importaPDFMultiEntrata(){
       if(check&&check.length){ddtSaltati++;continue;}
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
-        var cod=a.cod||'';
-        if(cod&&getCliente()==='AZZURRA'&&/^IA/i.test(cod)){
-          var codConv=cod.toUpperCase().replace(/^IA/i,'A0');
-          if(artCache.some(function(x){return x.codice_articolo.toUpperCase()===codConv;}))cod=codConv;
-        }
-        if(!cod||!artCache.some(function(x){return x.codice_articolo.toUpperCase()===cod.toUpperCase();})){
-          var pfxMap2={'AZZURRA':'A0','BERGAMASCO':'B0'};
-          var pfx2=pfxMap2[getCliente()]||'';
-          var artFiltrato2=pfx2?artCache.filter(function(x){return (x.codice_articolo||'').toUpperCase().startsWith(pfx2);}):artCache;
-          var descNorm=a.desc.toUpperCase().replace(/\s+DA\s+LACCARE\b/g,'').replace(/\s+DA\s+VERNICIARE\b/g,'').replace(/\s+SUI\s+BORDI\b/g,'').replace(/\s+/g,' ').trim();
-          var art=trovaArt(descNorm,artFiltrato2);
-          if(art)cod=art.codice_articolo;
-        }
+        var cod=risolviCodiceEntrataPdf(a.cod,a.desc);
         var r=await apiPost('ddt_entrata',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF multi-DDT'});
         if(r)righeOk++;
       }
@@ -4952,6 +4993,149 @@ async function importaPDFMultiEntrata(){
     if(btnImporta){btnImporta.disabled=false;btnImporta.textContent='IMPORTA SELEZIONATI';}
     if(btnAnnulla)btnAnnulla.disabled=false;
   }
+}
+
+// ── VERIFICA PDF NOVA ENTRATA (DDT Entrata, solo AZZURRA) ─────────────
+// Speculare a "Verifica PDF Nova" (Confronto/Uscita): stesso stile di
+// confronto/tabella, ma qui la fonte fissa e' WA Entrata (whatsapp_righe)
+// filtrata per chiusura_azzurra, non per range date del PDF.
+var _vpneUltimoConfronto=null;
+
+function apriModaleVerificaPdfNovaEntrata(){
+  document.getElementById('vpne-pdf-inp').value='';
+  document.getElementById('vpne-status').innerHTML='';
+  document.getElementById('vpne-risultati').style.display='none';
+  document.getElementById('modal-verifica-pdf-nova-entrata').style.display='flex';
+}
+
+function chiudiModaleVerificaPdfNovaEntrata(){
+  document.getElementById('modal-verifica-pdf-nova-entrata').style.display='none';
+}
+
+async function eseguiVerificaPdfNovaEntrata(){
+  var status=document.getElementById('vpne-status');
+  var files=document.getElementById('vpne-pdf-inp').files;
+  if(!files||!files.length){status.innerHTML='<div class="msg msg-err">Carica un PDF!</div>';return;}
+  document.getElementById('vpne-risultati').style.display='none';
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var testo='';
+    for(var f=0;f<files.length;f++){
+      var file=files[f];
+      var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+      for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+      testo+='\n';
+    }
+    // Riuso diretto del parser gia' esistente per il caricamento multi-DDT Entrata
+    var ddts=parsePdfMultiEntrata(testo);
+    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';return;}
+
+    function chiaveCod(s){
+      var t=(s||'').trim().toUpperCase();
+      return t||'SENZA_CODICE';
+    }
+
+    var mPdf={};
+    ddts.forEach(function(d){
+      d.righe.forEach(function(r){
+        // Stessa risoluzione codice gia' usata da importaPDFMultiEntrata()
+        var k=chiaveCod(risolviCodiceEntrataPdf(r.cod,r.desc));
+        if(!mPdf[k])mPdf[k]={cod:k,desc:r.desc,tot:0};
+        mPdf[k].tot+=r.qty;
+        if(!mPdf[k].desc&&r.desc)mPdf[k].desc=r.desc;
+      });
+    });
+
+    // Stesso filtro chiusura_azzurra gia' usato negli altri confronti (Confronto/Riepilogo)
+    var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
+    var we=await apiGet('whatsapp_righe');
+    if(!we){status.innerHTML='<div class="msg msg-err">Errore caricamento WA Entrata dell\'app.</div>';return;}
+    var weFiltrate=dataChiusuraAz
+      ? we.filter(function(r){var d=(r.data_inserimento||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;})
+      : we;
+
+    var mConfronto={};
+    weFiltrate.forEach(function(r){
+      var k=chiaveCod(r.codice_articolo);
+      if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
+      mConfronto[k].tot+=Number(r.quantita)||0;
+    });
+
+    var codici={};
+    Object.keys(mPdf).forEach(function(k){codici[k]=true;});
+    Object.keys(mConfronto).forEach(function(k){codici[k]=true;});
+    var righeRis=Object.keys(codici).map(function(k){
+      var p=mPdf[k],cf=mConfronto[k];
+      var qtaPdf=p?p.tot:0,qtaConf=cf?cf.tot:0;
+      var artInfo=(artCache||[]).find(function(x){return (x.codice_articolo||'').trim().toUpperCase()===k.toUpperCase();});
+      var desc=(p&&p.desc)||(cf&&cf.desc)||(artInfo?artInfo.descrizione:'')||'';
+      return {cod:k,desc:desc,qtaPdf:qtaPdf,qtaConf:qtaConf,diff:qtaPdf-qtaConf};
+    });
+    righeRis.sort(function(a,b){
+      var da=a.diff!==0?0:1,db=b.diff!==0?0:1;
+      if(da!==db)return da-db;
+      return (a.cod||'').localeCompare(b.cod||'');
+    });
+
+    var fonteLabel='Confronto con: WA Entrata app'+(dataChiusuraAz?(', dal '+fmtData(dataChiusuraAz)+' (ultima chiusura mese)'):' (tutta la storia, nessuna chiusura mese impostata)');
+    _vpneUltimoConfronto={fonteLabel:fonteLabel,righe:righeRis};
+    renderVerificaPdfNovaEntrataRisultati(_vpneUltimoConfronto);
+    status.innerHTML='<div class="msg msg-ok">Confronto completato: '+righeRis.length+' codici.</div>';
+  }catch(e){
+    status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';
+  }
+}
+
+function renderVerificaPdfNovaEntrataRisultati(dati){
+  var righe=dati.righe;
+  var totPdf=righe.reduce(function(s,r){return s+r.qtaPdf;},0);
+  var totConf=righe.reduce(function(s,r){return s+r.qtaConf;},0);
+  var diffTot=totPdf-totConf;
+  var nDiff=righe.filter(function(r){return r.diff!==0;}).length;
+
+  document.getElementById('vpne-riepilogo').innerHTML=
+    '<div style="margin-bottom:6px;">'+(dati.fonteLabel||'')+'</div>'
+    +'<strong>Totale pezzi PDF Nova:</strong> '+totPdf+' &nbsp; '
+    +'<strong>Totale pezzi WA Entrata:</strong> '+totConf+' &nbsp; '
+    +'<strong>Differenza totale:</strong> <span style="color:'+(diffTot===0?'#217346':'#C00000')+';font-weight:bold;">'+(diffTot>0?'+':'')+diffTot+'</span> &nbsp; '
+    +'<strong>Codici con differenza:</strong> '+nDiff;
+
+  var tb=document.getElementById('vpne-tbody');
+  if(!righe.length){
+    tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessun dato</td></tr>';
+  }else{
+    tb.innerHTML=righe.map(function(r){
+      var ok=r.diff===0;
+      var bg=ok?'#E2EFDA':'#FCE4E4';
+      var colDiff=ok?'#217346':'#C00000';
+      return '<tr style="background-color:'+bg+';">'
+        +'<td><strong>'+(r.cod||'—')+'</strong></td>'
+        +'<td>'+(r.desc||'')+'</td>'
+        +'<td style="text-align:right;">'+r.qtaPdf+'</td>'
+        +'<td style="text-align:right;">'+r.qtaConf+'</td>'
+        +'<td style="text-align:right;color:'+colDiff+';font-weight:bold;">'+(r.diff>0?'+':'')+r.diff+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+  document.getElementById('vpne-risultati').style.display='block';
+}
+
+function esportaCsvVerificaPdfNovaEntrata(soloDifferenze){
+  if(!_vpneUltimoConfronto||!_vpneUltimoConfronto.righe.length){alert('Nessun confronto disponibile da esportare.');return;}
+  var righe=soloDifferenze?_vpneUltimoConfronto.righe.filter(function(r){return r.diff!==0;}):_vpneUltimoConfronto.righe;
+  if(!righe.length){alert(soloDifferenze?'Nessuna differenza da esportare: tutto combacia.':'Nessuna riga da esportare.');return;}
+  var bom='﻿';
+  var intestazione='Codice;Descrizione;Tot. PDF Nova;Tot. WA Entrata;Differenza\r\n';
+  var righeCsv=righe.map(function(r){
+    return [r.cod,String(r.desc||'').replace(/;/g,','),r.qtaPdf,r.qtaConf,r.diff].join(';');
+  }).join('\r\n');
+  var csv=bom+intestazione+righeCsv+'\r\n';
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='verifica_pdf_nova_entrata_'+(soloDifferenze?'differenze_':'tutto_')+oggiISO()+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── IMBALLO ───────────────────────────────────────────────────────────
