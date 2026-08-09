@@ -1051,6 +1051,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
         <input type="radio" name="vpn-fonte" value="csv" onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Confronta con CSV caricato
       </label>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
+        <input type="radio" name="vpn-fonte" value="imballo" onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Confronta con Imballo dell'app
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
+        <input type="radio" name="vpn-fonte" value="verniciato" onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Confronta con Verniciato dell'app
+      </label>
     </div>
     <div id="vpn-csv-box" style="display:none;">
       <label>CSV Nova (formato export, separatore ";")</label>
@@ -4389,7 +4395,8 @@ function apriModaleVerificaPdfNova(){
   document.getElementById('vpn-csv-inp').value='';
   document.getElementById('vpn-status').innerHTML='';
   document.getElementById('vpn-risultati').style.display='none';
-  document.getElementsByName('vpn-fonte').forEach(function(r){r.checked=(r.value==='wa');});
+  var fonteDefault=getCliente()==='BERGAMASCO'?'imballo':'wa';
+  document.getElementsByName('vpn-fonte').forEach(function(r){r.checked=(r.value===fonteDefault);});
   aggiornaFonteVerificaPdfNova();
   document.getElementById('modal-verifica-pdf-nova').style.display='flex';
 }
@@ -4556,6 +4563,32 @@ async function eseguiVerificaPdfNova(){
         if(!mConfronto[k].desc&&r.desc)mConfronto[k].desc=r.desc;
       });
       fonteLabel='Confronto con: CSV caricato ('+righeCsv.length+' righe)';
+    } else if(fonte==='imballo'){
+      if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
+      var imb=await apiGet('imballo');
+      if(!imb){status.innerHTML='<div class="msg msg-err">Errore caricamento Imballo dell\'app.</div>';return;}
+      imb.filter(function(r){
+        var d=(r.data_inserimento||r.created_at||'').slice(0,10);
+        return d&&d>=dataMin&&d<=dataMaxFiltro;
+      }).forEach(function(r){
+        var k=chiaveCod(r.codice_articolo);
+        if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.articolo||'',tot:0};
+        mConfronto[k].tot+=Number(r.totale)||0;
+      });
+      fonteLabel='Confronto con: Imballo app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+    } else if(fonte==='verniciato'){
+      if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
+      var vern=await apiGet('verniciato');
+      if(!vern){status.innerHTML='<div class="msg msg-err">Errore caricamento Verniciato dell\'app.</div>';return;}
+      vern.filter(function(r){
+        var d=(r.data_inserimento||r.created_at||'').slice(0,10);
+        return d&&d>=dataMin&&d<=dataMaxFiltro;
+      }).forEach(function(r){
+        var k=chiaveCod(r.codice_articolo);
+        if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.descrizione||'',tot:0};
+        mConfronto[k].tot+=Number(r.quantita)||0;
+      });
+      fonteLabel='Confronto con: Verniciato app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
     } else {
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var wa=await apiGet('whatsapp_uscita');
