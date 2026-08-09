@@ -4570,6 +4570,14 @@ async function eseguiVerificaPdfNova(){
         mConfronto[k].tot+=Number(r.quantita)||0;
       });
       fonteLabel='Confronto con: WA Uscita app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+
+      // ── DEBUG TEMPORANEO (da rimuovere dopo la verifica) ─────────────────
+      console.log('[DEBUG Verifica PDF Nova] dataMax (ultimo DDT PDF):',dataMax,'| dataMaxFiltro (fine mese, usato nel filtro):',dataMaxFiltro);
+      var righeA0ANARMDBI=wa.filter(function(r){return chiaveCod(r.codice_articolo)==='A0ANARMDBI';});
+      console.log('[DEBUG Verifica PDF Nova] Tutte le righe A0ANARMDBI in whatsapp_uscita (nessun filtro):',
+        righeA0ANARMDBI.map(function(r){return {data_inserimento:r.data_inserimento,quantita:r.quantita,inclusa_nel_filtro:((r.data_inserimento||r.created_at||'').slice(0,10)<=dataMaxFiltro)};}));
+      console.log('[DEBUG Verifica PDF Nova] Tot. confronto calcolato per A0ANARMDBI:',mConfronto['A0ANARMDBI']?mConfronto['A0ANARMDBI'].tot:'(nessuna riga inclusa)');
+      // ── FINE DEBUG TEMPORANEO ─────────────────────────────────────────────
     }
 
     var codici={};
