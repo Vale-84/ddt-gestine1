@@ -5321,7 +5321,7 @@ async function svuotaImballo(){
 async function caricaImballo(){
   var waCard=document.getElementById('imb2-wa-verifica-card');
   if(waCard)waCard.style.display=getCliente()==='BERGAMASCO'?'none':'';
-  var d=await apiGet('imballo');if(!d)return;
+  var d=await apiGet('imballo','order=data_inserimento.desc.nullslast,created_at.desc.nullslast,id.desc&limit=5000');if(!d)return;
   if(document.getElementById('st-imb'))document.getElementById('st-imb').textContent=d.length;
   var l=document.getElementById('imb-lista');
   var l2=document.getElementById('imb2-lista');
