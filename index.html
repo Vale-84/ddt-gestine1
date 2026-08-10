@@ -1184,7 +1184,7 @@ function printSection(id,orizzontale){
 async function apiGet(t,p){
   var c=getConfig();if(!c.url)return null;
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli'];
-  var params = p || 'order=created_at.desc&limit=5000';
+  var params = p || 'order=created_at.desc.nullslast,id.desc&limit=5000';
   if(tables.indexOf(t)>=0){
     var cl=getCliente();
     params = params + '&cliente=eq.'+encodeURIComponent(cl);
@@ -1197,6 +1197,7 @@ async function apiPost(t,b){
   var c=getConfig();if(!c.url){alert('Configura Supabase!');return null;}
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','archivio'];
   if(tables.indexOf(t)>=0) b.cliente=getCliente();
+  if(tables.indexOf(t)>=0 && !b.created_at) b.created_at=new Date().toISOString();
   try{var r=await fetch(c.url+'/rest/v1/'+t,{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'},body:JSON.stringify(b)});
   if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){alert('Errore: '+e.message);return null;}
 }
@@ -3800,7 +3801,7 @@ async function caricaDDTE(){
   if(bulkE)bulkE.style.display='';
   var verificaPdfCard=document.getElementById('entrata-verifica-pdf-nova-card');
   if(verificaPdfCard)verificaPdfCard.style.display=getCliente()==='AZZURRA'?'':'none';
-  var d=await apiGet('ddt_entrata');if(!d)return;
+  var d=await apiGet('ddt_entrata','order=data_ddt.desc.nullslast,id.desc&limit=5000');if(!d)return;
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
@@ -4000,7 +4001,7 @@ async function caricaDDTU(){
   if(pdfMultiCard)pdfMultiCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var pdfMultiBerCard=document.getElementById('bergamasco-pdf-multi-card');
   if(pdfMultiBerCard)pdfMultiBerCard.style.display=getCliente()==='BERGAMASCO'?'':'none';
-  var d=await apiGet('ddt_uscita');if(!d)return;
+  var d=await apiGet('ddt_uscita','order=data_ddt.desc.nullslast,id.desc&limit=5000');if(!d)return;
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
