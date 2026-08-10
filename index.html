@@ -4598,6 +4598,14 @@ async function eseguiVerificaPdfNova(){
       return parti[0]+'-'+parti[1]+'-'+('0'+ultimoGiorno).slice(-2);
     }
     var dataMaxFiltro=dataMax?fineMese(dataMax):null;
+    // Speculare a fineMese: se il primo DDT nel PDF non e' il giorno 1 del mese
+    // (es. l'8), i dati app dei giorni precedenti dello stesso mese (es. 6-7)
+    // andrebbero comunque confrontati, non esclusi solo perche' il PDF inizia dopo.
+    function inizioMese(dataIso){
+      var parti=dataIso.split('-');
+      return parti[0]+'-'+parti[1]+'-01';
+    }
+    var dataMinFiltro=dataMin?inizioMese(dataMin):null;
 
     var modoImbVern=(fonte==='imballo_verniciato');
     var mConfronto={},mVern={},mImb={},fonteLabel='';
@@ -4618,26 +4626,26 @@ async function eseguiVerificaPdfNova(){
       if(!imb){status.innerHTML='<div class="msg msg-err">Errore caricamento Imballo dell\'app.</div>';return;}
       imb.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
-        return d&&d>=dataMin&&d<=dataMaxFiltro;
+        return d&&d>=dataMinFiltro&&d<=dataMaxFiltro;
       }).forEach(function(r){
         var k=chiaveCod(r.codice_articolo);
         if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.articolo||'',tot:0};
         mConfronto[k].tot+=Number(r.totale)||0;
       });
-      fonteLabel='Confronto con: Imballo app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+      fonteLabel='Confronto con: Imballo app, periodo '+fmtData(dataMinFiltro)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
     } else if(fonte==='verniciato'){
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var vern=await apiGet('verniciato');
       if(!vern){status.innerHTML='<div class="msg msg-err">Errore caricamento Verniciato dell\'app.</div>';return;}
       vern.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
-        return d&&d>=dataMin&&d<=dataMaxFiltro;
+        return d&&d>=dataMinFiltro&&d<=dataMaxFiltro;
       }).forEach(function(r){
         var k=chiaveCod(r.codice_articolo);
         if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.descrizione||'',tot:0};
         mConfronto[k].tot+=Number(r.quantita)||0;
       });
-      fonteLabel='Confronto con: Verniciato app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+      fonteLabel='Confronto con: Verniciato app, periodo '+fmtData(dataMinFiltro)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
     } else if(fonte==='imballo_verniciato'){
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var imb2=await apiGet('imballo');
@@ -4646,7 +4654,7 @@ async function eseguiVerificaPdfNova(){
       if(!vern2){status.innerHTML='<div class="msg msg-err">Errore caricamento Verniciato dell\'app.</div>';return;}
       imb2.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
-        return d&&d>=dataMin&&d<=dataMaxFiltro;
+        return d&&d>=dataMinFiltro&&d<=dataMaxFiltro;
       }).forEach(function(r){
         var k=chiaveCod(r.codice_articolo);
         if(!mImb[k])mImb[k]={cod:k,desc:r.articolo||'',tot:0};
@@ -4654,27 +4662,27 @@ async function eseguiVerificaPdfNova(){
       });
       vern2.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
-        return d&&d>=dataMin&&d<=dataMaxFiltro;
+        return d&&d>=dataMinFiltro&&d<=dataMaxFiltro;
       }).forEach(function(r){
         var k=chiaveCod(r.codice_articolo);
         if(!mVern[k])mVern[k]={cod:k,desc:r.descrizione||'',tot:0};
         mVern[k].tot+=Number(r.quantita)||0;
       });
-      fonteLabel='Confronto con: Verniciato + Imballo app (affiancati), periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+      fonteLabel='Confronto con: Verniciato + Imballo app (affiancati), periodo '+fmtData(dataMinFiltro)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
     } else {
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var wa=await apiGet('whatsapp_uscita');
       if(!wa){status.innerHTML='<div class="msg msg-err">Errore caricamento WA Uscita dell\'app.</div>';return;}
       var waInRange=wa.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
-        return d&&d>=dataMin&&d<=dataMaxFiltro; // <= inclusivo, esteso a fine mese
+        return d&&d>=dataMinFiltro&&d<=dataMaxFiltro; // <= inclusivo, esteso a fine mese
       });
       waInRange.forEach(function(r){
         var k=chiaveCod(r.codice_articolo);
         if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
         mConfronto[k].tot+=Number(r.quantita)||0;
       });
-      fonteLabel='Confronto con: WA Uscita app, periodo '+fmtData(dataMin)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+      fonteLabel='Confronto con: WA Uscita app, periodo '+fmtData(dataMinFiltro)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
 
       // ── DEBUG TEMPORANEO (da rimuovere dopo la verifica) ─────────────────
       console.log('[DEBUG Verifica PDF Nova] dataMax (ultimo DDT PDF):',dataMax,'| dataMaxFiltro (fine mese, usato nel filtro):',dataMaxFiltro);
