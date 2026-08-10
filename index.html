@@ -493,6 +493,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h2>Verniciato oggi</h2>
     <div style="display:flex;gap:8px;margin-bottom:4px;">
       <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
+      <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciDuplicatiVerniciato()">UNISCI</button>
       <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaVerniciatoExcel()">📥 ESPORTA EXCEL</button>
     </div>
     <br>
@@ -5855,6 +5856,51 @@ async function unisciDuplicatiImballo(){
   if(righeUnite>0)msgParti.push('unite '+righeUnite+' righe distinte');
   showMsg('msg-imballo2',msgParti.length?'✅ '+msgParti.join(', ')+'!':'Nessun duplicato trovato.','ok');
   caricaImballo();caricaRiepilogoBer();
+}
+
+async function unisciDuplicatiVerniciato(){
+  if(!confirm('Unire i verniciati duplicati della stessa data?'))return;
+  var d=await apiGet('verniciato','order=created_at.asc&limit=500');
+  if(!d||!d.length)return;
+  var map={};
+  d.forEach(function(r){
+    var data=(r.data_inserimento||r.created_at||'').slice(0,10);
+    var k=data+'__'+(r.codice_articolo||r.descrizione||'?');
+    if(!map[k])map[k]=[];
+    map[k].push(r);
+  });
+  var doppioniRimossi=0;
+  var righeUnite=0;
+  for(var k in map){
+    var gruppo=map[k];
+    if(gruppo.length<=1)continue;
+    var esattiMap={};
+    gruppo.forEach(function(r){
+      var ke=(r.sequenza||'')+'__'+(r.quantita||0);
+      if(!esattiMap[ke])esattiMap[ke]=[];
+      esattiMap[ke].push(r);
+    });
+    var superstiti=[];
+    for(var ke in esattiMap){
+      var sotto=esattiMap[ke];
+      superstiti.push(sotto[0]);
+      for(var j=1;j<sotto.length;j++){await apiDel('verniciato','id=eq.'+sotto[j].id);}
+      doppioniRimossi+=sotto.length-1;
+    }
+    if(superstiti.length<=1)continue;
+    var primo=superstiti[0];
+    var totQty=superstiti.reduce(function(a,r){return a+(r.quantita||0);},0);
+    var seqParts=superstiti.map(function(r){return r.sequenza||String(r.quantita||0);}).filter(Boolean);
+    var nuovaSeq=seqParts.join('+');
+    await apiPatch('verniciato','id=eq.'+primo.id,{quantita:totQty,sequenza:nuovaSeq});
+    for(var i=1;i<superstiti.length;i++){await apiDel('verniciato','id=eq.'+superstiti[i].id);}
+    righeUnite+=superstiti.length-1;
+  }
+  var msgParti=[];
+  if(doppioniRimossi>0)msgParti.push('rimossi '+doppioniRimossi+' doppioni esatti');
+  if(righeUnite>0)msgParti.push('unite '+righeUnite+' righe distinte');
+  showMsg('msg-verniciato-p',msgParti.length?'✅ '+msgParti.join(', ')+'!':'Nessun duplicato trovato.','ok');
+  caricaVerniciatoP();caricaRiepilogoBer();
 }
 
 async function associaCodiciUscita(){
