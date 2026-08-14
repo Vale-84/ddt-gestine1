@@ -731,6 +731,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti (Entrata ≠ Uscita)</h3>
       <p style="font-size:12px;color:#666;margin-bottom:10px;">Solo articoli con quantità totale DDT Entrata diversa da DDT Uscita.</p>
       <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaArticoliApertiAzzurra()">↻ AGGIORNA</button>
+      <button class="btn btn-green btn-sm" style="margin-bottom:10px;" onclick="esportaArticoliApertiExcel()">📥 Esporta Excel</button>
       <div class="rc-table-scroll">
         <table class="rc-table">
           <thead>
@@ -3081,6 +3082,8 @@ async function aggiornaConfronto(){
 }
 
 // ── ARTICOLI APERTI (solo AZZURRA): Tot. Entrata ≠ Tot. Uscita per codice diretto ──
+var _apertiAzzurraUltimoRis=null;
+
 async function caricaArticoliApertiAzzurra(){
   var box=document.getElementById('rc-aperti-azzurra');
   var tb=document.getElementById('rc-aperti-tbody');
@@ -3140,6 +3143,7 @@ async function caricaArticoliApertiAzzurra(){
   }).filter(function(r){return r.diff!==0;});
 
   righeAperti.sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
+  _apertiAzzurraUltimoRis=righeAperti;
 
   if(!tb)return;
   if(!righeAperti.length){
@@ -3158,6 +3162,26 @@ async function caricaArticoliApertiAzzurra(){
       +'<td>'+badge+'</td>'
     +'</tr>';
   }).join('');
+}
+
+function esportaArticoliApertiExcel(){
+  if(!_apertiAzzurraUltimoRis||!_apertiAzzurraUltimoRis.length){alert('Nessun articolo aperto da esportare: premi prima AGGIORNA.');return;}
+  var righeExcel=_apertiAzzurraUltimoRis.map(function(r){
+    return {
+      'Codice':r.cod,
+      'Descrizione':r.desc||'',
+      'Tot. Entrata':r.totE,
+      'Tot. Uscita':r.totU,
+      'Differenza':r.diff,
+      'Stato':r.diff<0?'verificare':'da spedire/fatturare'
+    };
+  });
+  var ws=XLSX.utils.json_to_sheet(righeExcel);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Articoli Aperti');
+  var oggi=new Date();
+  var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
+  XLSX.writeFile(wb,'articoli_aperti_'+dataStr+'.xlsx');
 }
 
 function filtraRiepilogoCompleto(f){
