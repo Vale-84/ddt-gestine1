@@ -782,7 +782,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>Gestione abbinamenti</h2>
     <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaAbbinamentiAzzurra()">↻ AGGIORNA</button>
-    <input class="cerca-input" id="abz-cerca" placeholder="Filtra per codice IA, codice A0 o descrizione..." oninput="renderAbbinamentiAzzurra()" autocomplete="off" style="margin-bottom:10px;">
+    <input class="cerca-input" id="abz-cerca" placeholder="Filtra per codice IA, codice A0 o descrizione..." oninput="renderAbbinamentiAzzurraDebounced()" autocomplete="off" style="margin-bottom:10px;">
     <div class="rc-table-scroll">
       <table class="rc-table">
         <thead>
@@ -6076,7 +6076,14 @@ async function caricaAbbinamentiAzzurra(){
   var d=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
   if(!d){if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   abzCache=d;
+  _abzSuggCache={};
   renderAbbinamentiAzzurra();
+}
+
+var _abzRenderTimer=null;
+function renderAbbinamentiAzzurraDebounced(){
+  clearTimeout(_abzRenderTimer);
+  _abzRenderTimer=setTimeout(renderAbbinamentiAzzurra,180);
 }
 
 // Percentuale di parole in comune tra due descrizioni (indice di Jaccard):
@@ -6085,21 +6092,31 @@ async function caricaAbbinamentiAzzurra(){
 function normalizzaParoleAbz(s){
   return (s||'').toUpperCase().split(/\s+/).filter(function(w){return w.length>1;});
 }
+// Cache per descrizione_ia: con centinaia di righe non abbinate, ricalcolare il
+// confronto con tutti i codici A0 ad ogni render (anche solo per filtrare la
+// ricerca) e' il costo che blocca il thread principale durante la digitazione.
+var _abzSuggCache={};
 function suggerisciCodiceA0Azzurra(descIA){
+  var key=(descIA||'').toUpperCase();
+  if(_abzSuggCache.hasOwnProperty(key))return _abzSuggCache[key];
   var paroleIA=normalizzaParoleAbz(descIA);
-  if(!paroleIA.length)return null;
-  var art0=(artCache||[]).filter(function(a){return (a.codice_articolo||'').toUpperCase().startsWith('A0');});
-  var best=null,bestPct=0;
-  art0.forEach(function(a){
-    var paroleA0=normalizzaParoleAbz(a.descrizione);
-    if(!paroleA0.length)return;
-    var comuni=paroleIA.filter(function(w){return paroleA0.indexOf(w)>=0;}).length;
-    if(!comuni)return;
-    var unione=paroleIA.length+paroleA0.length-comuni;
-    var pct=comuni/unione;
-    if(pct>bestPct){bestPct=pct;best=a;}
-  });
-  return best?{cod:best.codice_articolo,desc:best.descrizione,pct:bestPct}:null;
+  var risultato=null;
+  if(paroleIA.length){
+    var art0=(artCache||[]).filter(function(a){return (a.codice_articolo||'').toUpperCase().startsWith('A0');});
+    var best=null,bestPct=0;
+    art0.forEach(function(a){
+      var paroleA0=normalizzaParoleAbz(a.descrizione);
+      if(!paroleA0.length)return;
+      var comuni=paroleIA.filter(function(w){return paroleA0.indexOf(w)>=0;}).length;
+      if(!comuni)return;
+      var unione=paroleIA.length+paroleA0.length-comuni;
+      var pct=comuni/unione;
+      if(pct>bestPct){bestPct=pct;best=a;}
+    });
+    if(best)risultato={cod:best.codice_articolo,desc:best.descrizione,pct:bestPct};
+  }
+  _abzSuggCache[key]=risultato;
+  return risultato;
 }
 
 function renderAbbinamentiAzzurra(){
