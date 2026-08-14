@@ -737,7 +737,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <table class="rc-table">
           <thead>
             <tr>
-              <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Giacenza Iniziale</th><th>Tot. Uscita</th><th>Differenza (Aperto)</th>
+              <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Aperto (da Nova)</th><th>Tot. Uscita</th><th>Differenza (Aperto)</th>
             </tr>
           </thead>
           <tbody id="rc-aperti-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
@@ -771,13 +771,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="file" id="abz-imp-codici-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiImportCodiciIA(this)">
   </div>
   <div class="card">
-    <h2>Importa Giacenza Iniziale</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">File Excel Nova (con righe "Da data"/"A data"/"Da articolo"/"Ad articolo" da ignorare). Aggiorna solo la giacenza iniziale, non tocca l'abbinamento codice A0.</p>
+    <h2>Importa Inevasi Nova</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">File Excel Nova (con righe di metadati tipo "Dati origine"/"Ordinato per"/"Compressione"/"Range date"/"Filtro conto" da ignorare). Per ogni CodArt somma tutte le "Qtà Ine" del file e aggiorna solo la giacenza iniziale, non tocca l'abbinamento codice A0.</p>
     <button type="button" class="pdf-drop" style="width:100%;border:none;background:#EEF4FF;" onclick="document.getElementById('abz-imp-giac-inp').click()">
       <p>Tocca qui per caricare Excel (.xlsx)</p>
       <small>oppure trascinalo qui</small>
     </button>
-    <input type="file" id="abz-imp-giac-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiImportGiacenzaIA(this)">
+    <input type="file" id="abz-imp-giac-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiImportInevasiNova(this)">
   </div>
   <div class="card">
     <h2>Gestione abbinamenti</h2>
@@ -3171,8 +3171,10 @@ async function caricaArticoliApertiAzzurra(){
     if(!mU[k].desc&&r.descrizione)mU[k].desc=r.descrizione;
   });
 
-  // Giacenza iniziale importata (Abbinamenti AZZURRA): un A0 puo' avere piu' codici IA
-  // abbinati, quindi si sommano tutte le giacenza_iniziale dei codici IA abbinati a quel A0.
+  // Inevaso Nova importato (Abbinamenti AZZURRA, campo giacenza_iniziale): un A0 puo'
+  // avere piu' codici IA abbinati, quindi si sommano tutti gli inevasi dei codici IA
+  // abbinati a quel A0. E' questo il valore che determina "Differenza (Aperto)":
+  // Tot. Entrata/Tot. Uscita restano visibili solo come riferimento informativo.
   var mGiac={};
   (abz||[]).forEach(function(r){
     var k=(r.codice_a0||'').trim().toUpperCase();
@@ -3191,7 +3193,7 @@ async function caricaArticoliApertiAzzurra(){
     var giac=mGiac[k.toUpperCase()]||0;
     var artInfo=(artCache||[]).find(function(a){return (a.codice_articolo||'').trim().toUpperCase()===k.toUpperCase();});
     var desc=(artInfo&&artInfo.descrizione)||(mE[k]&&mE[k].desc)||(mU[k]&&mU[k].desc)||'';
-    return {cod:k,desc:desc,totE:totE,giac:giac,totU:totU,diff:(totE+giac)-totU};
+    return {cod:k,desc:desc,totE:totE,giac:giac,totU:totU,diff:giac};
   }).filter(function(r){return r.diff!==0;});
 
   righeAperti.sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
@@ -6206,47 +6208,56 @@ async function leggiImportCodiciIA(input){
   input.value='';
 }
 
-async function leggiImportGiacenzaIA(input){
+async function leggiImportInevasiNova(input){
   var file=input.files[0];if(!file)return;
   try{
     var ab=await file.arrayBuffer();
     var wb=XLSX.read(ab,{type:'array',cellDates:true});
     var ws=wb.Sheets[wb.SheetNames[0]];
     var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    var hi=-1,idxCod=-1,idxDesc=-1,idxGiac=-1;
+    var hi=-1,idxCod=-1,idxDesc=-1,idxIne=-1;
     for(var i=0;i<Math.min(rows.length,30);i++){
       var up=(rows[i]||[]).map(function(x){return String(x).trim().toUpperCase();});
-      var ic=up.findIndex(function(c){return c==='CODICE'||c==='COD.'||c==='COD';});
-      var ig=up.findIndex(function(c){return /GIAC/.test(c)&&/INIZ/.test(c);});
-      if(ic>=0&&ig>=0){
-        hi=i;idxCod=ic;idxGiac=ig;
-        idxDesc=up.findIndex(function(c){return c==='DESCRIZIONE'||c==='DESCR.'||c==='DESCR';});
+      var ic=up.findIndex(function(c){return c==='CODART';});
+      var ii=up.findIndex(function(c){return /QT/.test(c)&&/INE/.test(c);});
+      if(ic>=0&&ii>=0){
+        hi=i;idxCod=ic;idxIne=ii;
+        idxDesc=up.findIndex(function(c){return c==='DESCRIZIONE';});
         break;
       }
     }
-    if(hi<0)throw new Error('Intestazione (Codice / Giac. iniz) non trovata nel file');
-    if(!abzCache.length){var d=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(d)abzCache=d;}
-    var mappa={};
-    abzCache.forEach(function(r){mappa[(r.codice_ia||'').toUpperCase()]=r;});
-    var nuovi=0,aggiornati=0;
+    if(hi<0)throw new Error('Intestazione (CodArt / Qtà Ine) non trovata nel file');
+    // Il file ha piu' righe per codice (una per documento): sommo tutte le "Qtà Ine"
+    // per CodArt PRIMA di scrivere su Supabase, invece di sovrascrivere riga per riga.
+    var somme={},descrizioni={};
     for(var r2=hi+1;r2<rows.length;r2++){
       var row=rows[r2];if(!row||!row.length)continue;
       var cod=String(row[idxCod]||'').trim();
       if(!cod)continue;
-      var desc=idxDesc>=0?String(row[idxDesc]||'').trim():'';
-      var giacRaw=row[idxGiac];
-      var giac=typeof giacRaw==='number'?giacRaw:parseFloat(String(giacRaw||'0').replace(/\./g,'').replace(',','.'))||0;
-      var esistente=mappa[cod.toUpperCase()];
+      var codU=cod.toUpperCase();
+      if(idxDesc>=0&&!descrizioni[codU]){var d=String(row[idxDesc]||'').trim();if(d)descrizioni[codU]=d;}
+      var ineRaw=row[idxIne];
+      var ine=typeof ineRaw==='number'?ineRaw:parseFloat(String(ineRaw||'0').replace(/\./g,'').replace(',','.'))||0;
+      somme[codU]=(somme[codU]||0)+ine;
+    }
+    if(!abzCache.length){var dcache=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dcache)abzCache=dcache;}
+    var mappa={};
+    abzCache.forEach(function(r){mappa[(r.codice_ia||'').toUpperCase()]=r;});
+    var nuovi=0,aggiornati=0;
+    for(var codU2 in somme){
+      var totale=somme[codU2];
+      var esistente=mappa[codU2];
       if(esistente){
-        var ok=await apiPatch('abbinamenti_azzurra','id=eq.'+esistente.id,{giacenza_iniziale:giac});
-        if(ok){esistente.giacenza_iniziale=giac;aggiornati++;}
+        var ok=await apiPatch('abbinamenti_azzurra','id=eq.'+esistente.id,{giacenza_iniziale:totale});
+        if(ok){esistente.giacenza_iniziale=totale;aggiornati++;}
       } else {
-        var rr=await apiPost('abbinamenti_azzurra',{codice_ia:cod,descrizione_ia:desc,codice_a0:null,giacenza_iniziale:giac});
-        if(rr&&rr[0]){mappa[cod.toUpperCase()]=rr[0];abzCache.push(rr[0]);nuovi++;}
+        var rr=await apiPost('abbinamenti_azzurra',{codice_ia:codU2,descrizione_ia:descrizioni[codU2]||'',codice_a0:null,giacenza_iniziale:totale});
+        if(rr&&rr[0]){mappa[codU2]=rr[0];abzCache.push(rr[0]);nuovi++;}
       }
     }
+    _abzSuggCache={};
     renderAbbinamentiAzzurra();
-    showMsg('msg-abbinamenti-azzurra',nuovi+' nuovi codici, '+aggiornati+' giacenze aggiornate.','ok');
+    showMsg('msg-abbinamenti-azzurra',nuovi+' nuovi codici, '+aggiornati+' inevasi aggiornati.','ok');
   }catch(e){showMsg('msg-abbinamenti-azzurra','Errore: '+e.message,'err');}
   input.value='';
 }
