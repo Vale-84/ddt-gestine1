@@ -4115,10 +4115,27 @@ async function leggiPDFUscita(input){
     if(!mN){var allM=(testo.match(/[A-Z]\d{6,8}/g)||[]).filter(function(m){return !/^T0/.test(m);});if(allM.length)mN=[null,allM[0]];}
     if(mN)nddt=mN[1].trim();
     if(!nddt&&file.name){var mF=file.name.match(/([A-Z]\d{6,8})/);if(mF)nddt=mF[1];}
-    var mD=testo.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
-    if(mD)data=mD[3]+'-'+('0'+mD[2]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
-    if(!data){var mD2=testo.match(/(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s*(\d{4})/i);
-      if(mD2){var mesi={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};data=mD2[3]+'-'+mesi[mD2[2].toLowerCase()]+'-'+('0'+mD2[1]).slice(-2);}}
+    var mesi={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};
+    // La data ufficiale del DDT è in testata, subito dopo il numero DDT (es. "C6000270 06 ago 2026").
+    // Cercarla su tutto il testo senza ancoraggio prende per errore le date delle righe
+    // "Arrivato con DDT N° ... del GG/MM/AAAA" (riferimenti ai DDT di entrata originali).
+    var idxNddt=nddt?testo.indexOf(nddt):-1;
+    if(idxNddt>=0){
+      var zonaIntestazione=testo.slice(idxNddt,idxNddt+120);
+      var mDh=zonaIntestazione.match(/(\d{1,2})\s+(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s+(\d{4})/i);
+      if(mDh)data=mDh[3]+'-'+mesi[mDh[2].toLowerCase()]+'-'+('0'+mDh[1]).slice(-2);
+      if(!data){var mDh2=zonaIntestazione.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if(mDh2)data=mDh2[3]+'-'+('0'+mDh2[2]).slice(-2)+'-'+('0'+mDh2[1]).slice(-2);}
+    }
+    if(!data){
+      // Fallback (nddt non trovato in testo): scarto le righe "Arrivato con DDT" prima di cercare,
+      // così una eventuale data "del ..." lì dentro non può mai essere presa per errore.
+      var testoNoArrivato=testo.split('\n').filter(function(r){return r.indexOf('Arrivato con DDT')<0;}).join('\n');
+      var mD=testoNoArrivato.match(/(\d{1,2})\s+(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)\s+(\d{4})/i);
+      if(mD)data=mD[3]+'-'+mesi[mD[2].toLowerCase()]+'-'+('0'+mD[1]).slice(-2);
+      if(!data){var mD2=testoNoArrivato.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if(mD2)data=mD2[3]+'-'+('0'+mD2[2]).slice(-2)+'-'+('0'+mD2[1]).slice(-2);}
+    }
     var mC=testo.match(/Intestatario[\s\S]*?\n\s*\([\d]+\)\s*\n\s*([A-Z][A-Z\s&]+(?:SRL|SPA|SNS|SAS))/i);
     if(!mC)mC=testo.match(/([A-Z][a-zA-Z\s&]+(?:srl|spa|snc|sas))/i);
     if(mC)cliente=mC[1].trim();
