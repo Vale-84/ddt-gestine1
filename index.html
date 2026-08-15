@@ -833,7 +833,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>Giacenza magazzino</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cosa hai in casa adesso: Ricevuto (DDT Entrata) → Spedito (DDT Uscita), articolo per articolo.</p>
-    <input class="cerca-input" id="mag-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderMagazzino()" autocomplete="off" style="margin-bottom:10px;">
+    <div class="cerca-box">
+      <input class="cerca-input" id="mag-cerca" placeholder="Filtra per codice o descrizione..." oninput="cerca('mag');renderMagazzino()" autocomplete="off" style="margin-bottom:10px;">
+      <div class="cerca-risultati" id="mag-ris"></div>
+    </div>
     <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;margin-bottom:12px;">
       <input type="checkbox" id="mag-solo-giacenza" onchange="renderMagazzino()" style="width:auto;margin-bottom:0;"> Mostra solo articoli con pezzi in casa
     </label>
@@ -1327,6 +1330,15 @@ async function cerca(p){
 }
 
 function selArt(p,cod,desc){
+  if(p==='mag'){
+    // Magazzino non "seleziona" un articolo per salvarlo: il click su un suggerimento
+    // deve solo scrivere il codice nel campo e lasciare che il filtro esistente sulla
+    // lista sottostante faccia il resto (nessun campo nascosto, nessun badge di conferma).
+    document.getElementById('mag-cerca').value=cod;
+    document.getElementById('mag-ris').style.display='none';
+    renderMagazzino();
+    return;
+  }
   if(document.getElementById(p+'-cod'))document.getElementById(p+'-cod').value=cod;
   if(document.getElementById(p+'-dsc'))document.getElementById(p+'-dsc').value=desc;
   document.getElementById(p+'-cerca').value=cod+' — '+desc;
@@ -3144,6 +3156,20 @@ async function aggiornaConfronto(){
 // ── ARTICOLI APERTI (solo AZZURRA): Tot. Entrata ≠ Tot. Uscita per codice diretto ──
 var _apertiAzzurraUltimoRis=null;
 
+// Inevaso Nova (Abbinamenti AZZURRA, campo giacenza_iniziale) sommato per codice A0: un A0
+// puo' avere piu' codici IA abbinati. Condivisa tra "Articoli Aperti" e "Magazzino" cosi'
+// il dato mostrato nelle due pagine e' sempre calcolato allo stesso identico modo.
+async function getGiacenzaNovaPerA0(){
+  var abz=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
+  var mGiac={};
+  (abz||[]).forEach(function(r){
+    var k=(r.codice_a0||'').trim().toUpperCase();
+    if(!k)return;
+    mGiac[k]=(mGiac[k]||0)+(Number(r.giacenza_iniziale)||0);
+  });
+  return mGiac;
+}
+
 async function caricaArticoliApertiAzzurra(){
   var box=document.getElementById('rc-aperti-azzurra');
   var tb=document.getElementById('rc-aperti-tbody');
@@ -3153,7 +3179,7 @@ async function caricaArticoliApertiAzzurra(){
 
   var ddte=await apiGet('ddt_entrata');
   var ddtu=await apiGet('ddt_uscita');
-  var abz=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
+  var mGiac=await getGiacenzaNovaPerA0();
   if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
 
   // Stesso filtro periodo già usato in Confronto (aggiornaConfronto): applicato a ENTRAMBE le
@@ -3191,17 +3217,9 @@ async function caricaArticoliApertiAzzurra(){
     if(!mU[k].desc&&r.descrizione)mU[k].desc=r.descrizione;
   });
 
-  // Inevaso Nova importato (Abbinamenti AZZURRA, campo giacenza_iniziale): un A0 puo'
-  // avere piu' codici IA abbinati, quindi si sommano tutti gli inevasi dei codici IA
-  // abbinati a quel A0. E' questo il valore che determina "Differenza (Aperto)":
-  // Tot. Entrata/Tot. Uscita restano visibili solo come riferimento informativo.
-  var mGiac={};
-  (abz||[]).forEach(function(r){
-    var k=(r.codice_a0||'').trim().toUpperCase();
-    if(!k)return;
-    mGiac[k]=(mGiac[k]||0)+(Number(r.giacenza_iniziale)||0);
-  });
-
+  // mGiac (Inevaso Nova per A0) e' gia' quello calcolato da getGiacenzaNovaPerA0() sopra:
+  // e' questo il valore che determina "Differenza (Aperto)", Tot. Entrata/Tot. Uscita
+  // restano visibili solo come riferimento informativo.
   var codici={};
   Object.keys(mE).forEach(function(k){codici[k]=true;});
   Object.keys(mU).forEach(function(k){codici[k]=true;});
@@ -5586,7 +5604,26 @@ async function caricaMagazzino(){
     map[k][campo]+=(r.quantita_ddt||0);
   }
   ent.forEach(function(r){agg(r,'ric');});usc.forEach(function(r){agg(r,'spe');});
-  magCache=Object.values(map).map(function(a){a.gia=a.ric-a.spe;return a;});
+  magCache=Object.values(map).map(function(a){a.gia=a.ric-a.spe;a.daNova=false;return a;});
+
+  // Solo AZZURRA: il numero principale "in casa" diventa l'Aperto reale da Nova (stessa
+  // fonte di Confronto -> Articoli Aperti), non piu' il calcolo Ricevuto-Spedito dell'app.
+  // Se un codice non e' ancora abbinato in "Abbinamenti AZZURRA" (nessuna voce in mGiac),
+  // resta il fallback Ricevuto-Spedito: cosi' un articolo non ancora collegato a Nova non
+  // sparisce ne' mostra un fuorviante 0.
+  var lblGia=document.getElementById('mag-tot-gia');
+  var lblGiaTesto=lblGia?lblGia.parentElement.querySelector('.l'):null;
+  if(getCliente()==='AZZURRA'){
+    var mGiac=await getGiacenzaNovaPerA0();
+    magCache.forEach(function(a){
+      var k=(a.cod||'').toUpperCase();
+      if(mGiac.hasOwnProperty(k)){a.gia=mGiac[k];a.daNova=true;}
+    });
+    if(lblGiaTesto)lblGiaTesto.textContent='Aperto (da Nova)';
+  } else if(lblGiaTesto){
+    lblGiaTesto.textContent='In casa';
+  }
+
   magCache.sort(function(a,b){return b.gia-a.gia;});
   renderMagazzino();
 }
@@ -5608,11 +5645,12 @@ function renderMagazzino(){
   if(!lista.length){l.innerHTML='<div class="empty">Nessun articolo</div>';return;}
   l.innerHTML=lista.map(function(a){
     var bordo=a.gia>0?'#C55A11':a.gia<0?'#C00000':'#217346';
-    var badge=a.gia>0?'<span class="badge badge-warn">'+a.gia+' in casa</span>':a.gia<0?'<span class="badge badge-err">'+a.gia+'</span>':'<span class="badge badge-ok">finito</span>';
+    var suffisso=a.daNova?' (Nova)':'';
+    var badge=a.gia>0?'<span class="badge badge-warn">'+a.gia+' in casa'+suffisso+'</span>':a.gia<0?'<span class="badge badge-err">'+a.gia+suffisso+'</span>':'<span class="badge badge-ok">finito'+suffisso+'</span>';
     var codBadges=(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'');
     if(a.cod_b0s&&a.cod_b0s.length){codBadges+='→ '+a.cod_b0s.map(function(c){return '<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+c+'</span>';}).join(' ')+' ';}
     return '<div class="row-item" style="border-left-color:'+bordo+';">'
-      +'<div class="row-qty" style="color:'+bordo+';">'+a.gia+'</div>'
+      +'<div class="row-qty" style="color:'+bordo+';" title="'+(a.daNova?'Aperto da Nova':'Ricevuto - Spedito (app)')+'">'+a.gia+'</div>'
       +'<div class="row-info"><div class="rdesc">'+codBadges+a.desc+'</div>'
       +'<div class="rsub">Ricevuto: '+a.ric+' &nbsp;Spedito: '+a.spe+'</div></div>'+badge+'</div>';
   }).join('');
