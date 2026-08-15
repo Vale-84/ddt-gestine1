@@ -208,6 +208,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
   <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
   <div class="tab admin-tab" data-page="abbinamenti-azzurra" onclick="showPage('abbinamenti-azzurra',this)" style="display:none">Abbinamenti AZZURRA</div>
+  <div class="tab admin-tab" data-page="sostituzioni-azzurra" onclick="showPage('sostituzioni-azzurra',this)" style="display:none">Sostituzioni AZZURRA</div>
   <div class="tab" data-page="cfg" onclick="showPage('cfg',this)">Config</div>
 </div>
 
@@ -791,6 +792,45 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
           </tr>
         </thead>
         <tbody id="abz-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SOSTITUZIONI AZZURRA (codice_da -> codice_a, con quantita e nota) -->
+<div id="page-sostituzioni-azzurra" class="page">
+  <div id="msg-sostituzioni-azzurra"></div>
+  <div class="card">
+    <h2>Nuova sostituzione</h2>
+    <label>Data</label><input type="date" id="saz-data">
+    <label>Codice originale</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="saz-da-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('saz-da')" autocomplete="off">
+      <div class="cerca-risultati" id="saz-da-ris"></div>
+    </div>
+    <div class="art-sel" id="saz-da-sel"></div>
+    <input type="hidden" id="saz-da-cod"><input type="hidden" id="saz-da-dsc">
+    <label>Codice sostituito</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="saz-a-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('saz-a')" autocomplete="off">
+      <div class="cerca-risultati" id="saz-a-ris"></div>
+    </div>
+    <div class="art-sel" id="saz-a-sel"></div>
+    <input type="hidden" id="saz-a-cod"><input type="hidden" id="saz-a-dsc">
+    <label>Quantità</label><input type="number" id="saz-qty" placeholder="0">
+    <label>Nota</label><input type="text" id="saz-nota">
+    <button class="btn btn-blue" onclick="salvaSostituzioneAzzurra()">AGGIUNGI</button>
+  </div>
+  <div class="card">
+    <h2>Sostituzioni inserite</h2>
+    <div class="rc-table-scroll">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th>Data</th><th>Codice Originale → Codice Sostituito</th><th>Quantità</th><th>Nota</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="saz-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1390,6 +1430,7 @@ function showPage(name,el){
   if(name==='controllo-date')caricaControlloDate();
   if(name==='confronto')aggiornaConfronto();
   if(name==='abbinamenti-azzurra')caricaAbbinamentiAzzurra();
+  if(name==='sostituzioni-azzurra')caricaSostituzioniAzzurra();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
 
@@ -6369,9 +6410,48 @@ async function leggiImportInevasiNova(input){
   input.value='';
 }
 
+// ── SOSTITUZIONI AZZURRA (codice_da -> codice_a, con quantita e nota) ──
+async function caricaSostituzioniAzzurra(){
+  var dataEl=document.getElementById('saz-data');
+  if(dataEl&&!dataEl.value)dataEl.value=oggiISO();
+  var tb=document.getElementById('saz-tbody');
+  if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  var d=await apiGet('sostituzioni_azzurra','order=data_sostituzione.desc.nullslast,id.desc&limit=5000');
+  if(!d){if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  if(!tb)return;
+  if(!d.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessuna sostituzione inserita</td></tr>';return;}
+  tb.innerHTML=d.map(function(r){
+    return '<tr>'
+      +'<td>'+fmtData(r.data_sostituzione)+'</td>'
+      +'<td><strong>'+(r.codice_da||'—')+'</strong> → <strong>'+(r.codice_a||'—')+'</strong></td>'
+      +'<td style="text-align:right;">'+(r.quantita!=null?r.quantita:'')+'</td>'
+      +'<td>'+(r.nota||'')+'</td>'
+      +'<td><button class="del-btn" title="Elimina" onclick="eliminaRiga(\'sostituzioni_azzurra\','+r.id+',caricaSostituzioniAzzurra)">✕</button></td>'
+    +'</tr>';
+  }).join('');
+}
+
+async function salvaSostituzioneAzzurra(){
+  var data=document.getElementById('saz-data').value||oggiISO();
+  var codDa=document.getElementById('saz-da-cod').value;
+  var codA=document.getElementById('saz-a-cod').value;
+  var qty=parseInt(document.getElementById('saz-qty').value)||0;
+  var nota=document.getElementById('saz-nota').value;
+  if(!codDa||!codA){showMsg('msg-sostituzioni-azzurra','Seleziona sia il codice originale sia il codice sostituito dai suggerimenti!','err');return;}
+  var r=await apiPost('sostituzioni_azzurra',{data_sostituzione:data,codice_da:codDa,codice_a:codA,quantita:qty,nota:nota});
+  if(!r)return;
+  showMsg('msg-sostituzioni-azzurra','Sostituzione salvata!','ok');
+  ['saz-da-cerca','saz-da-cod','saz-da-dsc','saz-a-cerca','saz-a-cod','saz-a-dsc','saz-qty','saz-nota'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.value='';
+  });
+  var selDa=document.getElementById('saz-da-sel');if(selDa)selDa.style.display='none';
+  var selA=document.getElementById('saz-a-sel');if(selA)selA.style.display='none';
+  caricaSostituzioniAzzurra();
+}
+
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','cfg'],
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sostituzioni-azzurra','cfg'],
   BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','cfg']
 };
 
@@ -6415,6 +6495,7 @@ function cambiaCliente(){
     if(name==='riepilogo-wa')caricaRiepilogoWA();
     if(name==='confronto')aggiornaConfronto();
     if(name==='abbinamenti-azzurra')caricaAbbinamentiAzzurra();
+    if(name==='sostituzioni-azzurra')caricaSostituzioniAzzurra();
 
   }
 }
