@@ -3908,13 +3908,34 @@ async function caricaDDTE(){
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
+  // Codice IA (Nova) accanto al codice A0: mappa costruita una sola volta da abbinamenti_azzurra
+  // (stessa cache/pattern di artCache), non una query per riga. Solo per AZZURRA: per BERGAMASCO
+  // il concetto codice_a0/codice_ia non esiste (usa la sua logica BER->B0 separata).
+  var isAz=getCliente()==='AZZURRA';
+  var mIA={};
+  if(isAz){
+    if(!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
+    abzCache.forEach(function(r){
+      var k=(r.codice_a0||'').trim().toUpperCase();
+      if(!k||!r.codice_ia)return;
+      if(!mIA[k])mIA[k]=[];
+      mIA[k].push(r.codice_ia);
+    });
+  }
   l.innerHTML=d.map(function(r){
     var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);
     var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';
+    var iaHtml='';
+    if(isAz){
+      var iaList=mIA[(r.codice_articolo||'').trim().toUpperCase()];
+      iaHtml=iaList&&iaList.length
+        ?' <span class="badge badge-ok" title="Codice IA (Nova)">'+iaList.join(', ')+'</span>'
+        :' <span style="color:#bbb;font-size:11px;" title="Nessun codice IA abbinato">—</span>';
+    }
     return '<div class="row-item">'
       +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
-      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
+      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong>'+iaHtml+' '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_entrata\','+r.id+',caricaDDTE)">✕</button>'
