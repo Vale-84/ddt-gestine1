@@ -1257,6 +1257,26 @@ async function apiPatch(t,f,b){
   return r.ok;
 }
 
+// Upsert bulk vero (INSERT ... ON CONFLICT DO UPDATE) via PostgREST: risolve alla radice
+// i duplicati invece di affidarsi a un controllo "esiste gia'?" fatto in JS su una cache
+// locale che puo' essere disallineata dal DB. Tutte le righe di un singolo array devono
+// avere le STESSE colonne: solo quelle presenti nel payload vengono toccate on conflict,
+// quindi i chiamanti devono passare array separati per "nuovi" (tutti i campi) e
+// "esistenti" (solo i campi che devono davvero essere aggiornati).
+async function apiUpsert(t,arr,onConflictCol){
+  if(!arr||!arr.length)return [];
+  var c=getConfig();if(!c.url)return null;
+  try{
+    var r=await fetch(c.url+'/rest/v1/'+t+'?on_conflict='+onConflictCol,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'resolution=merge-duplicates,return=representation'},
+      body:JSON.stringify(arr)
+    });
+    if(!r.ok)throw new Error(await r.text());
+    return await r.json();
+  }catch(e){alert('Errore: '+e.message);return null;}
+}
+
 async function testConn(){var d=await apiGet('whatsapp_righe');if(d!==null){showMsg('msg-cfg','OK! '+d.length+' righe.','ok');document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Connesso</span>';}}
 
 async function caricaArticoli(){var d=await apiGet('articoli','order=descrizione.asc&limit=500');if(d)artCache=d;}
@@ -6184,26 +6204,43 @@ async function leggiImportCodiciIA(input){
     var idxCod=header.indexOf('CODICE');
     var idxDesc=header.indexOf('DESCRIZIONE');
     if(idxCod<0||idxDesc<0)throw new Error('Colonne "Codice"/"Descrizione" non trovate in riga 1');
-    if(!abzCache.length){var d=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(d)abzCache=d;}
-    var mappa={};
-    abzCache.forEach(function(r){mappa[(r.codice_ia||'').toUpperCase()]=r;});
-    var nuovi=0,aggiornati=0;
+    // Righe del file -> mappa per codice (ultima occorrenza vince, come faceva il loop
+    // sequenziale precedente). Ricarico sempre abzCache dal DB (non solo se vuota) per
+    // sapere con certezza quali codici esistono gia', invece di fidarmi di una cache
+    // locale potenzialmente disallineata: e' proprio questo disallineamento che causava
+    // il POST su un codice_ia gia' esistente e l'errore 23505 di violazione unique.
+    var righeFile={};
     for(var i=1;i<rows.length;i++){
       var row=rows[i];if(!row||!row.length)continue;
       var cod=String(row[idxCod]||'').trim();
-      var desc=String(row[idxDesc]||'').trim();
       if(!cod)continue;
-      var esistente=mappa[cod.toUpperCase()];
-      if(esistente){
-        var ok=await apiPatch('abbinamenti_azzurra','id=eq.'+esistente.id,{descrizione_ia:desc});
-        if(ok){esistente.descrizione_ia=desc;aggiornati++;}
-      } else {
-        var r=await apiPost('abbinamenti_azzurra',{codice_ia:cod,descrizione_ia:desc,codice_a0:null,giacenza_iniziale:null});
-        if(r&&r[0]){mappa[cod.toUpperCase()]=r[0];abzCache.push(r[0]);nuovi++;}
-      }
+      righeFile[cod.toUpperCase()]={codice_ia:cod,descrizione_ia:String(row[idxDesc]||'').trim()};
     }
+    var dFresh=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    if(dFresh)abzCache=dFresh;
+    var esistentiSet={};
+    abzCache.forEach(function(r){esistentiSet[(r.codice_ia||'').toUpperCase()]=true;});
+
+    var nuoviArr=[],aggiornatiArr=[];
+    Object.keys(righeFile).forEach(function(k){
+      if(esistentiSet[k]){
+        // Upsert con SOLO codice_ia+descrizione_ia: on conflict tocca solo questo campo,
+        // non sovrascrive mai codice_a0 o giacenza_iniziale gia' impostati.
+        aggiornatiArr.push(righeFile[k]);
+      } else {
+        nuoviArr.push({codice_ia:righeFile[k].codice_ia,descrizione_ia:righeFile[k].descrizione_ia,codice_a0:null,giacenza_iniziale:null});
+      }
+    });
+
+    var risNuovi=await apiUpsert('abbinamenti_azzurra',nuoviArr,'codice_ia');
+    var risAggiornati=await apiUpsert('abbinamenti_azzurra',aggiornatiArr,'codice_ia');
+    if(risNuovi===null||risAggiornati===null)throw new Error('Import interrotto per un errore di connessione.');
+
+    var dRicaricata=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    if(dRicaricata)abzCache=dRicaricata;
+    _abzSuggCache={};
     renderAbbinamentiAzzurra();
-    showMsg('msg-abbinamenti-azzurra',nuovi+' nuovi codici, '+aggiornati+' aggiornati.','ok');
+    showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+aggiornatiArr.length+' aggiornati.','ok');
   }catch(e){showMsg('msg-abbinamenti-azzurra','Errore: '+e.message,'err');}
   input.value='';
 }
@@ -6240,24 +6277,35 @@ async function leggiImportInevasiNova(input){
       var ine=typeof ineRaw==='number'?ineRaw:parseFloat(String(ineRaw||'0').replace(/\./g,'').replace(',','.'))||0;
       somme[codU]=(somme[codU]||0)+ine;
     }
-    if(!abzCache.length){var dcache=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dcache)abzCache=dcache;}
-    var mappa={};
-    abzCache.forEach(function(r){mappa[(r.codice_ia||'').toUpperCase()]=r;});
-    var nuovi=0,aggiornati=0;
-    for(var codU2 in somme){
-      var totale=somme[codU2];
-      var esistente=mappa[codU2];
-      if(esistente){
-        var ok=await apiPatch('abbinamenti_azzurra','id=eq.'+esistente.id,{giacenza_iniziale:totale});
-        if(ok){esistente.giacenza_iniziale=totale;aggiornati++;}
+    // Ricarico sempre abzCache dal DB (non solo se vuota): serve a sapere con certezza
+    // quali codici esistono gia', invece di fidarmi di una cache locale potenzialmente
+    // disallineata (era questo disallineamento a causare il POST su un codice_ia gia'
+    // esistente e l'errore 23505 di violazione unique).
+    var dFresh=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    if(dFresh)abzCache=dFresh;
+    var esistentiSet={};
+    abzCache.forEach(function(r){esistentiSet[(r.codice_ia||'').toUpperCase()]=true;});
+
+    var nuoviArr=[],aggiornatiArr=[];
+    Object.keys(somme).forEach(function(codU2){
+      if(esistentiSet[codU2]){
+        // Upsert con SOLO codice_ia+giacenza_iniziale: on conflict tocca solo questo
+        // campo, non sovrascrive mai descrizione_ia o codice_a0 gia' impostati.
+        aggiornatiArr.push({codice_ia:codU2,giacenza_iniziale:somme[codU2]});
       } else {
-        var rr=await apiPost('abbinamenti_azzurra',{codice_ia:codU2,descrizione_ia:descrizioni[codU2]||'',codice_a0:null,giacenza_iniziale:totale});
-        if(rr&&rr[0]){mappa[codU2]=rr[0];abzCache.push(rr[0]);nuovi++;}
+        nuoviArr.push({codice_ia:codU2,descrizione_ia:descrizioni[codU2]||'',codice_a0:null,giacenza_iniziale:somme[codU2]});
       }
-    }
+    });
+
+    var risNuovi=await apiUpsert('abbinamenti_azzurra',nuoviArr,'codice_ia');
+    var risAggiornati=await apiUpsert('abbinamenti_azzurra',aggiornatiArr,'codice_ia');
+    if(risNuovi===null||risAggiornati===null)throw new Error('Import interrotto per un errore di connessione.');
+
+    var dRicaricata=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    if(dRicaricata)abzCache=dRicaricata;
     _abzSuggCache={};
     renderAbbinamentiAzzurra();
-    showMsg('msg-abbinamenti-azzurra',nuovi+' nuovi codici, '+aggiornati+' inevasi aggiornati.','ok');
+    showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+aggiornatiArr.length+' inevasi aggiornati.','ok');
   }catch(e){showMsg('msg-abbinamenti-azzurra','Errore: '+e.message,'err');}
   input.value='';
 }
