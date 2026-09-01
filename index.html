@@ -5870,8 +5870,8 @@ async function azzeraTutto(){
 
 // ── ESPORTA IMBALLO EXCEL ─────────────────────────────────────────────
 async function esportaImballoExcel(){
-  var wa=await apiGet('whatsapp_uscita');
-  if(!wa||!wa.length){alert('Nessuna riga WA Uscita da esportare!');return;}
+  var wa=await apiGet('imballo');
+  if(!wa||!wa.length){alert('Nessuna riga Imballo da esportare!');return;}
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
   var bom='\uFEFF';
@@ -5895,9 +5895,9 @@ async function esportaImballoExcel(){
     if(!(dt instanceof Date) || isNaN(dt)) return dataOggi;
     return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear();
   }
-  // Una riga whatsapp_uscita = una riga Excel. Nessun raggruppamento, nessuna somma,
-  // nessun dato da altre tabelle (imballo, verniciato): solo data_inserimento (fallback
-  // created_at), codice_articolo, descrizione_articolo, quantita cosi' come registrati.
+  // Una riga imballo = una riga Excel. Nessun raggruppamento, nessuna somma,
+  // nessun dato da altre tabelle (whatsapp_uscita, verniciato): solo data_inserimento
+  // (fallback created_at), codice_articolo, articolo, totale cosi' come registrati.
   wa.forEach(function(r){
     var dt=(r.data_inserimento&&parseDate(r.data_inserimento))||(r.created_at&&parseDate(r.created_at))||new Date();
     r._sortDate=dt;
@@ -5907,10 +5907,10 @@ async function esportaImballoExcel(){
 
   var num=1;
   var righe=wa.map(function(r){
-    var qty=String(Number(r.quantita||0).toFixed(3)).replace('.',',');
+    var qty=String(Number(r.totale||0).toFixed(3)).replace('.',',');
     return r._exportDate+';TDDDT;'+anno+';  ;      1; ;'+r._exportDate+';'+r._exportDate+';    '+num+++';'
       +String(r.codice_articolo||'').padEnd(16)+';'
-      +String(r.descrizione_articolo||r.descrizione||'').padEnd(35)+';'
+      +String(r.articolo||'').padEnd(35)+';'
       +'n ;     '+qty+';          0,000; 0,00; 0,00; 0,00; 0,00; 0,00;           0,00;  /  /    ;  /  /    ;      0;  /  /    ;  ;                    ';
   }).join('\r\n');
   var csv=bom+intestazione+righe+'\r\n';
