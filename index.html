@@ -2098,6 +2098,7 @@ async function verificaWAImballo(){
 async function verificaVerniciatoImballo(){
   var imb=await apiGet('imballo');
   var vern=await apiGet('verniciato');
+  var wau=await apiGet('whatsapp_uscita');
   var res=document.getElementById('imb2-verifica-res');
   if(!res){return;}
   if(!imb||!vern){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato o Imballo.</div>';return;}
@@ -2114,36 +2115,55 @@ async function verificaVerniciatoImballo(){
     if(!mapVern[key]) mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
     mapVern[key].tot += Number(r.quantita)||0;
   });
+  // WA Uscita per codice_articolo (stessa normalizzazione chiave gia' usata in
+  // verificaWAUscitaImballo): aggiunta in parallelo, non sostituisce ne' modifica
+  // il confronto Verniciato vs Imballo gia' esistente sopra.
+  var mapWA={};
+  (wau||[]).forEach(function(r){
+    if(!r.codice_articolo)return;
+    var key=r.codice_articolo.toString().trim().toLowerCase();
+    if(!mapWA[key])mapWA[key]={tot:0};
+    mapWA[key].tot += Number(r.quantita)||0;
+  });
+  function coloreDiff(d){return d===0?'#217346':d>0?'#C55A11':'#C00000';}
   var keys={};
   Object.keys(mapVern).forEach(function(k){keys[k]=true;});
   Object.keys(mapImb).forEach(function(k){keys[k]=true;});
   var list=Object.keys(keys).map(function(key){
     var v=mapVern[key],i=mapImb[key];
+    var cod=(v&&v.cod)||(i&&i.cod)||'';
     var vTot=v?v.tot:0,iTot=i?i.tot:0;
-    return {cod:(v&&v.cod)||(i&&i.cod)||'',desc:(v&&v.desc)||(i&&i.desc)||'',vern:vTot,imb:iTot,diff:vTot-iTot};
+    var wTot=(cod&&mapWA[cod.toString().trim().toLowerCase()])?mapWA[cod.toString().trim().toLowerCase()].tot:0;
+    return {cod:cod,desc:(v&&v.desc)||(i&&i.desc)||'',vern:vTot,imb:iTot,wau:wTot,diff:vTot-iTot,diffWau:wTot-iTot};
   });
   list.sort(function(a,b){
     var aZero=a.diff===0,bZero=b.diff===0;
     if(aZero!==bZero)return aZero?1:-1;
     return 0;
   });
-  var totV=0,totI=0,totDiff=0;
+  function rigaConfronto(label,val,diff){
+    var col=coloreDiff(diff);
+    return '<div style="display:flex;align-items:center;gap:10px;font-size:13px;padding:3px 0 3px 10px;">'
+      +'<span style="width:90px;color:#666;">'+label+'</span>'
+      +'<span style="width:50px;"><strong>'+val+'</strong></span>'
+      +'<span style="color:'+col+';">Diff: <strong>'+(diff>0?'+':'')+diff+'</strong></span>'
+    +'</div>';
+  }
+  var totV=0,totI=0,totW=0,totDiff=0,totDiffW=0;
   var rowsHtml=list.map(function(a){
-    totV+=a.vern;totI+=a.imb;totDiff+=a.diff;
-    var bordo=a.diff===0?'#217346':a.diff>0?'#C55A11':'#C00000';
-    return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
+    totV+=a.vern;totI+=a.imb;totW+=a.wau;totDiff+=a.diff;totDiffW+=a.diffWau;
+    return '<div class="row-item" style="border-left-color:#5B2C8D;padding:8px 12px;display:block;">'
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
         +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+(a.cod||'?')+'</span>'
         +'<span>'+a.desc+'</span>'
-        +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
-          +'<span>Verniciato: <strong>'+a.vern+'</strong></span>'
-          +'<span>Imballo: <strong>'+a.imb+'</strong></span>'
-          +'<span style="color:'+bordo+';">Diff: <strong>'+(a.diff>0?'+':'')+a.diff+'</strong></span>'
-        +'</span>'
-      +'</div></div>';
+        +'<span style="margin-left:auto;white-space:nowrap;">Imballo: <strong>'+a.imb+'</strong></span>'
+      +'</div>'
+      +rigaConfronto('Verniciato',a.vern,a.diff)
+      +rigaConfronto('WA Uscita',a.wau,a.diffWau)
+    +'</div>';
   }).join('');
-  var allOk=totDiff===0;
-  var totHtml='<div class="'+(allOk?'ok-box':'warn-box')+'" style="margin-bottom:10px;">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong></div>';
+  var allOk=totDiff===0&&totDiffW===0;
+  var totHtml='<div class="'+(allOk?'ok-box':'warn-box')+'" style="margin-bottom:10px;">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> &nbsp;WA Uscita: <strong>'+totW+'</strong> &nbsp;Diff: <strong>'+(totDiffW>0?'+':'')+totDiffW+'</strong></div>';
   res.innerHTML=totHtml+rowsHtml;
 }
 
