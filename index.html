@@ -1085,6 +1085,18 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- MODAL UNISCI IMBALLO PER DATA -->
+<div class="modal" id="modal-unisci-imballo-data">
+  <div class="modal-box" style="max-width:640px;">
+    <h3 style="color:#5B2C8D;">Unisci Imballo per data</h3>
+    <label>Data</label><input type="date" id="uipd-data">
+    <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;margin-top:10px;"><input type="checkbox" id="uipd-sel-all" checked onchange="toggleSelAllUnisciImballo(this.checked)" style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;"> Seleziona tutto</label>
+    <div id="uipd-lista" style="margin:10px 0;max-height:50vh;overflow-y:auto;"></div>
+    <button class="btn btn-green" onclick="generaCsvUnisciImballo()">GENERA CSV</button>
+    <button class="btn btn-gray" onclick="chiudiModaleUnisciImballo()">ANNULLA</button>
+  </div>
+</div>
+
 <!-- OVERLAY FOTO PROMEMORIA A SCHERMO INTERO -->
 <div class="modal" id="foto-overlay" onclick="chiudiFotoSchermoIntero()" style="background:rgba(0,0,0,0.85);">
   <button onclick="event.stopPropagation();chiudiFotoSchermoIntero()" style="position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.95);color:#222;border:none;font-size:22px;font-weight:bold;cursor:pointer;z-index:210;line-height:1;">✕</button>
@@ -5925,31 +5937,14 @@ async function esportaImballoExcel(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
-// ── UNISCI PER DATA (Imballo): un CSV TDDDT con una sola riga per codice, tutte le date
-// forzate alla data scelta dall'utente — utile per registrare in un colpo solo su Nova un
-// riepilogo imballi senza doverli splittare per data di inserimento reale. ─────────────
-async function unisciImballoPerData(){
-  var dataScelta=prompt('Data per il CSV unito (YYYY-MM-DD):',oggiISO());
-  if(!dataScelta)return;
-  dataScelta=dataScelta.trim();
-  if(!dataScelta)return;
-  var parti=dataScelta.split('-');
-  if(parti.length!==3){alert('Formato data non valido, usa YYYY-MM-DD.');return;}
-  var dt=new Date(parseInt(parti[0],10),parseInt(parti[1],10)-1,parseInt(parti[2],10));
-  if(isNaN(dt)){alert('Formato data non valido, usa YYYY-MM-DD.');return;}
+// ── UNISCI PER DATA (Imballo): un CSV TDDDT con una sola riga per codice selezionato,
+// tutte le date forzate alla data scelta dall'utente — utile per registrare in un colpo
+// solo su Nova un riepilogo imballi senza doverli splittare per data di inserimento reale.
+var _uipdCache=[];
 
+async function unisciImballoPerData(){
   var imb=await apiGet('imballo');
   if(!imb||!imb.length){alert('Nessuna riga Imballo da esportare!');return;}
-
-  var anno=new Date().getFullYear();
-  var bom='﻿';
-  var intestazione='DATA; TDOC; ANNO; SDOC; NDOC; DDOC; DATA_DOC; DATAREG; CPROWNUM; CODART; DESART; UMART; QUANT1; PREZZO; SCONTO1; SCONTO2; SCONTO3; SCONTO4; SCO_TOT; IMP_TOT_RE; CONS_RICH; DATA_CON; NUM_FAT; SEZ_FATT; DATA_FATT; ARTCSOTT \r\n';
-  // Stessa logica di formattazione data di esportaImballoExcel() (fmtData), riapplicata qui
-  // perche' li' e' una funzione locale non richiamabile dall'esterno.
-  function fmtData(d){
-    return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
-  }
-  var dataFmt=fmtData(dt);
 
   var map={},ordine=[];
   imb.forEach(function(r){
@@ -5957,10 +5952,51 @@ async function unisciImballoPerData(){
     if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};ordine.push(k);}
     map[k].tot+=Number(r.totale)||0;
   });
+  _uipdCache=ordine.map(function(k){return map[k];});
+
+  var dataEl=document.getElementById('uipd-data');if(dataEl)dataEl.value=oggiISO();
+  var selAll=document.getElementById('uipd-sel-all');if(selAll)selAll.checked=true;
+  var lista=document.getElementById('uipd-lista');
+  lista.innerHTML=_uipdCache.map(function(r,idx){
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">'
+      +'<input type="checkbox" class="uipd-chk" value="'+idx+'" checked style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;">'
+      +'<span>'+(r.cod||'—')+' — '+(r.desc||'')+': '+r.tot+' pz</span>'
+    +'</label>';
+  }).join('');
+  document.getElementById('modal-unisci-imballo-data').style.display='flex';
+}
+
+function toggleSelAllUnisciImballo(checked){
+  document.querySelectorAll('.uipd-chk').forEach(function(cb){cb.checked=checked;});
+}
+
+function chiudiModaleUnisciImballo(){
+  document.getElementById('modal-unisci-imballo-data').style.display='none';
+}
+
+function generaCsvUnisciImballo(){
+  var dataScelta=(document.getElementById('uipd-data').value||'').trim();
+  if(!dataScelta){alert('Seleziona una data valida.');return;}
+  var parti=dataScelta.split('-');
+  if(parti.length!==3){alert('Formato data non valido, usa YYYY-MM-DD.');return;}
+  var dt=new Date(parseInt(parti[0],10),parseInt(parti[1],10)-1,parseInt(parti[2],10));
+  if(isNaN(dt)){alert('Formato data non valido, usa YYYY-MM-DD.');return;}
+
+  var idxSelezionati=Array.prototype.slice.call(document.querySelectorAll('.uipd-chk:checked')).map(function(cb){return parseInt(cb.value,10);});
+  if(!idxSelezionati.length){alert('Seleziona almeno un articolo!');return;}
+  var selezionati=idxSelezionati.map(function(i){return _uipdCache[i];}).filter(Boolean);
+
+  var anno=new Date().getFullYear();
+  var bom='﻿';
+  // Stesso identico formato (intestazione, padding, BOM, separatore ';') di esportaImballoExcel().
+  var intestazione='DATA; TDOC; ANNO; SDOC; NDOC; DDOC; DATA_DOC; DATAREG; CPROWNUM; CODART; DESART; UMART; QUANT1; PREZZO; SCONTO1; SCONTO2; SCONTO3; SCONTO4; SCO_TOT; IMP_TOT_RE; CONS_RICH; DATA_CON; NUM_FAT; SEZ_FATT; DATA_FATT; ARTCSOTT \r\n';
+  function fmtData(d){
+    return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+  }
+  var dataFmt=fmtData(dt);
 
   var num=1;
-  var righe=ordine.map(function(k){
-    var r=map[k];
+  var righe=selezionati.map(function(r){
     var qty=String(Number(r.tot||0).toFixed(3)).replace('.',',');
     return dataFmt+';TDDDT;'+anno+';  ;      1; ;'+dataFmt+';'+dataFmt+';    '+num+++';'
       +String(r.cod||'').padEnd(16)+';'
@@ -5973,6 +6009,7 @@ async function unisciImballoPerData(){
   var a2=document.createElement('a');a2.href=url;
   a2.download='TDDDT'+anno+'_imballo_unito_'+dataScelta.replace(/-/g,'')+'.csv';
   document.body.appendChild(a2);a2.click();document.body.removeChild(a2);URL.revokeObjectURL(url);
+  chiudiModaleUnisciImballo();
 }
 
 
