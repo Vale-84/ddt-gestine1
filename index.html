@@ -718,10 +718,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Articolo</th><th>WA Entr.</th><th>WA Usc.</th><th>Vern.</th><th>Imb.</th><th>DDT Entr.</th><th>DDT Usc.</th><th>Stato</th>
+            <th>Articolo</th><th>WA Entr.</th><th>DDT Entr.</th><th>WA Usc.</th><th>DDT Usc.</th><th>Stato</th>
           </tr>
         </thead>
-        <tbody id="rc-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="rc-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
     <!-- ARTICOLI APERTI (solo AZZURRA): Entrata ≠ Uscita, codici diretti A0..., nessun abbinamenti_ber -->
@@ -3392,7 +3392,7 @@ function renderRiepilogoCompleto(){
   });
   var tb=document.getElementById('rc-tbody');
   if(!righe.length){
-    tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
   }else{
     tb.innerHTML=righe.map(function(r){
       var manuale=!!okManuali[r.cod];
@@ -3410,18 +3410,16 @@ function renderRiepilogoCompleto(){
       return '<tr style="'+bg+'">'
         +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
         +'<td style="text-align:right;">'+r.waE+'</td>'
-        +'<td style="text-align:right;">'+r.waU+'</td>'
-        +'<td style="text-align:right;">'+r.vern+'</td>'
-        +'<td style="text-align:right;">'+r.imb+'</td>'
         +'<td style="text-align:right;">'+r.ddtE+lblE+'</td>'
+        +'<td style="text-align:right;">'+r.waU+'</td>'
         +'<td style="text-align:right;">'+r.ddtU+lblU+'</td>'
         +'<td>'+badge+btnOk+'</td>'
       +'</tr>';
     }).join('');
   }
-  var tot={waE:0,waU:0,vern:0,imb:0,ddtE:0,ddtU:0};
-  righe.forEach(function(r){tot.waE+=r.waE;tot.waU+=r.waU;tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
-  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; WA Entrata: <strong>'+tot.waE+'</strong> &nbsp; WA Uscita: <strong>'+tot.waU+'</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
+  var tot={waE:0,waU:0,ddtE:0,ddtU:0};
+  righe.forEach(function(r){tot.waE+=r.waE;tot.waU+=r.waU;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
+  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; WA Entrata: <strong>'+tot.waE+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; WA Uscita: <strong>'+tot.waU+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
 }
 
 function setOkManualeAz(cod){
