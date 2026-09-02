@@ -3002,7 +3002,9 @@ async function caricaRwa(){
     return map;
   }
   function renderRWA(map,color){
-    return Object.values(map).map(function(a){
+    return Object.values(map).sort(function(a,b){
+      return (a.desc||'').localeCompare(b.desc||'', 'it', {sensitivity:'base'});
+    }).map(function(a){
       var dateKeys=Object.keys(a.dateMap).sort();
       var icons=iconeGruppo(a.modSet);
       var header='<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>';
