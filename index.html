@@ -2164,7 +2164,12 @@ async function verificaVerniciatoImballo(){
     var badges='';
     if(a.flagVernImb)badges+='<span class="badge badge-warn" style="margin-right:4px;">⚠ Vern≠Imb</span>';
     if(a.flagImbWau)badges+='<span class="badge badge-err" style="margin-right:4px;">⚠ Imb≠WA</span>';
-    if(a.flagBypass)badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>';
+    if(a.flagBypass){
+      var codEsc=String(a.cod||'').replace(/'/g,"\\'");
+      var descEsc=String(a.desc||'').replace(/'/g,"\\'");
+      badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>'
+        +'<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEsc+'\',\''+descEsc+'\','+a.wau+')">+ Imballo</button>';
+    }
     if(!a.anomalo)badges='<span class="badge badge-ok">✓ OK</span>';
     var celWau=isAz?('<td style="text-align:right;'+colWau+'">'+a.wau+'</td>'):'';
     var celStato=isAz?('<td>'+badges+'</td>'):('<td style="text-align:right;">'+(a.vern-a.imb>0?'+':'')+(a.vern-a.imb)+'</td>');
@@ -2222,6 +2227,19 @@ function esportaVerificaVerniciatoImballoExcel(){
   var oggi=new Date();
   var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
   XLSX.writeFile(wb,'confronto_produzione_'+dataStr+'.xlsx');
+}
+
+async function aggiungiBypassAImballo(cod, desc, qty){
+  if(!cod){alert('Codice articolo mancante, non posso aggiungerlo a Imballo.');return;}
+  var dataScelta=prompt('Data da assegnare in Imballo (formato AAAA-MM-GG):', oggiISO());
+  if(!dataScelta)return;
+  dataScelta=dataScelta.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dataScelta)){alert('Formato data non valido, usa AAAA-MM-GG (es. 2026-09-02).');return;}
+  if(!confirm('Aggiungere '+qty+' pz di '+cod+' a Imballo con data '+dataScelta+'?'))return;
+  var r=await apiPost('imballo',{codice_articolo:cod,articolo:desc,sequenza:String(qty),totale:qty,note:'Da Confronto Produzione (bypass WA Uscita)',data_inserimento:dataScelta});
+  if(!r)return;
+  caricaImballo();
+  verificaVerniciatoImballo();
 }
 
 async function verificaTutto(){
