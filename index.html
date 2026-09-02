@@ -562,6 +562,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
     <div id="de-lista"><div class="empty">Nessun record</div></div>
   </div>
+  <div class="card" id="de-riparazioni-card" style="display:none;">
+    <h2>Riparazioni da fare (senza addebito)</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Articoli entrati senza addebito (spuntati sopra) di questo mese: quando compaiono gia' nel DDT Uscita normale, vuol dire che vanno tolti da li' e spediti con un DDT Riparazione a parte.</p>
+    <div id="de-riparazioni-lista"><div class="empty">Nessun articolo senza addebito da controllare questo mese.</div></div>
+  </div>
 </div>
 
 <!-- DDT USCITA -->
@@ -3160,21 +3165,20 @@ async function aggiornaConfronto(){
   var ddtu=await apiGet('ddt_uscita');
   if(!we||!wu||!vern||!imb||!ddte||!ddtu)return;
 
-  var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
-  if(dataChiusuraAz){
-    ddte=ddte.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
-    ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
-  }
+  // Confronto cumulativo dall'inizio: alle liste di lavoro attuali aggiungiamo anche
+  // quanto archiviato dalle chiusure mese precedenti (WA, Verniciato, Imballo), cosi'
+  // il totale non riparte mai da zero e resta sempre confrontabile con i DDT (che non
+  // vengono mai cancellati). Nessun filtro per data: e' un conto dall'inizio ad oggi.
+  var arch=await apiGet('archivio','order=created_at.desc&limit=5000&cliente=eq.'+encodeURIComponent(getCliente()))||[];
+  we=we.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_righe';}));
+  wu=wu.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}));
+  vern=vern.concat(arch.filter(function(r){return r.tabella_origine==='verniciato';}));
+  imb=imb.concat(arch.filter(function(r){return r.tabella_origine==='imballo';}));
+
   var periodoElAz=document.getElementById('rc-periodo-info');
   if(periodoElAz){
-    if(dataChiusuraAz){
-      var dcAz=new Date(dataChiusuraAz);
-      var dcLabelAz=dcAz.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
-      periodoElAz.style.display='';
-      periodoElAz.innerHTML='📅 Confronto DDT dal <strong>'+dcLabelAz+'</strong> (data ultima chiusura mese)';
-    } else {
-      periodoElAz.style.display='none';
-    }
+    periodoElAz.style.display='';
+    periodoElAz.innerHTML='📊 Confronto su tutto lo storico, dal primo dato inserito ad oggi (WA/Verniciato/Imballo includono anche l\'archivio delle chiusure mese precedenti)';
   }
 
   function aggregaWA(arr){
@@ -3197,8 +3201,8 @@ async function aggiornaConfronto(){
   });
   var mImb={};
   imb.forEach(function(r){
-    var k=(r.codice_articolo||r.articolo||'?').toString();
-    if(!mImb[k])mImb[k]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
+    var k=(r.codice_articolo||r.articolo||r.descrizione||'?').toString();
+    if(!mImb[k])mImb[k]={cod:r.codice_articolo||'',desc:r.articolo||r.descrizione||'',tot:0};
     mImb[k].tot+=Number(r.totale)||0;
   });
   var mDDTE={};
@@ -4007,15 +4011,17 @@ async function salvaDDTEntrata(){
   var r=await apiPost('ddt_entrata',b);if(r){showMsg('msg-ddt-e','Salvato!','ok');caricaDDTE();}
 }
 
+var _deUltimaLista=[];
 async function caricaDDTE(){
   var bulkE=document.getElementById('de-bulk-actions');
   if(bulkE)bulkE.style.display='';
   var verificaPdfCard=document.getElementById('entrata-verifica-pdf-nova-card');
   if(verificaPdfCard)verificaPdfCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var d=await apiGet('ddt_entrata','order=data_ddt.desc.nullslast,id.desc&limit=5000');if(!d)return;
+  _deUltimaLista=d;
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
-  if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
+  if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';caricaRiparazioniDaFare();return;}
   // Codice IA (Nova) accanto al codice A0: mappa costruita una sola volta da abbinamenti_azzurra
   // (stessa cache/pattern di artCache), non una query per riga. Solo per AZZURRA: per BERGAMASCO
   // il concetto codice_a0/codice_ia non esiste (usa la sua logica BER->B0 separata).
@@ -4040,14 +4046,72 @@ async function caricaDDTE(){
         ?' <span class="badge badge-ok" title="Codice IA (Nova)">'+iaList.join(', ')+'</span>'
         :' <span style="color:#bbb;font-size:11px;" title="Nessun codice IA abbinato">—</span>';
     }
+    var isSA=(r.note||'').indexOf('SENZA_ADDEBITO')>=0;
     return '<div class="row-item">'
       +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
       +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong>'+iaHtml+' '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
+      +'<label style="display:flex;align-items:center;gap:3px;font-size:10px;color:#5B2C8D;margin-right:6px;white-space:nowrap;" title="Senza addebito (riparazione)"><input type="checkbox" class="de-sa-chk" '+(isSA?'checked':'')+' onchange="toggleSenzaAddebitoDE('+r.id+',this.checked)" style="width:15px;height:15px;min-width:15px;margin:0;padding:0;border:none;"> Senza add.</label>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_entrata\','+r.id+',caricaDDTE)">✕</button>'
       +'</div>';
+  }).join('');
+  caricaRiparazioniDaFare();
+}
+
+async function toggleSenzaAddebitoDE(id,checked){
+  var r=_deUltimaLista.find(function(x){return x.id===id;});
+  var noteAttuale=(r&&r.note)||'';
+  var pulita=noteAttuale.replace(/\s*\|?\s*SENZA_ADDEBITO\s*/g,'').trim();
+  var nuova=checked?(pulita?pulita+' | SENZA_ADDEBITO':'SENZA_ADDEBITO'):pulita;
+  var ok=await apiPatch('ddt_entrata','id=eq.'+id,{note:nuova});
+  if(ok){if(r)r.note=nuova;caricaRiparazioniDaFare();}
+  else{alert('Errore nel salvare, riprova.');}
+}
+
+async function caricaRiparazioniDaFare(){
+  var card=document.getElementById('de-riparazioni-card');
+  if(!card)return;
+  if(getCliente()!=='AZZURRA'){card.style.display='none';return;}
+  card.style.display='';
+  var box=document.getElementById('de-riparazioni-lista');
+  if(!box)return;
+  var flagged=(_deUltimaLista||[]).filter(function(r){return (r.note||'').indexOf('SENZA_ADDEBITO')>=0;});
+  var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
+  if(dataChiusuraAz){
+    flagged=flagged.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
+  }
+  if(!flagged.length){box.innerHTML='<div class="empty">Nessun articolo senza addebito da controllare questo mese.</div>';return;}
+  var mE={};
+  flagged.forEach(function(r){
+    var k=(r.codice_articolo||r.descrizione||'?').toString();
+    if(!mE[k])mE[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',qtyEnt:0};
+    mE[k].qtyEnt+=Number(r.quantita_ddt)||0;
+  });
+  var ddtu=await apiGet('ddt_uscita');
+  if(dataChiusuraAz&&ddtu){
+    ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
+  }
+  var mU={};
+  (ddtu||[]).forEach(function(r){
+    var k=(r.codice_articolo||r.descrizione||'?').toString();
+    mU[k]=(mU[k]||0)+(Number(r.quantita_ddt)||0);
+  });
+  var righe=Object.keys(mE).map(function(k){
+    var e=mE[k];var usc=mU[k]||0;
+    return {cod:e.cod,desc:e.desc,qtyEnt:e.qtyEnt,qtyUsc:usc,pronto:usc>0};
+  });
+  righe.sort(function(a,b){if(a.pronto!==b.pronto)return a.pronto?-1:1;return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');});
+  box.innerHTML=righe.map(function(r){
+    var badge=r.pronto
+      ?'<span class="badge badge-ok">✓ Sì, fai DDT Riparazione</span>'
+      :'<span class="badge" style="background:#eee;color:#777;">— No, non ancora</span>';
+    return '<div class="row-item">'
+      +'<div class="row-qty">'+r.qtyEnt+'</div>'
+      +'<div class="row-info"><div class="rdesc"><strong>'+(r.cod||'—')+'</strong> '+(r.desc||'')+'</div><div class="rsub">Arrivato senza addebito: '+r.qtyEnt+' &nbsp;|&nbsp; Trovato in DDT Uscita: '+r.qtyUsc+'</div></div>'
+      +badge
+    +'</div>';
   }).join('');
 }
 
@@ -5867,9 +5931,7 @@ function salvaCfgDataChiusura(){
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
 async function chiudiMese(){
-  localStorage.removeItem('ber_ok_manuali');
-  localStorage.removeItem('az_ok_manuali');
-  if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati. I DDT restano.'))return;
+  if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati dalla lista di lavoro (restano salvati in archivio per il Confronto). I DDT restano.'))return;
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
   var cl=getCliente();
   // Archive WA entrate
@@ -5888,6 +5950,22 @@ async function chiudiMese(){
       await apiPost('archivio',{tabella_origine:'whatsapp_uscita',descrizione:r.descrizione||r.testo_riga,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
     }
   }
+  // Archive Verniciato
+  var vernCM=await apiGet('verniciato');
+  if(vernCM&&vernCM.length){
+    for(var i=0;i<vernCM.length;i++){
+      var r=vernCM[i];
+      await apiPost('archivio',{tabella_origine:'verniciato',descrizione:r.descrizione,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
+    }
+  }
+  // Archive Imballo
+  var imbCM=await apiGet('imballo');
+  if(imbCM&&imbCM.length){
+    for(var i=0;i<imbCM.length;i++){
+      var r=imbCM[i];
+      await apiPost('archivio',{tabella_origine:'imballo',descrizione:r.articolo,codice_articolo:r.codice_articolo,sequenza:r.sequenza,totale:r.totale,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
+    }
+  }
   // Delete WA, imballo, verniciato (NOT DDT)
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato'];
   try{
@@ -5895,7 +5973,7 @@ async function chiudiMese(){
       await fetch(cfg.url+'/rest/v1/'+tables[i]+'?cliente=eq.'+encodeURIComponent(cl),{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});
     }
     localStorage.setItem('chiusura_'+cl, new Date().toISOString().slice(0,10));
-    showMsg('msg-cfg','✓ Mese chiuso! DDT ancora visibili nel Confronto.','ok');
+    showMsg('msg-cfg','✓ Mese chiuso! WA, Verniciato e Imballo salvati in archivio. DDT e Confronto restano con lo storico completo.','ok');
   }catch(e){showMsg('msg-cfg','Errore: '+e.message,'err');}
 }
 
