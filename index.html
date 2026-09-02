@@ -415,6 +415,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#5B2C8D;margin:0;">Confronto Produzione</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="esportaVerificaVerniciatoImballoExcel()">📥 ESPORTA EXCEL</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
         </div>
@@ -2147,6 +2148,8 @@ async function verificaVerniciatoImballo(){
     return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
   });
 
+  _verificaVernImbUltimoRis={isAz:isAz,list:list};
+
   if(!list.length&&!senzaCodiceWA.length){
     res.innerHTML='<div class="ok-box">✅ Nessun articolo con movimenti da confrontare.</div>';return;
   }
@@ -2189,6 +2192,36 @@ async function verificaVerniciatoImballo(){
   }
 
   res.innerHTML=totHtml+tabellaHtml+senzaHtml;
+}
+
+function esportaVerificaVerniciatoImballoExcel(){
+  if(!_verificaVernImbUltimoRis||!_verificaVernImbUltimoRis.list||!_verificaVernImbUltimoRis.list.length){alert('Nessun dato da esportare: premi prima VERIFICA TUTTO.');return;}
+  var isAz=_verificaVernImbUltimoRis.isAz;
+  var righeExcel=_verificaVernImbUltimoRis.list.map(function(a){
+    var riga={
+      'Codice':a.cod,
+      'Descrizione':a.desc||'',
+      'Verniciato':a.vern,
+      'Imballo':a.imb
+    };
+    if(isAz){
+      riga['WA Uscita']=a.wau;
+      var stato=[];
+      if(a.flagVernImb)stato.push('Vern≠Imb');
+      if(a.flagImbWau)stato.push('Imb≠WA');
+      if(a.flagBypass)stato.push('Bypass Imballo');
+      riga['Stato']=stato.length?stato.join(', '):'OK';
+    } else {
+      riga['Differenza']=a.vern-a.imb;
+    }
+    return riga;
+  });
+  var ws=XLSX.utils.json_to_sheet(righeExcel);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Confronto Produzione');
+  var oggi=new Date();
+  var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
+  XLSX.writeFile(wb,'confronto_produzione_'+dataStr+'.xlsx');
 }
 
 async function verificaTutto(){
@@ -2730,6 +2763,7 @@ async function caricaRiepilogoBerNew(){
 
 // ── RIEPILOGO BERGAMASCO ──────────────────────────────────────────────
 var scartoBer={};
+var _verificaVernImbUltimoRis=null;
 
 async function caricaRiepilogoBer(){
   var vern=await apiGet('verniciato');
