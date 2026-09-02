@@ -413,21 +413,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       </div>
       <div class="card" id="imb2-verifica-card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
-          <h2 style="color:#5B2C8D;margin:0;">Verifica Verniciato vs Imballo</h2>
+          <h2 style="color:#5B2C8D;margin:0;">Confronto Produzione</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
         </div>
         <div id="imb2-verifica-res" style="margin-top:8px;"><div class="empty">Premi Verifica</div></div>
-      </div>
-      <div class="card" id="imb2-wa-verifica-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
-          <h2 style="color:#1F6B75;margin:0;">Verifica WA Uscita vs Imballo</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-wa-verifica-card')">STAMPA</button>
-          </div>
-        </div>
-        <div id="imb2-wa-verifica-res" style="margin-top:8px;"><div class="empty">Premi Verifica</div></div>
       </div>
     </div>
 
@@ -2098,11 +2089,12 @@ async function verificaWAImballo(){
 async function verificaVerniciatoImballo(){
   var imb=await apiGet('imballo');
   var vern=await apiGet('verniciato');
-  var wau=await apiGet('whatsapp_uscita');
+  var isAz=getCliente()==='AZZURRA';
+  var wau=isAz?await apiGet('whatsapp_uscita'):null;
   var res=document.getElementById('imb2-verifica-res');
   if(!res){return;}
-  if(!imb||!vern){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato o Imballo.</div>';return;}
-  if(!vern.length){res.innerHTML='<div class="warn-box">Nessun verniciato presente.</div>';return;}
+  if(!imb||!vern||(isAz&&!wau)){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo o WA Uscita.</div>';return;}
+
   var mapImb={};
   imb.forEach(function(r){
     var key=((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase());
@@ -2115,123 +2107,92 @@ async function verificaVerniciatoImballo(){
     if(!mapVern[key]) mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
     mapVern[key].tot += Number(r.quantita)||0;
   });
-  // WA Uscita per codice_articolo (stessa normalizzazione chiave gia' usata in
-  // verificaWAUscitaImballo): aggiunta in parallelo, non sostituisce ne' modifica
-  // il confronto Verniciato vs Imballo gia' esistente sopra.
+  // WA Uscita (solo AZZURRA): righe senza codice_articolo tenute da parte, come gia'
+  // faceva verificaWAUscitaImballo(), per non perdere la segnalazione "da associare".
+  var senzaCodiceWA=[];
   var mapWA={};
-  (wau||[]).forEach(function(r){
-    if(!r.codice_articolo)return;
-    var key=r.codice_articolo.toString().trim().toLowerCase();
-    if(!mapWA[key])mapWA[key]={tot:0};
-    mapWA[key].tot += Number(r.quantita)||0;
-  });
-  function coloreDiff(d){return d===0?'#217346':d>0?'#C55A11':'#C00000';}
+  if(isAz){
+    wau.forEach(function(r){
+      if(!r.codice_articolo){senzaCodiceWA.push(r);return;}
+      var key=r.codice_articolo.toString().trim().toLowerCase();
+      if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
+      mapWA[key].tot+=Number(r.quantita)||0;
+    });
+  }
+
+  // Include ogni articolo con almeno un valore diverso da zero in una qualsiasi delle tre
+  // fonti (Verniciato, Imballo, WA Uscita) — copre anche gli articoli "bypass imballo"
+  // (WA Uscita valorizzato, Imballo a zero), non solo quelli con Verniciato valorizzato.
   var keys={};
   Object.keys(mapVern).forEach(function(k){keys[k]=true;});
   Object.keys(mapImb).forEach(function(k){keys[k]=true;});
+  if(isAz)Object.keys(mapWA).forEach(function(k){keys[k]=true;});
   var list=Object.keys(keys).map(function(key){
-    var v=mapVern[key],i=mapImb[key];
-    var cod=(v&&v.cod)||(i&&i.cod)||'';
-    var vTot=v?v.tot:0,iTot=i?i.tot:0;
-    var wTot=(cod&&mapWA[cod.toString().trim().toLowerCase()])?mapWA[cod.toString().trim().toLowerCase()].tot:0;
-    return {cod:cod,desc:(v&&v.desc)||(i&&i.desc)||'',vern:vTot,imb:iTot,wau:wTot,diff:vTot-iTot,diffWau:wTot-iTot};
-  });
-  list.sort(function(a,b){
-    var aZero=a.diff===0,bZero=b.diff===0;
-    if(aZero!==bZero)return aZero?1:-1;
-    return 0;
-  });
-  function rigaConfronto(label,val,diff){
-    var col=coloreDiff(diff);
-    return '<div style="display:flex;align-items:center;gap:10px;font-size:13px;padding:3px 0 3px 10px;">'
-      +'<span style="width:90px;color:#666;">'+label+'</span>'
-      +'<span style="width:50px;"><strong>'+val+'</strong></span>'
-      +'<span style="color:'+col+';">Diff: <strong>'+(diff>0?'+':'')+diff+'</strong></span>'
-    +'</div>';
-  }
-  var totV=0,totI=0,totW=0,totDiff=0,totDiffW=0;
-  var rowsHtml=list.map(function(a){
-    totV+=a.vern;totI+=a.imb;totW+=a.wau;totDiff+=a.diff;totDiffW+=a.diffWau;
-    return '<div class="row-item" style="border-left-color:#5B2C8D;padding:8px 12px;display:block;">'
-      +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
-        +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+(a.cod||'?')+'</span>'
-        +'<span>'+a.desc+'</span>'
-        +'<span style="margin-left:auto;white-space:nowrap;">Imballo: <strong>'+a.imb+'</strong></span>'
-      +'</div>'
-      +rigaConfronto('Verniciato',a.vern,a.diff)
-      +rigaConfronto('WA Uscita',a.wau,a.diffWau)
-    +'</div>';
-  }).join('');
-  var allOk=totDiff===0&&totDiffW===0;
-  var totHtml='<div class="'+(allOk?'ok-box':'warn-box')+'" style="margin-bottom:10px;">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> &nbsp;WA Uscita: <strong>'+totW+'</strong> &nbsp;Diff: <strong>'+(totDiffW>0?'+':'')+totDiffW+'</strong></div>';
-  res.innerHTML=totHtml+rowsHtml;
-}
+    var v=mapVern[key],i=mapImb[key],w=mapWA[key];
+    var vTot=v?v.tot:0,iTot=i?i.tot:0,wTot=w?w.tot:0;
+    var flagVernImb=vTot!==iTot;
+    var flagBypass=isAz&&wTot>0&&iTot===0;
+    var flagImbWau=isAz&&!flagBypass&&iTot>0&&wTot>0&&iTot!==wTot;
+    return {
+      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||'',
+      desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||'',
+      vern:vTot,imb:iTot,wau:wTot,
+      flagVernImb:flagVernImb,flagBypass:flagBypass,flagImbWau:flagImbWau,
+      anomalo:flagVernImb||flagBypass||flagImbWau
+    };
+  }).filter(function(a){return a.vern!==0||a.imb!==0||a.wau!==0;});
 
-async function verificaWAUscitaImballo(){
-  var wa=await apiGet('whatsapp_uscita');
-  var imb=await apiGet('imballo');
-  var res=document.getElementById('imb2-wa-verifica-res');
-  if(!res)return;
-  if(!wa||!imb){res.innerHTML='<div class="warn-box">Errore caricamento dati WA Uscita o Imballo.</div>';return;}
-  var senzaCodice=[];
-  var mapWA={};
-  wa.forEach(function(r){
-    if(!r.codice_articolo){senzaCodice.push(r);return;}
-    var key=r.codice_articolo.trim().toLowerCase();
-    if(!mapWA[key])mapWA[key]={cod:r.codice_articolo,desc:r.descrizione_articolo||r.descrizione||'',tot:0};
-    mapWA[key].tot+=Number(r.quantita)||0;
-  });
-  var mapImb={};
-  imb.forEach(function(r){
-    var key=((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase());
-    if(!mapImb[key])mapImb[key]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};
-    mapImb[key].tot+=Number(r.totale)||0;
-  });
-  var keys={};
-  Object.keys(mapWA).forEach(function(k){keys[k]=true;});
-  Object.keys(mapImb).forEach(function(k){keys[k]=true;});
-  var list=Object.keys(keys).map(function(key){
-    var w=mapWA[key],i=mapImb[key];
-    var wTot=w?w.tot:0,iTot=i?i.tot:0;
-    return {cod:(w&&w.cod)||(i&&i.cod)||'',desc:(w&&w.desc)||(i&&i.desc)||'',wa:wTot,imb:iTot,diff:wTot-iTot};
-  });
   list.sort(function(a,b){
-    var aZero=a.diff===0,bZero=b.diff===0;
-    if(aZero!==bZero)return aZero?1:-1;
-    return 0;
+    if(a.anomalo!==b.anomalo)return a.anomalo?-1:1;
+    return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
   });
-  if(!list.length&&!senzaCodice.length){
-    res.innerHTML='<div class="ok-box">&#x2705; WA Uscita e Imballo coincidono per tutti gli articoli.</div>';return;
+
+  if(!list.length&&!senzaCodiceWA.length){
+    res.innerHTML='<div class="ok-box">✅ Nessun articolo con movimenti da confrontare.</div>';return;
   }
-  var totW=0,totI=0,totDiff=0;
-  var rowsHtml=list.map(function(a){
-    totW+=a.wa;totI+=a.imb;totDiff+=a.diff;
-    var bordo=a.diff===0?'#217346':a.diff>0?'#C55A11':'#C00000';
-    return '<div class="row-item" style="border-left-color:'+bordo+';padding:8px 12px;">'
-      +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;width:100%;">'
-        +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+(a.cod||'?')+'</span>'
-        +'<span>'+a.desc+'</span>'
-        +'<span style="margin-left:auto;display:flex;gap:12px;white-space:nowrap;flex-wrap:wrap;">'
-          +'<span>WA Uscita: <strong>'+a.wa+'</strong></span>'
-          +'<span>Imballo: <strong>'+a.imb+'</strong></span>'
-          +'<span style="color:'+bordo+';">Diff: <strong>'+(a.diff>0?'+':'')+a.diff+'</strong></span>'
-        +'</span>'
-      +'</div></div>';
+
+  var thWau=isAz?'<th>WA Uscita</th>':'';
+  var thStato=isAz?'<th>Stato</th>':'<th>Diff</th>';
+  var totV=0,totI=0,totW=0;
+  var righeHtml=list.map(function(a){
+    totV+=a.vern;totI+=a.imb;totW+=a.wau;
+    var colVern=a.flagVernImb?'background:#FFF3CD;':'';
+    var colWau=a.flagBypass?'background:#E6F1FB;':(a.flagImbWau?'background:#FCE4D6;':'');
+    var badges='';
+    if(a.flagVernImb)badges+='<span class="badge badge-warn" style="margin-right:4px;">⚠ Vern≠Imb</span>';
+    if(a.flagImbWau)badges+='<span class="badge badge-err" style="margin-right:4px;">⚠ Imb≠WA</span>';
+    if(a.flagBypass)badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>';
+    if(!a.anomalo)badges='<span class="badge badge-ok">✓ OK</span>';
+    var celWau=isAz?('<td style="text-align:right;'+colWau+'">'+a.wau+'</td>'):'';
+    var celStato=isAz?('<td>'+badges+'</td>'):('<td style="text-align:right;">'+(a.vern-a.imb>0?'+':'')+(a.vern-a.imb)+'</td>');
+    return '<tr>'
+      +'<td><strong>'+(a.cod||'—')+'</strong></td>'
+      +'<td>'+(a.desc||'')+'</td>'
+      +'<td style="text-align:right;'+colVern+'">'+a.vern+'</td>'
+      +'<td style="text-align:right;">'+a.imb+'</td>'
+      +celWau
+      +celStato
+    +'</tr>';
   }).join('');
-  var allOk=totDiff===0;
-  var totHtml=list.length?('<div class="'+(allOk?'ok-box':'warn-box')+'" style="margin-bottom:10px;">Totale — WA Uscita: <strong>'+totW+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong></div>'):'';
+
+  var tabellaHtml='<div class="rc-table-scroll"><table class="rc-table"><thead><tr>'
+    +'<th>Codice</th><th>Descrizione</th><th>Verniciato</th><th>Imballo</th>'+thWau+thStato
+    +'</tr></thead><tbody>'+righeHtml+'</tbody></table></div>';
+
+  var totHtml='<div style="margin-bottom:10px;font-size:13px;">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballo: <strong>'+totI+'</strong>'+(isAz?(' &nbsp;WA Uscita: <strong>'+totW+'</strong>'):'')+'</div>';
+
   var senzaHtml='';
-  if(senzaCodice.length){
+  if(senzaCodiceWA.length){
     senzaHtml='<div style="margin-top:14px;"><h3 style="margin-bottom:8px;">Da associare manualmente</h3>'
       +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Righe WA Uscita senza codice articolo — da correggere</p>'
-      +senzaCodice.map(function(r){var desc=r.testo_originale||r.testo_riga||r.descrizione||'';return '<div class="row-item" style="border-left-color:#E8A000;"><div class="row-qty" style="color:#E8A000;">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+desc+'</div><div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div></div></div>';}).join('')+'</div>';
+      +senzaCodiceWA.map(function(r){var desc=r.testo_originale||r.testo_riga||r.descrizione||'';return '<div class="row-item" style="border-left-color:#E8A000;"><div class="row-qty" style="color:#E8A000;">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+desc+'</div><div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div></div></div>';}).join('')+'</div>';
   }
-  res.innerHTML=totHtml+rowsHtml+senzaHtml;
+
+  res.innerHTML=totHtml+tabellaHtml+senzaHtml;
 }
 
 async function verificaTutto(){
   await verificaVerniciatoImballo();
-  await verificaWAUscitaImballo();
 }
 
 // ── ELIMINAZIONE SELETTIVA (Entrata/Uscita) ─────────────────────────────
@@ -5552,8 +5513,6 @@ async function svuotaImballo(){
 }
 
 async function caricaImballo(){
-  var waCard=document.getElementById('imb2-wa-verifica-card');
-  if(waCard)waCard.style.display=getCliente()==='BERGAMASCO'?'none':'';
   var d=await apiGet('imballo','order=data_inserimento.desc.nullslast,created_at.desc.nullslast,id.desc&limit=5000');if(!d)return;
   if(document.getElementById('st-imb'))document.getElementById('st-imb').textContent=d.length;
   var l=document.getElementById('imb-lista');
