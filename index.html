@@ -4756,7 +4756,7 @@ function apriModaleVerificaPdfNova(){
   if(elImb)elImb.style.display=isBer?'none':'flex';
   if(elVern)elVern.style.display=isBer?'none':'flex';
   if(elImbVern)elImbVern.style.display=isBer?'flex':'none';
-  var fonteDefault=isBer?'imballo_verniciato':'wa';
+  var fonteDefault=isBer?'imballo_verniciato':'imballo';
   document.getElementsByName('vpn-fonte').forEach(function(r){r.checked=(r.value===fonteDefault);});
   aggiornaFonteVerificaPdfNova();
   document.getElementById('modal-verifica-pdf-nova').style.display='flex';
