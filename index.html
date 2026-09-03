@@ -4945,7 +4945,26 @@ async function eseguiVerificaPdfNova(){
         if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.articolo||'',tot:0};
         mConfronto[k].tot+=Number(r.totale)||0;
       });
-      fonteLabel='Confronto con: Imballo app, periodo '+fmtData(dataMinFiltro)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
+      // Sottrae le quantita' gia' segnate "senza addebito" (Riparazioni da fare, DDT Entrata):
+      // quegli articoli non compaiono nel DDT Uscita normale di Nova perche' finiscono in un
+      // DDT Riparazione a parte, quindi vanno tolti anche dal confronto con Imballo.
+      var mRip={};
+      var entRip=await apiGet('ddt_entrata');
+      var dataChiusuraRip=localStorage.getItem('chiusura_'+getCliente())||'';
+      (entRip||[]).filter(function(r){
+        if((r.note||'').indexOf('SENZA_ADDEBITO')<0)return false;
+        if(!dataChiusuraRip)return true;
+        var d=(r.data_ddt||r.created_at||'').slice(0,10);
+        return !d||d>=dataChiusuraRip;
+      }).forEach(function(r){
+        var k=chiaveCod(r.codice_articolo);
+        mRip[k]=(mRip[k]||0)+(Number(r.quantita_ddt)||0);
+      });
+      var totRipSottratto=0;
+      Object.keys(mRip).forEach(function(k){
+        if(mConfronto[k]){mConfronto[k].tot-=mRip[k];totRipSottratto+=mRip[k];}
+      });
+      fonteLabel='Confronto con: Imballo app'+(totRipSottratto>0?' (al netto di '+totRipSottratto+' pz gia\' segnati per riparazione)':'')+', periodo '+fmtData(dataMinFiltro)+' — '+fmtData(dataMaxFiltro)+' (ultimo DDT nel PDF: '+fmtData(dataMax)+')';
     } else if(fonte==='verniciato'){
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var vern=await apiGet('verniciato');
