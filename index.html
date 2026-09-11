@@ -5699,7 +5699,7 @@ async function caricaImballo(){
       localStorage.setItem(spunteKey,JSON.stringify(spunte));
       caricaImballo();
     };
-    var dSorted=d.slice().sort(function(a,b){return (a.data_inserimento||a.created_at||'').localeCompare(b.data_inserimento||b.created_at||'');});
+    var dSorted=d.slice().sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
     l2.innerHTML=dSorted.map(function(r){
       var seqStr=r.sequenza||String(r.totale||0);
       var data=fmtData(r.data_inserimento||r.created_at);
