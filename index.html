@@ -244,6 +244,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-green btn-sm" onclick="aggiungiTestoLiberoEntrata()">AGGIUNGI RIGHE</button>
           </div>
           <div id="e-sezione-manuale">
+            <label>Data</label><input type="date" id="e-date" style="margin-bottom:6px;">
             <label>Cerca articolo</label>
             <div class="cerca-box">
               <input class="cerca-input" id="e-cerca" placeholder="Codice o descrizione..." oninput="cerca('e')" autocomplete="off">
@@ -251,7 +252,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             </div>
             <div class="art-sel" id="e-sel"></div>
             <input type="hidden" id="e-cod"><input type="hidden" id="e-dsc">
-            <label>Data</label><input type="date" id="e-date" style="margin-bottom:6px;">
             <label>Quantità</label>
             <div class="imb-row">
               <input type="text" id="e-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('e-qty','e-tot')" style="font-size:16px;text-align:center;font-weight:bold;margin-bottom:0;">
@@ -309,6 +309,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             <button class="btn btn-teal btn-sm" onclick="aggiungiTestoLiberoUscita()">AGGIUNGI RIGHE</button>
           </div>
           <div id="u-sezione-manuale">
+            <label>Data</label><input type="date" id="u-date" style="margin-bottom:6px;">
             <label>Cerca articolo</label>
             <div class="cerca-box">
               <input class="cerca-input" id="u-cerca" placeholder="Codice o descrizione..." oninput="cerca('u')" autocomplete="off">
@@ -316,7 +317,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
             </div>
             <div class="art-sel" id="u-sel"></div>
             <input type="hidden" id="u-cod"><input type="hidden" id="u-dsc">
-            <label>Data</label><input type="date" id="u-date" style="margin-bottom:6px;">
             <label>Sequenza (es. 37+37+37)</label>
             <div class="imb-row">
               <input type="text" id="u-seq" placeholder="37+37+37" oninput="calcolaSeq('u-seq','u-tot')">
@@ -379,6 +379,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div>
       <div class="card" style="margin-bottom:10px;">
         <h2 style="color:#5B2C8D;">Imballo</h2>
+        <label>Data</label><input type="date" id="imb2-date" style="margin-bottom:6px;">
         <label>Cerca articolo</label>
         <div class="cerca-box">
           <input class="cerca-input" id="imb2-cerca" placeholder="Codice o descrizione..." oninput="cerca('imb2')" autocomplete="off">
@@ -386,7 +387,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         </div>
         <div class="art-sel" id="imb2-sel"></div>
         <input type="hidden" id="imb2-cod"><input type="hidden" id="imb2-dsc">
-        <label>Data</label><input type="date" id="imb2-date" style="margin-bottom:6px;">
         <label>Sequenza (es. 37+37+37+37)</label>
         <div class="imb-row">
           <input type="text" id="imb2-seq" placeholder="37+37+37+37" oninput="calcolaSeq('imb2-seq','imb2-tot')">
@@ -470,6 +470,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>Registra verniciato</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci gli articoli che hai verniciato oggi.</p>
+    <label>Data</label><input type="date" id="vernp-date" style="margin-bottom:6px;">
     <label>Cerca articolo</label>
     <div class="cerca-box">
       <input class="cerca-input" id="vernp-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('vernp')" autocomplete="off">
@@ -477,7 +478,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
     <div class="art-sel" id="vernp-sel"></div>
     <input type="hidden" id="vernp-cod"><input type="hidden" id="vernp-dsc">
-    <label>Data</label><input type="date" id="vernp-date" style="margin-bottom:6px;">
     <label>Quantità (es. 10+10+10)</label>
     <div class="imb-row">
       <input type="text" id="vernp-qty" placeholder="es. 10+10+10" oninput="calcolaSeq('vernp-qty','vernp-tot')" style="font-size:20px;text-align:center;font-weight:bold;margin-bottom:0;">
