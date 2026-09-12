@@ -1834,6 +1834,14 @@ function apriFotoSchermoIntero(id){
 }
 
 function chiudiFotoSchermoIntero(daPopstate){
+  // Se ci sono righe gia' aggiunte alla lista ma non ancora scritte col bottone
+  // "Salva" (l'utente chiude con la X, tocca fuori o preme indietro), avvisa
+  // prima di buttarle via: e' questo il modo in cui una riga aggiunta puo'
+  // sparire senza essere mai salvata.
+  if(_fovRighe.length&&!confirm('Hai '+_fovRighe.length+' riga/e aggiunte ma non ancora salvate. Uscire senza salvare?')){
+    if(daPopstate)history.pushState({fotoOverlay:true},'');
+    return;
+  }
   document.getElementById('foto-overlay').style.display='none';
   document.getElementById('foto-overlay-img').src='';
   document.getElementById('foto-overlay-note').value='';
