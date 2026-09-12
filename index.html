@@ -6081,12 +6081,20 @@ async function unisciImballoPerData(){
   var imb=await apiGet('imballo');
   if(!imb||!imb.length){alert('Nessuna riga Imballo da esportare!');return;}
 
+  // Raggruppo per codice+data (non solo codice): cosi' lo stesso articolo su date diverse
+  // resta su righe separate nella lista, con la propria data ben visibile per selezionare
+  // bene cosa unire. La somma resta quella di sempre, mA solo tra righe della STESSA data.
   var map={},ordine=[];
   imb.forEach(function(r){
-    var k=(r.codice_articolo||'').trim()||(r.articolo||'').trim()||'?';
-    if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:r.articolo||'',tot:0};ordine.push(k);}
+    var cod=(r.codice_articolo||'').trim()||(r.articolo||'').trim()||'?';
+    var data=(r.data_inserimento||r.created_at||'').slice(0,10);
+    var k=cod+'||'+data;
+    if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:r.articolo||'',data:data,tot:0};ordine.push(k);}
     map[k].tot+=Number(r.totale)||0;
   });
+  // Ordino per data decrescente (piu' recente in cima); a parita' di data l'ordine tra
+  // articoli resta quello di prima comparsa (Array.sort e' stabile).
+  ordine.sort(function(ka,kb){return (map[kb].data||'').localeCompare(map[ka].data||'');});
   _uipdCache=ordine.map(function(k){return map[k];});
 
   var dataEl=document.getElementById('uipd-data');if(dataEl)dataEl.value=oggiISO();
@@ -6095,7 +6103,7 @@ async function unisciImballoPerData(){
   lista.innerHTML=_uipdCache.map(function(r,idx){
     return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">'
       +'<input type="checkbox" class="uipd-chk" value="'+idx+'" checked style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;">'
-      +'<span>'+(r.cod||'—')+' — '+(r.desc||'')+': '+r.tot+' pz</span>'
+      +'<span>'+fmtData(r.data)+' — '+(r.cod||'—')+' — '+(r.desc||'')+': '+r.tot+' pz</span>'
     +'</label>';
   }).join('');
   document.getElementById('modal-unisci-imballo-data').style.display='flex';
