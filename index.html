@@ -3334,15 +3334,29 @@ async function caricaArticoliApertiAzzurra(){
   console.log('[DEBUG Articoli Aperti] A0SPPINFBI uscita  date:', uscSpec, '| min', uscSpec[0], '| max', uscSpec[uscSpec.length-1]);
   // ── FINE DEBUG ────────────────────────────────────────────────────────
 
+  // Un DDT Entrata/Uscita puo' essere registrato con un codice IA (creato in
+  // "Abbinamenti AZZURRA" e associato a un codice A0) invece che col codice A0
+  // diretto: senza risolverlo qui, quei pezzi finiscono sommati sotto una chiave
+  // IA a se' stante invece che nel Tot. Entrata/Uscita dell'A0 corrispondente.
+  var abzIA=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
+  var mappaIA={};
+  (abzIA||[]).forEach(function(r){
+    var ia=(r.codice_ia||'').trim().toUpperCase();
+    var a0=(r.codice_a0||'').trim().toUpperCase();
+    if(ia&&a0)mappaIA[ia]=a0;
+  });
+
   var mE={},mU={};
   ddte.forEach(function(r){
-    var k=(r.codice_articolo||'').trim();if(!k)return;
+    var raw=(r.codice_articolo||'').trim().toUpperCase();if(!raw)return;
+    var k=mappaIA[raw]||raw;
     if(!mE[k])mE[k]={tot:0,desc:''};
     mE[k].tot+=Number(r.quantita_ddt)||0;
     if(!mE[k].desc&&r.descrizione)mE[k].desc=r.descrizione;
   });
   ddtu.forEach(function(r){
-    var k=(r.codice_articolo||'').trim();if(!k)return;
+    var raw=(r.codice_articolo||'').trim().toUpperCase();if(!raw)return;
+    var k=mappaIA[raw]||raw;
     if(!mU[k])mU[k]={tot:0,desc:''};
     mU[k].tot+=Number(r.quantita_ddt)||0;
     if(!mU[k].desc&&r.descrizione)mU[k].desc=r.descrizione;
