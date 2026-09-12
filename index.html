@@ -3383,7 +3383,7 @@ async function caricaArticoliApertiAzzurra(){
 
   righeAperti.sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
   _apertiAzzurraUltimoRis=righeAperti;
-  aggiornaLabelUltimoImportInevasiNova();
+  await aggiornaLabelUltimoImportInevasiNova();
 
   if(!tb)return;
   if(!righeAperti.length){
@@ -6472,17 +6472,18 @@ function setWAMode(mode){
 var abzCache=[];
 
 // "Aperto (da Nova)" e' una fotografia dell'ultimo file Inevasi Nova importato, non un
-// dato live: questa etichetta (salvata solo nel browser corrente, come chiusura_azzurra)
-// mostra quando e' stato fatto l'ultimo import, cosi' si vede a colpo d'occhio se il
-// numero rischia di essere vecchio.
-function ultimoImportInevasiNovaLabel(){
-  var iso=localStorage.getItem('ultimoImportInevasiNova_'+getCliente());
-  if(!iso)return 'Inevasi Nova: nessun import ancora fatto su questo browser.';
-  var d=new Date(iso);
-  return 'Inevasi Nova aggiornato al: '+d.toLocaleDateString('it-IT')+' alle '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+// dato live: questa etichetta (salvata in tabella impostazioni_azzurra, condivisa tra
+// tutti i dispositivi) mostra quando e' stato fatto l'ultimo import, cosi' si vede a
+// colpo d'occhio se il numero rischia di essere vecchio.
+async function ultimoImportInevasiNovaLabel(){
+  var chiave='ultimo_import_inevasi_nova_'+getCliente();
+  var d=await apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent(chiave)+'&select=valore&limit=1');
+  if(!d||!d.length||!d[0].valore)return 'Inevasi Nova: nessun import ancora fatto.';
+  var dt=new Date(d[0].valore);
+  return 'Inevasi Nova aggiornato al: '+dt.toLocaleDateString('it-IT')+' alle '+dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
-function aggiornaLabelUltimoImportInevasiNova(){
-  var testo=ultimoImportInevasiNovaLabel();
+async function aggiornaLabelUltimoImportInevasiNova(){
+  var testo=await ultimoImportInevasiNovaLabel();
   var el1=document.getElementById('abz-ultimo-import');if(el1)el1.textContent=testo;
   var el2=document.getElementById('rc-aperti-ultimo-import');if(el2)el2.textContent=testo;
 }
@@ -6495,7 +6496,7 @@ async function caricaAbbinamentiAzzurra(){
   abzCache=d;
   _abzSuggCache={};
   renderAbbinamentiAzzurra();
-  aggiornaLabelUltimoImportInevasiNova();
+  await aggiornaLabelUltimoImportInevasiNova();
 }
 
 var _abzRenderTimer=null;
@@ -6701,8 +6702,8 @@ async function leggiImportInevasiNova(input){
     if(dRicaricata)abzCache=dRicaricata;
     _abzSuggCache={};
     renderAbbinamentiAzzurra();
-    localStorage.setItem('ultimoImportInevasiNova_'+getCliente(),new Date().toISOString());
-    aggiornaLabelUltimoImportInevasiNova();
+    await apiUpsert('impostazioni_azzurra',[{chiave:'ultimo_import_inevasi_nova_'+getCliente(),valore:new Date().toISOString()}],'chiave');
+    await aggiornaLabelUltimoImportInevasiNova();
     showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+aggiornatiArr.length+' inevasi aggiornati.','ok');
   }catch(e){showMsg('msg-abbinamenti-azzurra','Errore: '+e.message,'err');}
   input.value='';
