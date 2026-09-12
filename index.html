@@ -1105,9 +1105,26 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <button onclick="event.stopPropagation();chiudiFotoSchermoIntero()" style="position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.95);color:#222;border:none;font-size:22px;font-weight:bold;cursor:pointer;z-index:210;line-height:1;">✕</button>
   <div onclick="event.stopPropagation()" style="display:flex;flex-direction:column;align-items:center;gap:10px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:10px;">
     <input type="hidden" id="foto-overlay-id">
-    <img id="foto-overlay-img" src="" style="max-width:94vw;max-height:58vh;border-radius:8px;">
-    <textarea id="foto-overlay-note" placeholder="Cosa vedi in questa foto (articoli, quantità...)" style="width:100%;max-width:480px;min-height:70px;"></textarea>
-    <button id="foto-overlay-save-btn" class="btn btn-green btn-sm" style="width:auto;" onclick="salvaNotaFotoOverlay()">💾 Salva nota</button>
+    <img id="foto-overlay-img" src="" style="max-width:94vw;max-height:46vh;border-radius:8px;">
+    <div style="width:100%;max-width:480px;background:white;border-radius:10px;padding:12px;">
+      <label>Cerca articolo</label>
+      <div class="cerca-box">
+        <input class="cerca-input" id="fov-cerca" placeholder="Codice o descrizione..." oninput="cerca('fov')" autocomplete="off">
+        <div class="cerca-risultati" id="fov-ris"></div>
+      </div>
+      <div class="art-sel" id="fov-sel"></div>
+      <input type="hidden" id="fov-cod"><input type="hidden" id="fov-dsc">
+      <label>Sequenza pezzi (es. 37+37+37)</label>
+      <div class="imb-row">
+        <input type="text" id="fov-seq" placeholder="es. 10+10+10" oninput="calcolaSeq('fov-seq','fov-tot')">
+        <div class="imb-tot" id="fov-tot">0</div>
+      </div>
+      <button class="btn btn-blue btn-sm" style="width:100%;" onclick="aggiungiRigaFotoOverlay()">+ Aggiungi riga</button>
+      <div id="fov-righe-lista" style="margin-top:10px;"></div>
+      <label style="margin-top:10px;">Nota (opzionale, non diventa una riga)</label>
+      <input type="text" id="foto-overlay-note" placeholder="Es. consegna rimandata">
+      <button id="foto-overlay-save-btn" class="btn btn-green btn-sm" style="width:100%;margin-top:10px;" onclick="salvaRigheFotoOverlay()">💾 Salva</button>
+    </div>
   </div>
 </div>
 
@@ -1134,16 +1151,6 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
-<!-- OVERLAY ANTEPRIMA RICONOSCIMENTO NOTA FOTO -->
-<div class="modal" id="foto-anteprima-overlay">
-  <div class="modal-box" style="max-width:560px;">
-    <h3 style="color:#1F4E79;">Righe riconosciute dalla nota</h3>
-    <div class="modal-desc" id="foto-anteprima-info"></div>
-    <div id="foto-anteprima-lista" style="margin-bottom:14px;max-height:50vh;overflow-y:auto;"></div>
-    <button class="btn btn-green" onclick="confermaAnteprimaFoto()">✓ Conferma e inserisci</button>
-    <button class="btn btn-gray" onclick="chiudiAnteprimaFoto()">Annulla</button>
-  </div>
-</div>
 
 <!-- MODAL VERIFICA PDF NOVA (Confronto) -->
 <div class="modal" id="modal-verifica-pdf-nova">
@@ -1719,87 +1726,9 @@ async function spostaFotoTipo(id,prefix){
 }
 
 async function segnaFotoFatta(id,prefix){
-  var r=_fotoCacheById[id];
-  var nota=(r&&r.note)?r.note.trim():'';
-  if(nota){
-    mostraAnteprimaRiconoscimentoFoto(id,prefix,nota,(r.data_foto||r.created_at));
-    return;
-  }
   if(!confirm('Segnare questa foto come fatta?'))return;
   await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
   caricaFotoLista(prefix);
-}
-
-// Stesso parsing riga già usato in TESTO LIBERO (aggiungiTestoLiberoEntrata/Uscita):
-// "10+10 desc articolo" -> quantità totale + descrizione, poi trovaArt() per il codice.
-function estraiRigheTestoLibero(testo){
-  return testo.split('\n').map(function(r){return r.trim();}).filter(Boolean).map(function(r){
-    var m=r.match(/^(\d+(?:\+\d+)*)\s+(.+)$/);
-    var seqStr=m?m[1]:null;
-    var qty=seqStr?seqStr.split('+').reduce(function(a,v){return a+(parseInt(v)||0);},0):null;
-    var desc=m?m[2]:r;
-    var art=trovaArt(desc);
-    return {testoRiga:r,seqStr:seqStr,qty:qty,desc:desc,art:art};
-  });
-}
-
-var _fotoAnteprimaState=null;
-
-function mostraAnteprimaRiconoscimentoFoto(id,prefix,nota,dataFotoStr){
-  var righe=estraiRigheTestoLibero(nota);
-  _fotoAnteprimaState={id:id,prefix:prefix,dataFoto:dataFotoStr,righe:righe};
-  document.getElementById('foto-anteprima-info').textContent='Data foto: '+fmtData(dataFotoStr)+' — '+righe.length+' righe trovate nella nota';
-  document.getElementById('foto-anteprima-lista').innerHTML=righe.map(function(rg,i){
-    var p='fp'+i;
-    var trovato=!!rg.art;
-    var cod=trovato?rg.art.codice_articolo:'';
-    var desc=trovato?rg.art.descrizione:rg.desc;
-    return '<div class="row-item" style="align-items:flex-start;">'
-      +'<div class="row-qty" style="min-width:36px;">'+(rg.qty!==null?rg.qty:'?')+'</div>'
-      +'<div class="row-info" style="flex:1;">'
-        +'<div class="rdesc">'+rg.testoRiga+'</div>'
-        +(trovato
-          ?'<div class="rsub" style="color:#217346;">✅ <strong>'+cod+'</strong> — '+desc+' <span style="cursor:pointer;text-decoration:underline;" onclick="mostraRicercaAnteprima('+i+')">✎</span></div>'
-          :'<div class="rsub" style="color:#C55A11;">⚠️ Codice non trovato — cerca sotto</div>')
-        +'<div class="art-sel" id="'+p+'-sel" style="'+(trovato?'display:block;':'')+'">'+(trovato?'✅ '+cod+' — '+desc:'')+'</div>'
-        +'<div class="cerca-box" id="'+p+'-cercabox" style="margin-top:4px;'+(trovato?'display:none;':'')+'">'
-          +'<input class="cerca-input" id="'+p+'-cerca" placeholder="Cerca articolo..." oninput="cerca(\''+p+'\')" autocomplete="off" value="'+(trovato?(cod+' — '+desc).replace(/"/g,'&quot;'):'')+'">'
-          +'<div class="cerca-risultati" id="'+p+'-ris"></div>'
-        +'</div>'
-        +'<input type="hidden" id="'+p+'-cod" value="'+(trovato?cod:'')+'">'
-        +'<input type="hidden" id="'+p+'-dsc" value="'+(trovato?desc.replace(/"/g,'&quot;'):'')+'">'
-      +'</div>'
-    +'</div>';
-  }).join('');
-  document.getElementById('foto-anteprima-overlay').style.display='flex';
-}
-
-function mostraRicercaAnteprima(i){
-  var box=document.getElementById('fp'+i+'-cercabox');
-  if(box)box.style.display=box.style.display==='none'?'block':'none';
-}
-
-function chiudiAnteprimaFoto(){
-  document.getElementById('foto-anteprima-overlay').style.display='none';
-  _fotoAnteprimaState=null;
-}
-
-async function confermaAnteprimaFoto(){
-  if(!_fotoAnteprimaState)return;
-  var st=_fotoAnteprimaState;
-  var table=st.prefix==='e'?'whatsapp_righe':'whatsapp_uscita';
-  var dataIns=(st.dataFoto||'').slice(0,10)||oggiISO();
-  for(var i=0;i<st.righe.length;i++){
-    var rg=st.righe[i],p='fp'+i;
-    var codEl=document.getElementById(p+'-cod'),dscEl=document.getElementById(p+'-dsc');
-    var cod=codEl?codEl.value:'';
-    var dsc=dscEl?dscEl.value:rg.desc;
-    await apiPost(table,{testo_riga:rg.testoRiga,testo_originale:rg.testoRiga,testo_seq:rg.seqStr||null,quantita:rg.qty,descrizione:rg.desc,codice_articolo:cod||null,descrizione_articolo:cod?dsc:null,da_testo_libero:true,data_inserimento:dataIns,modalita:'testo_libero'});
-  }
-  await apiPatch('foto_promemoria','id=eq.'+st.id,{fatto:true});
-  chiudiAnteprimaFoto();
-  caricaFotoLista(st.prefix);
-  if(st.prefix==='e')caricaEntrate(); else caricaUscite();
 }
 
 async function eliminaFotoPromemoria(id,prefix){
@@ -1824,12 +1753,82 @@ async function salvaDataFoto(id,prefix,nuovaData){
   caricaFotoLista(prefix);
 }
 
+// ── OVERLAY FOTO: inserimento righe strutturate (Cerca articolo + Sequenza pezzi) ──
+// Sostituisce il vecchio testo libero + riconoscimento automatico: le righe si
+// costruiscono qui a mano (stesso pattern cerca()/selArt() del resto dell'app) e
+// si scrivono tutte insieme al salvataggio, associate alla data della foto.
+var _fovRighe=[];
+
+function resetBuilderFotoOverlay(){
+  _fovRighe=[];
+  var cerca=document.getElementById('fov-cerca');if(cerca)cerca.value='';
+  var cod=document.getElementById('fov-cod');if(cod)cod.value='';
+  var dsc=document.getElementById('fov-dsc');if(dsc)dsc.value='';
+  var seq=document.getElementById('fov-seq');if(seq)seq.value='';
+  var tot=document.getElementById('fov-tot');if(tot)tot.textContent='0';
+  var sel=document.getElementById('fov-sel');if(sel)sel.style.display='none';
+  renderRigheFotoOverlay();
+}
+
+function renderRigheFotoOverlay(){
+  var l=document.getElementById('fov-righe-lista');
+  if(!l)return;
+  if(!_fovRighe.length){l.innerHTML='';return;}
+  l.innerHTML=_fovRighe.map(function(rg,i){
+    return '<div class="row-item" style="padding:6px 10px;">'
+      +'<div class="row-qty" style="min-width:36px;">'+rg.qty+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(rg.cod?'<span class="badge badge-ok">'+rg.cod+'</span> ':'')+rg.desc+'</div></div>'
+      +'<button class="edit-btn" title="Modifica" onclick="modificaRigaFotoOverlay('+i+')">✎</button>'
+      +'<button class="del-btn" title="Elimina" onclick="rimuoviRigaFotoOverlay('+i+')">✕</button>'
+    +'</div>';
+  }).join('');
+}
+
+function aggiungiRigaFotoOverlay(){
+  var cod=document.getElementById('fov-cod').value;
+  var desc=document.getElementById('fov-dsc').value;
+  if(!cod){alert('Seleziona un articolo dai suggerimenti!');return;}
+  var seq=document.getElementById('fov-seq').value.trim();
+  if(!seq){alert('Inserisci la sequenza pezzi!');return;}
+  var qty=calcolaSeq('fov-seq','fov-tot');
+  if(!qty){alert('Sequenza non valida!');return;}
+  _fovRighe.push({cod:cod,desc:desc,seq:seq,qty:qty});
+  document.getElementById('fov-cerca').value='';
+  document.getElementById('fov-cod').value='';
+  document.getElementById('fov-dsc').value='';
+  document.getElementById('fov-seq').value='';
+  document.getElementById('fov-tot').textContent='0';
+  var sel=document.getElementById('fov-sel');if(sel)sel.style.display='none';
+  renderRigheFotoOverlay();
+  document.getElementById('fov-cerca').focus();
+}
+
+function rimuoviRigaFotoOverlay(i){
+  _fovRighe.splice(i,1);
+  renderRigheFotoOverlay();
+}
+
+function modificaRigaFotoOverlay(i){
+  var rg=_fovRighe[i];
+  if(!rg)return;
+  document.getElementById('fov-cerca').value=rg.cod+' — '+rg.desc;
+  document.getElementById('fov-cod').value=rg.cod;
+  document.getElementById('fov-dsc').value=rg.desc;
+  document.getElementById('fov-seq').value=rg.seq;
+  calcolaSeq('fov-seq','fov-tot');
+  var sel=document.getElementById('fov-sel');
+  if(sel){sel.textContent='✅ '+rg.cod+' — '+rg.desc;sel.style.display='block';}
+  _fovRighe.splice(i,1);
+  renderRigheFotoOverlay();
+}
+
 function apriFotoSchermoIntero(id){
   var r=_fotoCacheById[id];
   if(!r)return;
   document.getElementById('foto-overlay-img').src=r.foto_base64;
   document.getElementById('foto-overlay-note').value=r.note||'';
   document.getElementById('foto-overlay-id').value=id;
+  resetBuilderFotoOverlay();
   document.getElementById('foto-overlay').style.display='flex';
   history.pushState({fotoOverlay:true},'');
 }
@@ -1839,6 +1838,7 @@ function chiudiFotoSchermoIntero(daPopstate){
   document.getElementById('foto-overlay-img').src='';
   document.getElementById('foto-overlay-note').value='';
   document.getElementById('foto-overlay-id').value='';
+  resetBuilderFotoOverlay();
   if(!daPopstate)history.back();
 }
 
@@ -1848,21 +1848,41 @@ window.addEventListener('popstate',function(){
   }
 });
 
-async function salvaNotaFotoOverlay(){
+// Salva sempre la nota (se presente); se sono state aggiunte righe strutturate le
+// scrive tutte nella tabella WA giusta con la data della foto e segna la foto fatta.
+// Se non ci sono righe, si comporta come il vecchio "Salva nota": salva solo il
+// testo e lascia la foto in sospeso, cosi' si puo' anche solo annotare qualcosa
+// senza essere costretti a chiudere la foto.
+async function salvaRigheFotoOverlay(){
   var id=document.getElementById('foto-overlay-id').value;
   if(!id)return;
+  var r=_fotoCacheById[id];
   var nuovaNota=document.getElementById('foto-overlay-note').value.trim();
   await apiPatch('foto_promemoria','id=eq.'+id,{note:nuovaNota});
-  var r=_fotoCacheById[id];
-  var btn=document.getElementById('foto-overlay-save-btn');
-  if(btn){
-    var testoOrig=btn.textContent;
-    btn.textContent='✅ Salvata!';
-    setTimeout(function(){btn.textContent=testoOrig;},1500);
+
+  if(_fovRighe.length){
+    var prefix=(r&&r.tipo==='entrata')?'e':'u';
+    var table=prefix==='e'?'whatsapp_righe':'whatsapp_uscita';
+    var dataIns=((r&&(r.data_foto||r.created_at))||'').slice(0,10)||oggiISO();
+    for(var i=0;i<_fovRighe.length;i++){
+      var rg=_fovRighe[i];
+      await apiPost(table,{testo_riga:rg.qty+' '+rg.desc,testo_seq:rg.seq,quantita:rg.qty,descrizione:rg.desc,codice_articolo:rg.cod,descrizione_articolo:rg.desc,note:'Da foto promemoria',data_inserimento:dataIns,modalita:'manuale'});
+    }
+    await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
+    chiudiFotoSchermoIntero();
+    caricaFotoLista(prefix);
+    if(prefix==='e')caricaEntrate(); else caricaUscite();
+  } else {
+    var btn=document.getElementById('foto-overlay-save-btn');
+    if(btn){
+      var testoOrig=btn.textContent;
+      btn.textContent='✅ Salvata!';
+      setTimeout(function(){btn.textContent=testoOrig;},1500);
+    }
+    if(r&&r.tipo==='entrata')caricaFotoLista('e');
+    else if(r&&r.tipo==='uscita')caricaFotoLista('u');
+    else{caricaFotoLista('e');caricaFotoLista('u');}
   }
-  if(r&&r.tipo==='entrata')caricaFotoLista('e');
-  else if(r&&r.tipo==='uscita')caricaFotoLista('u');
-  else{caricaFotoLista('e');caricaFotoLista('u');}
 }
 
 function apriModale(id,desc,table){
