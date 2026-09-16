@@ -646,17 +646,21 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>Entrate e Uscite WA</h2>
     <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoWA()">AGGIORNA</button>
+    <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('rwa-stampa')">🖨️ Stampa</button>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-    <div class="card" style="margin-bottom:0">
-      <h2 style="color:#217346;">Entrate WA</h2>
-      <div id="rwa-entrate"><div class="empty">Nessuna entrata</div></div>
-      <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#217346;" id="rwa-tot-e"></div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <h2 style="color:#1F6B75;">Uscite WA</h2>
-      <div id="rwa-uscite"><div class="empty">Nessuna uscita</div></div>
-      <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#1F6B75;" id="rwa-tot-u"></div>
+  <div id="rwa-stampa">
+    <div id="rwa-info-stampa" style="font-size:12px;color:#666;margin-bottom:8px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="card" style="margin-bottom:0">
+        <h2 style="color:#217346;">Entrate WA</h2>
+        <div id="rwa-entrate"><div class="empty">Nessuna entrata</div></div>
+        <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#217346;" id="rwa-tot-e"></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <h2 style="color:#1F6B75;">Uscite WA</h2>
+        <div id="rwa-uscite"><div class="empty">Nessuna uscita</div></div>
+        <div style="margin-top:10px;font-size:13px;font-weight:bold;color:#1F6B75;" id="rwa-tot-u"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -3119,6 +3123,12 @@ async function caricaRwa(){
   var lE=document.getElementById('rwa-entrate');
   var lU=document.getElementById('rwa-uscite');
   if(!we||!wu){if(lE)lE.innerHTML='<div class="empty">Errore connessione</div>';return;}
+  var infoStampa=document.getElementById('rwa-info-stampa');
+  if(infoStampa){
+    var tutteDate=we.concat(wu).map(function(r){return (r.data_inserimento||r.created_at||'').slice(0,10);}).filter(Boolean).sort();
+    var periodo=tutteDate.length?('dal '+fmtData(tutteDate[0])+' al '+fmtData(tutteDate[tutteDate.length-1])):'nessun dato';
+    infoStampa.textContent='Cliente: '+getCliente()+' — Periodo: '+periodo;
+  }
   if(we.length===0&&wu.length===0){if(lE)lE.innerHTML='<div class="empty">Nessun dato trovato</div>';return;}
   function iconeGruppo(modSet){
     return Object.keys(modSet).map(iconaModalita).join('');
