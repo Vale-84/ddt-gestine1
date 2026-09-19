@@ -4116,6 +4116,22 @@ async function salvaDDTEntrata(){
 }
 
 var _deUltimaLista=[];
+// Mappa codice_a0 -> [codice_ia,...] da abbinamenti_azzurra: stessa cache/lettura gia'
+// usata da getGiacenzaNovaPerA0(), qui solo la direzione di lookup e' diversa (per
+// codice A0 servono TUTTI i codici IA collegati, non la somma giacenza). Condivisa tra
+// il badge "Codice IA (Nova)" in DDT Entrata e "Copia per Nova".
+async function getMappaA0IA(){
+  if(!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
+  var mIA={};
+  abzCache.forEach(function(r){
+    var k=(r.codice_a0||'').trim().toUpperCase();
+    if(!k||!r.codice_ia)return;
+    if(!mIA[k])mIA[k]=[];
+    mIA[k].push(r.codice_ia);
+  });
+  return mIA;
+}
+
 async function caricaDDTE(){
   var bulkE=document.getElementById('de-bulk-actions');
   if(bulkE)bulkE.style.display='';
@@ -4130,16 +4146,10 @@ async function caricaDDTE(){
   // (stessa cache/pattern di artCache), non una query per riga. Solo per AZZURRA: per BERGAMASCO
   // il concetto codice_a0/codice_ia non esiste (usa la sua logica BER->B0 separata).
   var isAz=getCliente()==='AZZURRA';
-  var mIA={};
-  if(isAz){
-    if(!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
-    abzCache.forEach(function(r){
-      var k=(r.codice_a0||'').trim().toUpperCase();
-      if(!k||!r.codice_ia)return;
-      if(!mIA[k])mIA[k]=[];
-      mIA[k].push(r.codice_ia);
-    });
-  }
+  var mIA=isAz?await getMappaA0IA():{};
+  // "Copia per Nova": un solo pulsante per DDT (non uno per riga articolo) — mostrato
+  // sulla prima riga di ogni numero_ddt incontrato scorrendo la lista.
+  var ddtGiaMostrati={};
   l.innerHTML=d.map(function(r){
     var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);
     var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';
@@ -4151,17 +4161,91 @@ async function caricaDDTE(){
         :' <span style="color:#bbb;font-size:11px;" title="Nessun codice IA abbinato">—</span>';
     }
     var isSA=(r.note||'').indexOf('SENZA_ADDEBITO')>=0;
+    var btnCopiaNova='';
+    if(isAz&&r.numero_ddt&&!ddtGiaMostrati[r.numero_ddt]){
+      ddtGiaMostrati[r.numero_ddt]=true;
+      var ddtEsc=String(r.numero_ddt).replace(/'/g,"\\'");
+      btnCopiaNova='<button class="btn btn-sm btn-blue" style="width:auto;padding:4px 8px;font-size:11px;white-space:nowrap;" title="Copia le righe di questo DDT per incollarle in Nova" onclick="copiaPerNova(\''+ddtEsc+'\')">📋 Copia per Nova</button>';
+    }
     return '<div class="row-item">'
       +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
       +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong>'+iaHtml+' '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
       +'<label style="display:flex;align-items:center;gap:3px;font-size:10px;color:#5B2C8D;margin-right:6px;white-space:nowrap;" title="Senza addebito (riparazione)"><input type="checkbox" class="de-sa-chk" '+(isSA?'checked':'')+' onchange="toggleSenzaAddebitoDE('+r.id+',this.checked)" style="width:15px;height:15px;min-width:15px;margin:0;padding:0;border:none;"> Senza add.</label>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
+      +btnCopiaNova
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_entrata\','+r.id+',caricaDDTE)">✕</button>'
       +'</div>';
   }).join('');
   caricaRiparazioniDaFare();
+}
+
+// ── COPIA PER NOVA (DDT Entrata AZZURRA): TSV pronto per "incolla" in Nova ──
+function formattaDataGGMMAAAA(iso){
+  var p=(iso||'').slice(0,10).split('-');
+  return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):'';
+}
+
+async function copiaTestoClipboard(testo){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    try{await navigator.clipboard.writeText(testo);return true;}catch(e){}
+  }
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=testo;
+    ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';
+    document.body.appendChild(ta);
+    ta.focus();ta.select();
+    var ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){return false;}
+}
+
+async function copiaPerNova(numeroDdt){
+  var righeDDT=(_deUltimaLista||[]).filter(function(r){return r.numero_ddt===numeroDdt;});
+  if(!righeDDT.length){alert('Nessuna riga trovata per questo DDT.');return;}
+  var mIA=await getMappaA0IA();
+  var dataDDT=formattaDataGGMMAAAA(righeDDT[0].data_ddt);
+
+  var somme={},avvisi=[],avvisiVisti={};
+  righeDDT.forEach(function(r){
+    var raw=(r.codice_articolo||'').trim().toUpperCase();
+    if(!raw)return;
+    var iaCode=raw;
+    if(raw.indexOf('IA')===0){
+      iaCode=raw;
+    } else if(raw.indexOf('A0')===0){
+      var candidati=mIA[raw];
+      if(candidati&&candidati.length){
+        iaCode=candidati[0];
+        if(candidati.length>1&&!avvisiVisti[raw]){
+          avvisiVisti[raw]=true;
+          avvisi.push(raw+' → più codici IA abbinati ('+candidati.join(', ')+'), usato '+candidati[0]);
+        }
+      } else {
+        iaCode=raw.replace(/^A0/,'IA');
+        if(!avvisiVisti[raw]){
+          avvisiVisti[raw]=true;
+          avvisi.push(raw+' → '+iaCode+' (senza abbinamento in Abbinamenti AZZURRA)');
+        }
+      }
+    }
+    somme[iaCode]=(somme[iaCode]||0)+(Number(r.quantita_ddt)||0);
+  });
+
+  var righeTsv=Object.keys(somme).map(function(cod){
+    return dataDDT+'\t'+cod+'\t'+'\t'+'\t'+somme[cod];
+  });
+  var testo='DATAREG\tCODART\tDESART\tUMART\tQUANT1\n'+righeTsv.join('\n');
+
+  var ok=await copiaTestoClipboard(testo);
+  if(!ok){showMsg('msg-ddt-e','Copia non riuscita, riprova.','err');return;}
+  var msg=avvisi.length
+    ?'✅ Copiato! In Nova clicca \'incolla\'. Controlla: '+avvisi.join(' | ')
+    :'✅ Copiato! In Nova clicca \'incolla\'.';
+  showMsg('msg-ddt-e',msg,'ok');
 }
 
 async function toggleSenzaAddebitoDE(id,checked){
