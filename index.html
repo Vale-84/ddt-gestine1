@@ -794,6 +794,17 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="file" id="abz-imp-giac-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiImportInevasiNova(this)">
   </div>
   <div class="card">
+    <h2>Codici bloccati in Nova</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Se Nova rifiuta un codice IA, indica qui quale usare al suo posto. Vale SOLO per il testo generato da "Copia per Nova" (DDT Entrata) — non cambia nulla nel resto dell'app.</p>
+    <label>Codice bloccato in Nova</label>
+    <input type="text" id="sn-bloccato" placeholder="es. IAREGRINFBI" style="text-transform:uppercase;">
+    <label>Codice da usare al suo posto</label>
+    <input type="text" id="sn-sostitutivo" placeholder="es. IAREINFBI" style="text-transform:uppercase;">
+    <button class="btn btn-purple btn-sm" onclick="aggiungiSostituzioneNova()">AGGIUNGI</button>
+    <div id="msg-sost-nova" style="margin-top:8px;"></div>
+    <div id="sn-lista" style="margin-top:10px;"><div class="empty">Nessuna regola inserita</div></div>
+  </div>
+  <div class="card">
     <h2>Gestione abbinamenti</h2>
     <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaAbbinamentiAzzurra()">↻ AGGIORNA</button>
     <input class="cerca-input" id="abz-cerca" placeholder="Filtra per codice IA, codice A0 o descrizione..." oninput="renderAbbinamentiAzzurraDebounced()" autocomplete="off" style="margin-bottom:10px;">
@@ -4212,9 +4223,10 @@ async function copiaPerNova(numeroDdt){
   var righeDDT=(_deUltimaLista||[]).filter(function(r){return r.numero_ddt===numeroDdt;});
   if(!righeDDT.length){alert('Nessuna riga trovata per questo DDT.');return;}
   var mIA=await getMappaA0IA();
+  var mSost=await getMappaSostituzioniNova();
   var dataDDT=formattaDataGGMMAAAA(righeDDT[0].data_ddt);
 
-  var somme={},avvisi=[],avvisiVisti={},nonRiconosciuti=[];
+  var somme={},avvisi=[],avvisiVisti={},nonRiconosciuti=[],sostVisti={};
   righeDDT.forEach(function(r){
     var raw=(r.codice_articolo||'').trim().toUpperCase();
     if(!raw)return;
@@ -4240,6 +4252,13 @@ async function copiaPerNova(numeroDdt){
       // Codice che non inizia ne' per IA ne' per A0: nessuna regola nota per
       // convertirlo, esce cosi' com'e' ma va segnalato per un controllo manuale.
       if(!avvisiVisti[raw]){avvisiVisti[raw]=true;nonRiconosciuti.push(raw);}
+    }
+    // Codici bloccati in Nova (card "Codici bloccati in Nova"): applicata SOLO qui, dopo
+    // la risoluzione A0->IA, solo per il testo copiato — non tocca ddt_entrata ne' altro.
+    if(mSost[iaCode]){
+      var sostituito=mSost[iaCode];
+      if(!sostVisti[iaCode]){sostVisti[iaCode]=true;avvisi.push(iaCode+' → '+sostituito+' (codice bloccato in Nova, sostituito)');}
+      iaCode=sostituito;
     }
     somme[iaCode]=(somme[iaCode]||0)+(Number(r.quantita_ddt)||0);
   });
@@ -6644,6 +6663,59 @@ async function caricaAbbinamentiAzzurra(){
   _abzSuggCache={};
   renderAbbinamentiAzzurra();
   await aggiornaLabelUltimoImportInevasiNova();
+  await caricaSostituzioniNova();
+}
+
+// ── CODICI BLOCCATI IN NOVA (solo per il testo di "Copia per Nova") ────
+// Riusa impostazioni_azzurra (stessa tabella della data ultimo import Inevasi Nova):
+// ogni regola e' una riga chiave='sost_nova_<codice_bloccato>', valore=<codice_sostitutivo>.
+// Nessuna nuova tabella. NON influisce su DDT Entrata/Confronto/totali: viene applicata
+// solo dentro copiaPerNova(), dopo la risoluzione A0->IA.
+async function getMappaSostituzioniNova(){
+  var d=await apiGet('impostazioni_azzurra','chiave=like.sost_nova_*&select=chiave,valore');
+  var mappa={};
+  (d||[]).forEach(function(r){
+    var cod=(r.chiave||'').replace(/^sost_nova_/,'');
+    if(cod&&r.valore)mappa[cod]=r.valore;
+  });
+  return mappa;
+}
+
+async function caricaSostituzioniNova(){
+  var box=document.getElementById('sn-lista');
+  if(!box)return;
+  var mappa=await getMappaSostituzioniNova();
+  var codici=Object.keys(mappa).sort();
+  if(!codici.length){box.innerHTML='<div class="empty">Nessuna regola inserita</div>';return;}
+  box.innerHTML=codici.map(function(cod){
+    return '<div class="row-item" style="padding:6px 10px;">'
+      +'<div class="row-info"><div class="rdesc"><strong>'+cod+'</strong> → '+mappa[cod]+'</div></div>'
+      +'<button class="del-btn" title="Elimina" onclick="eliminaSostituzioneNova(\''+cod+'\')">✕</button>'
+    +'</div>';
+  }).join('');
+}
+
+async function aggiungiSostituzioneNova(){
+  var bloccato=(document.getElementById('sn-bloccato').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  var sostitutivo=(document.getElementById('sn-sostitutivo').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(!bloccato||!sostitutivo){showMsg('msg-sost-nova','Compila entrambi i codici.','err');return;}
+  if(bloccato===sostitutivo){showMsg('msg-sost-nova','Il codice bloccato e quello sostitutivo non possono essere uguali.','err');return;}
+  var mappa=await getMappaSostituzioniNova();
+  if(mappa[bloccato]&&mappa[bloccato]!==sostitutivo){
+    if(!confirm('Esiste già una regola: '+bloccato+' → '+mappa[bloccato]+'. Sostituirla con '+bloccato+' → '+sostitutivo+'?'))return;
+  }
+  var ok=await apiUpsert('impostazioni_azzurra',[{chiave:'sost_nova_'+bloccato,valore:sostitutivo}],'chiave');
+  if(!ok){showMsg('msg-sost-nova','Errore di connessione, riprova.','err');return;}
+  document.getElementById('sn-bloccato').value='';
+  document.getElementById('sn-sostitutivo').value='';
+  showMsg('msg-sost-nova','✓ Regola salvata: '+bloccato+' → '+sostitutivo,'ok');
+  caricaSostituzioniNova();
+}
+
+async function eliminaSostituzioneNova(codiceBloccato){
+  if(!confirm('Eliminare la regola per '+codiceBloccato+'?'))return;
+  await apiDel('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('sost_nova_'+codiceBloccato));
+  caricaSostituzioniNova();
 }
 
 var _abzRenderTimer=null;
