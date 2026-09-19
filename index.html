@@ -4125,9 +4125,14 @@ async function getMappaA0IA(){
   var mIA={};
   abzCache.forEach(function(r){
     var k=(r.codice_a0||'').trim().toUpperCase();
-    if(!k||!r.codice_ia)return;
+    var ia=(r.codice_ia||'').trim().toUpperCase();
+    // Scarta righe sporche (es. codice_ia identico al codice_a0, o valori tipo "*" da
+    // import mal riusciti): un candidato valido deve iniziare per IA, altrimenti puo'
+    // finire scelto come "primo candidato" al posto di quello vero (successo con
+    // A0RETLETBI: codice_ia="A0RETLETBI" ordinava prima di "IARETLETBI").
+    if(!k||ia.indexOf('IA')!==0)return;
     if(!mIA[k])mIA[k]=[];
-    mIA[k].push(r.codice_ia);
+    mIA[k].push(ia);
   });
   return mIA;
 }
@@ -4209,7 +4214,7 @@ async function copiaPerNova(numeroDdt){
   var mIA=await getMappaA0IA();
   var dataDDT=formattaDataGGMMAAAA(righeDDT[0].data_ddt);
 
-  var somme={},avvisi=[],avvisiVisti={};
+  var somme={},avvisi=[],avvisiVisti={},nonRiconosciuti=[];
   righeDDT.forEach(function(r){
     var raw=(r.codice_articolo||'').trim().toUpperCase();
     if(!raw)return;
@@ -4231,6 +4236,10 @@ async function copiaPerNova(numeroDdt){
           avvisi.push(raw+' → '+iaCode+' (senza abbinamento in Abbinamenti AZZURRA)');
         }
       }
+    } else {
+      // Codice che non inizia ne' per IA ne' per A0: nessuna regola nota per
+      // convertirlo, esce cosi' com'e' ma va segnalato per un controllo manuale.
+      if(!avvisiVisti[raw]){avvisiVisti[raw]=true;nonRiconosciuti.push(raw);}
     }
     somme[iaCode]=(somme[iaCode]||0)+(Number(r.quantita_ddt)||0);
   });
@@ -4242,6 +4251,7 @@ async function copiaPerNova(numeroDdt){
 
   var ok=await copiaTestoClipboard(testo);
   if(!ok){showMsg('msg-ddt-e','Copia non riuscita, riprova.','err');return;}
+  if(nonRiconosciuti.length)avvisi.push('codice non riconosciuto (né IA né A0), copiato invariato: '+nonRiconosciuti.join(', '));
   var msg=avvisi.length
     ?'✅ Copiato! In Nova clicca \'incolla\'. Controlla: '+avvisi.join(' | ')
     :'✅ Copiato! In Nova clicca \'incolla\'.';
