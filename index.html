@@ -6340,6 +6340,19 @@ function generaCsvUnisciImballo(){
   if(!idxSelezionati.length){alert('Seleziona almeno un articolo!');return;}
   var selezionati=idxSelezionati.map(function(i){return _uipdCache[i];}).filter(Boolean);
 
+  // Le righe selezionate sono raggruppate per codice+DATA (serve nel modale per non
+  // fondere lo stesso articolo di date diverse). Qui invece tutte finiscono sulla
+  // stessa dataScelta: senza questo passaggio due date dello stesso articolo restano
+  // due righe CSV separate invece di una sola sommata. Ordine di prima comparsa
+  // mantenuto; descrizione della prima riga trovata per quel codice.
+  var mappaFinale={},ordineFinale=[];
+  selezionati.forEach(function(r){
+    var chiave=(r.cod||'').trim().toUpperCase()||(r.desc||'').trim().toUpperCase()||'?';
+    if(!mappaFinale[chiave]){mappaFinale[chiave]={cod:r.cod,desc:r.desc,tot:0};ordineFinale.push(chiave);}
+    mappaFinale[chiave].tot+=Number(r.tot)||0;
+  });
+  var righeFinali=ordineFinale.map(function(k){return mappaFinale[k];});
+
   var anno=new Date().getFullYear();
   var bom='﻿';
   // Stesso identico formato (intestazione, padding, BOM, separatore ';') di esportaImballoExcel().
@@ -6350,7 +6363,7 @@ function generaCsvUnisciImballo(){
   var dataFmt=fmtData(dt);
 
   var num=1;
-  var righe=selezionati.map(function(r){
+  var righe=righeFinali.map(function(r){
     var qty=String(Number(r.tot||0).toFixed(3)).replace('.',',');
     return dataFmt+';TDDDT;'+anno+';  ;      1; ;'+dataFmt+';'+dataFmt+';    '+num+++';'
       +String(r.cod||'').padEnd(16)+';'
