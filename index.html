@@ -784,6 +784,23 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
         <tbody id="rc-ber-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
+    <!-- ARTICOLI APERTI BERGAMASCO: DDT Entrata (BER) - uscite dei B0 abbinati assegnate in FIFO -->
+    <div id="rc-aperti-ber" class="card" style="display:none;">
+      <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti BERGAMASCO</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:10px;">Per ogni codice BER: entrato con DDT Entrata meno spedito con DDT Uscita dei B0 abbinati (FIFO, come Nova). Tutta la storia, non solo il mese.</p>
+      <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaApertiBer()">↻ AGGIORNA</button>
+      <button class="btn btn-green btn-sm" style="margin-bottom:10px;" onclick="esportaApertiBerExcel()">📥 Esporta Excel</button>
+      <div class="rc-table-scroll">
+        <table class="rc-table">
+          <thead>
+            <tr>
+              <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Spedito</th><th>Aperto</th><th>B0 abbinati</th>
+            </tr>
+          </thead>
+          <tbody id="rc-aperti-ber-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3436,6 +3453,9 @@ async function aggiornaConfronto(){
   if(elTA)elTA.style.display=isBer?'none':'';
   if(elTB)elTB.style.display=isBer?'':'none';
   if(elAperti)elAperti.style.display=isBer?'none':'';
+  var elApertiBer=document.getElementById('rc-aperti-ber');
+  if(elApertiBer)elApertiBer.style.display=isBer?'':'none';
+  if(isBer)caricaApertiBer();
   if(elVerificaPdf)elVerificaPdf.style.display=isBer?'none':'';
   if(isBer){if(elVerificaPdfRis)elVerificaPdfRis.style.display='none';await aggiornaConfrrontoBer();return;}
   caricaArticoliApertiAzzurra();
@@ -3674,6 +3694,75 @@ async function caricaArticoliApertiAzzurra(){
       +'<td>'+badge+'</td>'
     +'</tr>';
   }).join('');
+}
+
+// ── ARTICOLI APERTI BERGAMASCO ────────────────────────────────────────
+var _apertiBerUltimoRis=null,_apertiBerSenzaEntrata=null;
+async function caricaApertiBer(){
+  var tb=document.getElementById('rc-aperti-ber-tbody');
+  if(getCliente()!=='BERGAMASCO')return;
+  if(tb)tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  var ent=await apiGet('ddt_entrata');
+  var usc=await apiGet('ddt_uscita');
+  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
+  if(!ent||!usc){if(tb)tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  var fifo=calcolaFifoBer(ent,usc,abb);
+  var mE={};
+  ent.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase()||(r.descrizione||'').trim().toUpperCase();
+    if(!k)return;
+    if(!mE[k])mE[k]={cod:k,desc:r.descrizione||'',totE:0};
+    if(!mE[k].desc&&r.descrizione)mE[k].desc=r.descrizione;
+    mE[k].totE+=Number(r.quantita_ddt)||0;
+  });
+  var righe=Object.keys(mE).map(function(k){
+    var e=mE[k];var sped=fifo.lavoratiPerBer[k]||0;
+    var b0s=fifo.berToB0[k]||[];
+    return {cod:k,desc:e.desc,totE:e.totE,sped:sped,aperto:e.totE-sped,b0s:b0s,senzaAbb:!b0s.length&&!fifo.b0ToBer[k]};
+  }).filter(function(r){return r.aperto!==0;});
+  righe.sort(function(a,b){return (a.desc||a.cod).localeCompare(b.desc||b.cod,'it');});
+  var senza=Object.keys(fifo.uscNonAssegnate).map(function(b0){
+    return {b0:b0,desc:fifo.descB0[b0]||'',qta:fifo.uscNonAssegnate[b0],bers:(fifo.b0ToBer[b0]||[]).slice()};
+  }).sort(function(a,b){return a.b0.localeCompare(b.b0);});
+  _apertiBerUltimoRis=righe;_apertiBerSenzaEntrata=senza;
+  if(!tb)return;
+  var html=righe.map(function(r){
+    var badge=r.senzaAbb?'<br><span class="badge badge-warn" style="margin-top:3px;">nessun abbinamento</span>':'';
+    return '<tr><td><strong>'+r.cod+'</strong></td><td>'+(r.desc||'')+'</td>'
+      +'<td style="text-align:right;">'+r.totE+'</td><td style="text-align:right;">'+r.sped+'</td>'
+      +'<td style="text-align:right;"><span class="badge '+(r.aperto>0?'badge-warn':'badge-err')+'">'+r.aperto+'</span></td>'
+      +'<td style="font-size:12px;">'+r.b0s.join(', ')+badge+'</td></tr>';
+  }).join('');
+  if(senza.length){
+    html+='<tr><td colspan="6" style="background:#FDECEA;color:#C00000;font-weight:600;padding:8px;">⚠ Uscite senza entrata (spedito più di quanto entrato per i BER abbinati, oppure B0 non abbinato)</td></tr>'
+      +senza.map(function(r){
+        return '<tr><td><strong>'+r.b0+'</strong></td><td>'+(r.desc||'')+'</td><td></td>'
+          +'<td style="text-align:right;">'+r.qta+'</td><td style="text-align:right;"><span class="badge badge-err">-'+r.qta+'</span></td>'
+          +'<td style="font-size:12px;">'+(r.bers.length?'abbinato a '+r.bers.join(', '):'nessun abbinamento')+'</td></tr>';
+      }).join('');
+  }
+  tb.innerHTML=html||'<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo aperto.</td></tr>';
+}
+
+function esportaApertiBerExcel(){
+  if(!_apertiBerUltimoRis){alert('Premi prima AGGIORNA.');return;}
+  var wb=XLSX.utils.book_new();
+  var r1=_apertiBerUltimoRis.map(function(r){
+    return {'Codice BER':r.cod,'Descrizione':r.desc||'','Tot. Entrata':r.totE,'Spedito':r.sped,'Aperto':r.aperto,
+      'B0 abbinati':r.b0s.join(', '),'Note':r.senzaAbb?'nessun abbinamento':(r.aperto<0?'verificare':'da lavorare/spedire')};
+  });
+  if(!r1.length)r1=[{'Codice BER':'Nessun articolo aperto'}];
+  var ws1=XLSX.utils.json_to_sheet(r1);ws1['!cols']=[{wch:14},{wch:45},{wch:12},{wch:10},{wch:10},{wch:40},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Aperti BER');
+  var r2=(_apertiBerSenzaEntrata||[]).map(function(r){
+    return {'Codice B0':r.b0,'Descrizione':r.desc||'','Spedito senza entrata':r.qta,'BER abbinati':r.bers.join(', ')||'nessuno'};
+  });
+  if(!r2.length)r2=[{'Codice B0':'Nessuna uscita senza entrata'}];
+  var ws2=XLSX.utils.json_to_sheet(r2);ws2['!cols']=[{wch:16},{wch:45},{wch:20},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Uscite senza entrata');
+  var oggi=new Date();
+  var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
+  XLSX.writeFile(wb,'aperti_bergamasco_'+dataStr+'.xlsx');
 }
 
 function esportaArticoliApertiExcel(){
