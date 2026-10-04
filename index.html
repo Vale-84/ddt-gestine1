@@ -5095,19 +5095,26 @@ function parsePdfVerificaNova(testo){
   var matches=[],m;
   while((m=re.exec(testo)))matches.push({nddt:m[0],index:m.index});
   if(!matches.length)return {ddts:[],nonRisolte:[]};
-  var ddts=[],nonRisolte=[];
+  // Un DDT multipagina ripete la propria intestazione (quindi lo stesso nddt) su ogni
+  // pagina: mappa per nddt invece di spingere un blocco per ogni occorrenza, cosi' un
+  // DDT su 5 pagine resta UN risultato con tutte le righe unite, non 5 frammenti
+  // separati con lo stesso numero (mappaDdts/ordineDdts, stesso pattern di
+  // parsePdfMultiAzzurra per lo stesso identico problema).
+  var mappaDdts={},ordineDdts=[],nonRisolte=[];
   for(var i=0;i<matches.length;i++){
     var start=matches[i].index;
     var end=(i+1<matches.length)?matches[i+1].index:testo.length;
     var blocco=testo.slice(start,end);
     var nddt=matches[i].nddt;
-    var data='';
-    var mD=blocco.match(/(\d{1,2})\s+([a-zA-Zàèìòù]{3})\s+(\d{4})/);
-    if(mD){
-      var meseNum=mesi[mD[2].toLowerCase()];
-      if(meseNum)data=mD[3]+'-'+('0'+meseNum).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+    if(!mappaDdts[nddt]){mappaDdts[nddt]={nddt:nddt,data:'',righe:[]};ordineDdts.push(nddt);}
+    if(!mappaDdts[nddt].data){
+      var mD=blocco.match(/(\d{1,2})\s+([a-zA-Zàèìòù]{3})\s+(\d{4})/);
+      if(mD){
+        var meseNum=mesi[mD[2].toLowerCase()];
+        if(meseNum)mappaDdts[nddt].data=mD[3]+'-'+('0'+meseNum).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+      }
     }
-    var righeArt=[];
+    var righeArt=mappaDdts[nddt].righe;
     blocco.split('\n').forEach(function(rigaRaw){
       var riga=rigaRaw.trim();
       if(!riga)return;
@@ -5137,8 +5144,8 @@ function parsePdfVerificaNova(testo){
         nonRisolte.push({nddt:nddt,testo:riga});
       }
     });
-    ddts.push({nddt:nddt,data:data,righe:righeArt});
   }
+  var ddts=ordineDdts.map(function(k){return mappaDdts[k];});
   return {ddts:ddts,nonRisolte:nonRisolte};
 }
 
