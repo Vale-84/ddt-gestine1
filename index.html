@@ -808,17 +808,35 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2>Gestione abbinamenti</h2>
     <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaAbbinamentiAzzurra()">↻ AGGIORNA</button>
+    <button class="btn btn-green btn-sm" style="margin-bottom:10px;" onclick="apriModaleAbz()">+ NUOVO ABBINAMENTO</button>
     <input class="cerca-input" id="abz-cerca" placeholder="Filtra per codice IA, codice A0 o descrizione..." oninput="renderAbbinamentiAzzurraDebounced()" autocomplete="off" style="margin-bottom:10px;">
     <div class="rc-table-scroll">
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Codice IA</th><th>Descrizione IA</th><th>Codice A0</th><th>Giacenza Iniziale</th>
+            <th>Codice IA</th><th>Descrizione IA</th><th>Codice A0</th><th>Giacenza Iniziale</th><th>Azioni</th>
           </tr>
         </thead>
-        <tbody id="abz-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="abz-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- MODAL NUOVO/MODIFICA ABBINAMENTO AZZURRA -->
+<div class="modal" id="modal-abz">
+  <div class="modal-box">
+    <h3 id="modal-abz-title" style="color:#1F4E79;">Nuovo abbinamento</h3>
+    <input type="hidden" id="modal-abz-id">
+    <label>Codice IA</label>
+    <input type="text" id="modal-abz-codice-ia" placeholder="es. IAPET33BI" style="text-transform:uppercase;">
+    <label>Descrizione IA</label>
+    <input type="text" id="modal-abz-descrizione-ia" placeholder="es. PEDIERA LETTINO T33 BIANCO">
+    <label>Codice A0</label>
+    <select id="modal-abz-codice-a0" style="padding:10px;font-size:15px;"></select>
+    <br><br>
+    <button class="btn btn-orange" style="padding:12px 20px;font-size:15px;" onclick="salvaModaleAbz()">SALVA</button>
+    <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="chiudiModaleAbz()">ANNULLA</button>
   </div>
 </div>
 
@@ -2659,7 +2677,7 @@ async function caricaVerniciato2(){
   var d=await apiGet('verniciato');if(!d)return;
   var l=document.getElementById('imb2-vern-lista');if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo</div>';return;}
-  d.sort(function(a,b){return (a.data_inserimento||a.created_at||'').localeCompare(b.data_inserimento||b.created_at||'');});
+  d.sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
   var spunteKey='vern2_spunte';
   var spunte={};
   try{spunte=JSON.parse(localStorage.getItem(spunteKey)||'{}');}catch(e){}
@@ -6890,7 +6908,7 @@ function renderAbbinamentiAzzurra(){
       ||(r.descrizione_ia||'').toUpperCase().indexOf(q)>=0;
   });
   if(!righe.length){
-    tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
+    tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
     return;
   }
   var art0=(artCache||[]).filter(function(a){return (a.codice_articolo||'').toUpperCase().startsWith('A0');});
@@ -6912,6 +6930,8 @@ function renderAbbinamentiAzzurra(){
       +'<td>'+(r.descrizione_ia||'')+'</td>'
       +'<td><select onchange="salvaAbbinamentoA0('+r.id+',this.value)">'+sel+'</select>'+suggBadge+'</td>'
       +'<td style="text-align:right;">'+(r.giacenza_iniziale!=null?r.giacenza_iniziale:'-')+'</td>'
+      +'<td style="white-space:nowrap;"><button class="edit-btn" title="Modifica" style="padding:8px 11px;font-size:16px;" onclick="apriModaleAbz('+r.id+')">✏️</button> '
+      +'<button class="del-btn" title="Elimina" style="padding:8px 11px;font-size:16px;" onclick="eliminaAbbinamentoAzzurra('+r.id+')">✕</button></td>'
     +'</tr>';
   }).join('');
 }
@@ -6927,6 +6947,55 @@ async function salvaAbbinamentoA0(id,val){
 
 function accettaSuggerimentoAbz(id,cod){
   salvaAbbinamentoA0(id,cod);
+}
+
+function apriModaleAbz(id){
+  var art0=(artCache||[]).filter(function(a){return (a.codice_articolo||'').toUpperCase().startsWith('A0');});
+  var opzioniA0='<option value="">— nessuno —</option>'+art0.map(function(a){
+    return '<option value="'+a.codice_articolo+'">'+a.codice_articolo+' — '+(a.descrizione||'')+'</option>';
+  }).join('');
+  document.getElementById('modal-abz-codice-a0').innerHTML=opzioniA0;
+  var r=id?abzCache.find(function(x){return x.id===id;}):null;
+  document.getElementById('modal-abz-id').value=r?r.id:'';
+  document.getElementById('modal-abz-title').textContent=r?'Modifica abbinamento':'Nuovo abbinamento';
+  document.getElementById('modal-abz-codice-ia').value=r?(r.codice_ia||''):'';
+  document.getElementById('modal-abz-descrizione-ia').value=r?(r.descrizione_ia||''):'';
+  document.getElementById('modal-abz-codice-a0').value=r?(r.codice_a0||''):'';
+  document.getElementById('modal-abz').style.display='flex';
+}
+
+function chiudiModaleAbz(){
+  document.getElementById('modal-abz').style.display='none';
+}
+
+async function salvaModaleAbz(){
+  var idVal=document.getElementById('modal-abz-id').value;
+  var id=idVal?Number(idVal):null;
+  var codiceIa=(document.getElementById('modal-abz-codice-ia').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  var descrizioneIa=(document.getElementById('modal-abz-descrizione-ia').value||'').trim();
+  var codiceA0=document.getElementById('modal-abz-codice-a0').value||null;
+  if(!codiceIa){showMsg('msg-abbinamenti-azzurra','Inserisci il Codice IA.','err');return;}
+  var doppio=abzCache.find(function(x){return (x.codice_ia||'').toUpperCase()===codiceIa && x.id!==id;});
+  if(doppio){showMsg('msg-abbinamenti-azzurra','Esiste già un abbinamento con codice IA '+codiceIa+'.','err');return;}
+  if(id){
+    var ok=await apiPatch('abbinamenti_azzurra','id=eq.'+id,{codice_ia:codiceIa,descrizione_ia:descrizioneIa,codice_a0:codiceA0});
+    if(!ok){showMsg('msg-abbinamenti-azzurra','Errore salvataggio.','err');return;}
+  }else{
+    var ris=await apiPost('abbinamenti_azzurra',{codice_ia:codiceIa,descrizione_ia:descrizioneIa,codice_a0:codiceA0});
+    if(!ris){showMsg('msg-abbinamenti-azzurra','Errore salvataggio.','err');return;}
+  }
+  chiudiModaleAbz();
+  await caricaAbbinamentiAzzurra();
+  showMsg('msg-abbinamenti-azzurra','Abbinamento salvato.','ok');
+}
+
+async function eliminaAbbinamentoAzzurra(id){
+  var r=abzCache.find(function(x){return x.id===id;});
+  var cod=r?r.codice_ia:'';
+  if(!confirm('Eliminare l\'abbinamento '+cod+'?'))return;
+  await apiDel('abbinamenti_azzurra','id=eq.'+id);
+  await caricaAbbinamentiAzzurra();
+  showMsg('msg-abbinamenti-azzurra','Abbinamento eliminato.','ok');
 }
 
 async function leggiImportCodiciIA(input){
