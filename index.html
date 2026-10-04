@@ -2903,6 +2903,12 @@ async function caricaRiepilogoBerNew(){
   }
 
   // SEZIONE 2: Finiti (B0...) — Verniciato vs Imballo vs DDT Uscita
+  // Verniciato e Imballo contengono solo il periodo dall'ultimo "Chiudi mese",
+  // DDT Uscita tutta la storia: qui le uscite vanno filtrate sullo stesso periodo,
+  // altrimenti U e "Da spedire" confrontano periodi diversi. (La sezione Grezzi
+  // sopra continua a usare tutta la storia per il FIFO.)
+  var dataChiusuraFin=localStorage.getItem('chiusura_'+getCliente())||'';
+  var uscFin=dataChiusuraFin?usc.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraFin;}):usc;
   // Calcolato PER COPPIA (BER, B0) tramite abbinamenti_ber: ogni B0 viene
   // sommato in modo esatto e isolato, mai mescolando quantita' di BER diversi
   // anche se hanno piu' codici B0 simili abbinati.
@@ -2929,7 +2935,7 @@ async function caricaRiepilogoBerNew(){
     var b0Codes=berToB0[berUp]||[];
     b0Codes.forEach(function(b0c){
       if(mapFin[b0c])return;
-      mapFin[b0c]={cod:b0c,desc:descArtB0[b0c]||findDesc(b0c),vern:exactSum(vern,b0c,'quantita'),imb:exactSum(imb,b0c,'totale'),ddt:exactSum(usc,b0c,'quantita_ddt','quantita')};
+      mapFin[b0c]={cod:b0c,desc:descArtB0[b0c]||findDesc(b0c),vern:exactSum(vern,b0c,'quantita'),imb:exactSum(imb,b0c,'totale'),ddt:exactSum(uscFin,b0c,'quantita_ddt','quantita')};
       b0Usati[b0c]=true;
     });
   });
@@ -2947,7 +2953,7 @@ async function caricaRiepilogoBerNew(){
     if(!mapFin[k].desc)mapFin[k].desc=r.articolo||'';
     mapFin[k].imb+=Number(r.totale)||0;
   });
-  usc.forEach(function(r){
+  uscFin.forEach(function(r){
     var k=(r.codice_articolo||'').trim();if(!k)return;
     var kUp=k.toUpperCase();
     if(b0Usati[kUp])return; // gia' sommato sopra come B0 di un BER
@@ -3025,7 +3031,8 @@ async function caricaRiepilogoBerNew(){
             +'</div></div>';
         });
       });
-      lFin.innerHTML=html;
+      var periodoTxt=dataChiusuraFin?('dal '+fmtData(dataChiusuraFin)):'tutta la storia (nessuna chiusura mese impostata)';
+      lFin.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:4px;">Periodo DDT Uscita: '+periodoTxt+'</div>'+html;
       if(lTot){
         var allOk=totDiff===0&&totSped===0;
         lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;DDT Uscita: <strong>'+totU+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> &nbsp;Da spedire: <strong>'+(totSped>0?'+':'')+totSped+'</strong> pz</div>';
@@ -6192,6 +6199,55 @@ async function salvaImballo2(){
 // ── MAGAZZINO ─────────────────────────────────────────────────────────
 var magCache=[];
 
+// FIFO BER -> B0 (stessa logica di "Grezzi ricevuti" nel Riepilogo Bergamasco):
+// ogni riga di DDT Uscita di un B0 chiude la riga di DDT Entrata piu' vecchia ancora
+// aperta tra i BER abbinati a quel B0. Un B0 condiviso da piu' BER (es. B0RETIBI
+// abbinato a BER00232 e BER00238) non viene cosi' contato due volte.
+function calcolaFifoBer(ent,usc,abb){
+  var b0ToBer={},berToB0={};
+  (abb||[]).forEach(function(r){
+    var b0=(r.codice_b0||'').trim().toUpperCase();
+    var ber=(r.codice_ber||'').trim().toUpperCase();
+    if(!b0||!ber)return;
+    if(!b0ToBer[b0])b0ToBer[b0]=[];
+    if(b0ToBer[b0].indexOf(ber)<0)b0ToBer[b0].push(ber);
+    if(!berToB0[ber])berToB0[ber]=[];
+    if(berToB0[ber].indexOf(b0)<0)berToB0[ber].push(b0);
+  });
+  function dataRiga(r){return (r.data_ddt||r.created_at||'').slice(0,10);}
+  function ordina(a,b){return a.data.localeCompare(b.data)||(a.id-b.id);}
+  var entAperte=[];
+  (ent||[]).forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    var qty=Number(r.quantita_ddt)||0;
+    if(!k||!berToB0[k]||qty<=0)return;
+    entAperte.push({ber:k,data:dataRiga(r),id:Number(r.id)||0,residuo:qty});
+  });
+  entAperte.sort(ordina);
+  var uscB0=[];
+  (usc||[]).forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    var qty=Number(r.quantita_ddt||r.quantita||0);
+    if(!k||!b0ToBer[k]||qty<=0)return;
+    uscB0.push({b0:k,data:dataRiga(r),id:Number(r.id)||0,qty:qty,desc:r.descrizione||''});
+  });
+  uscB0.sort(ordina);
+  var lavoratiPerBer={},uscNonAssegnate={},descB0={};
+  uscB0.forEach(function(u){
+    if(u.desc&&!descB0[u.b0])descB0[u.b0]=u.desc;
+    var bers=b0ToBer[u.b0],resto=u.qty;
+    for(var i=0;i<entAperte.length&&resto>0;i++){
+      var e=entAperte[i];
+      if(e.residuo<=0||bers.indexOf(e.ber)<0)continue;
+      var q=Math.min(resto,e.residuo);
+      e.residuo-=q;resto-=q;
+      lavoratiPerBer[e.ber]=(lavoratiPerBer[e.ber]||0)+q;
+    }
+    if(resto>0)uscNonAssegnate[u.b0]=(uscNonAssegnate[u.b0]||0)+resto;
+  });
+  return {b0ToBer:b0ToBer,berToB0:berToB0,lavoratiPerBer:lavoratiPerBer,uscNonAssegnate:uscNonAssegnate,descB0:descB0};
+}
+
 async function caricaMagazzino(){
   var ent=await apiGet('ddt_entrata');var usc=await apiGet('ddt_uscita');
   if(!ent||!usc)return;
@@ -6205,6 +6261,45 @@ async function caricaMagazzino(){
     });
   }
   var map={};
+  if(getCliente()!=='AZZURRA'){
+    // BERGAMASCO: Ricevuto = DDT Entrata per codice; Spedito di un BER = uscite dei suoi
+    // B0 assegnate in FIFO (vedi calcolaFifoBer). Uscite di codici non abbinati restano
+    // su una riga propria; uscite in eccesso di un B0 abbinato (piu' uscite che entrate)
+    // restano sulla riga del B0, cosi' si vede dove manca un'entrata o un abbinamento.
+    var fifo=calcolaFifoBer(ent,usc,abb);
+    function riga(k,desc){
+      if(!map[k])map[k]={cod:k,cod_b0s:[],desc:desc||'',ric:0,spe:0};
+      if(!map[k].desc&&desc)map[k].desc=desc;
+      return map[k];
+    }
+    ent.forEach(function(r){
+      var k=(r.codice_articolo||'').trim().toUpperCase()||r.descrizione||'?';
+      riga(k,r.descrizione).ric+=(Number(r.quantita_ddt)||0);
+    });
+    usc.forEach(function(r){
+      var k=(r.codice_articolo||'').trim().toUpperCase()||r.descrizione||'?';
+      if(fifo.b0ToBer[k])return; // B0 abbinato: gestito dal FIFO
+      riga(k,r.descrizione).spe+=Number(r.quantita_ddt||r.quantita||0);
+    });
+    Object.keys(fifo.berToB0).forEach(function(ber){
+      if(!map[ber]&&!fifo.lavoratiPerBer[ber])return;
+      var m=riga(ber,'');
+      m.cod_b0s=fifo.berToB0[ber].slice();
+      m.spe+=fifo.lavoratiPerBer[ber]||0;
+    });
+    Object.keys(fifo.uscNonAssegnate).forEach(function(b0){
+      var m=riga(b0,fifo.descB0[b0]);
+      m.spe+=fifo.uscNonAssegnate[b0];
+      m.eccedenza=true;
+    });
+    magCache=Object.values(map).map(function(a){a.gia=a.ric-a.spe;a.daNova=false;return a;});
+    var lblG=document.getElementById('mag-tot-gia');
+    var lblGT=lblG?lblG.parentElement.querySelector('.l'):null;
+    if(lblGT)lblGT.textContent='In casa';
+    magCache.sort(function(a,b){return b.gia-a.gia;});
+    renderMagazzino();
+    return;
+  }
   function agg(r,campo){
     var raw=(r.codice_articolo||'').trim().toUpperCase()||r.descrizione||'?';
     var berKey=campo==='spe'?(b0ToBer[raw]||null):null;
@@ -6263,7 +6358,7 @@ function renderMagazzino(){
     return '<div class="row-item" style="border-left-color:'+bordo+';">'
       +'<div class="row-qty" style="color:'+bordo+';" title="'+(a.daNova?'Aperto da Nova':'Ricevuto - Spedito (app)')+'">'+a.gia+'</div>'
       +'<div class="row-info"><div class="rdesc">'+codBadges+a.desc+'</div>'
-      +'<div class="rsub">Ricevuto: '+a.ric+' &nbsp;Spedito: '+a.spe+'</div></div>'+badge+'</div>';
+      +'<div class="rsub">Ricevuto: '+a.ric+' &nbsp;Spedito: '+a.spe+(a.eccedenza?' &nbsp;<span style="color:#C00000;">⚠ uscite oltre le entrate dei BER abbinati: manca un\'entrata o un abbinamento</span>':'')+'</div></div>'+badge+'</div>';
   }).join('');
 }
 
