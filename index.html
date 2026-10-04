@@ -77,6 +77,20 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .row-info .rdesc { font-size: 13px; color: #222; }
 .row-info .rsub { font-size: 11px; color: #999; margin-top: 2px; }
 .del-btn { background: none; border: 1px solid #ffaaaa; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; color: #C00000; }
+#page-abbinamenti-ber .rc-table td { white-space: normal; vertical-align: top; }
+#page-abbinamenti-ber .rc-table td:first-child { min-width: 110px; }
+#page-abbinamenti-ber .rc-table td:nth-child(2) { min-width: 160px; }
+#page-abbinamenti-ber .rc-table td:nth-child(3) { min-width: 280px; }
+.abb-b0 { display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px; border-bottom: 1px dashed #e3e3e3; }
+.abb-b0:last-child { border-bottom: none; }
+.abb-b0-info { flex: 1; min-width: 0; }
+@media (max-width: 700px) {
+  #page-abbinamenti-ber .rc-table thead { display: none; }
+  #page-abbinamenti-ber .rc-table tr, #page-abbinamenti-ber .rc-table td { display: block; width: 100%; }
+  #page-abbinamenti-ber .rc-table tr { border-bottom: 2px solid #1F4E79; padding: 4px 0; }
+  #page-abbinamenti-ber .rc-table td { border-bottom: none; min-width: 0 !important; }
+  #page-abbinamenti-ber .rc-table td:first-child { position: static; }
+}
 .edit-btn { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; }
 .msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
 .msg-ok { background: #E2EFDA; color: #375623; }
@@ -854,10 +868,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Codice BER</th><th>Descrizione BER</th><th>Codice B0</th><th>Descrizione B0</th><th>Azioni</th>
+            <th>Codice BER</th><th>Descrizione BER</th><th>Codici B0 abbinati</th>
           </tr>
         </thead>
-        <tbody id="abb-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="abb-tbody"><tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -7089,14 +7103,14 @@ function escAbb(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</
 
 async function caricaAbbinamentiBer(){
   var tb=document.getElementById('abb-tbody');
-  if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
   var ris=await Promise.all([
     apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=codice_ber.asc,codice_b0.asc&limit=5000'),
     apiGet('articoli','codice_articolo=like.B0*&order=codice_articolo.asc&limit=5000'),
     apiGet('articoli','codice_articolo=like.BER*&select=codice_articolo,descrizione&limit=5000'),
     apiGet('ddt_entrata','codice_articolo=like.BER*&select=codice_articolo,descrizione,data_ddt&order=data_ddt.desc.nullslast,id.desc&limit=5000')
   ]);
-  if(!ris[0]){if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  if(!ris[0]){if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   abbCache=ris[0];
   abbArtB0=ris[1]||[];
   // Fonti descrizione BER: articoli, poi riga piu' recente di ddt_entrata (gia' ordinata desc)
@@ -7140,10 +7154,15 @@ function renderAbbinamentiBer(){
   var tb=document.getElementById('abb-tbody');
   if(!tb)return;
   var artMap=mappaArtB0Abb();
-  var conteggioCoppie={};
+  // Visualizzazione raggruppata per BER: i dati restano una riga per coppia BER+B0
+  var gruppi={},ordineBer=[],berPerB0={},conteggioCoppie={};
   abbCache.forEach(function(r){
-    var k=(r.codice_ber||'').toUpperCase()+'|'+(r.codice_b0||'').toUpperCase();
-    conteggioCoppie[k]=(conteggioCoppie[k]||0)+1;
+    var ber=(r.codice_ber||'').toUpperCase(),b0=(r.codice_b0||'').toUpperCase();
+    if(!gruppi[ber]){gruppi[ber]=[];ordineBer.push(ber);}
+    gruppi[ber].push(r);
+    if(!berPerB0[b0])berPerB0[b0]=[];
+    if(berPerB0[b0].indexOf(ber)<0)berPerB0[b0].push(ber);
+    conteggioCoppie[ber+'|'+b0]=(conteggioCoppie[ber+'|'+b0]||0)+1;
   });
   var nDup=0,nMancanti=0;
   abbCache.forEach(function(r){
@@ -7151,39 +7170,57 @@ function renderAbbinamentiBer(){
     if(!artMap[(r.codice_b0||'').toUpperCase()])nMancanti++;
   });
   var riep=document.getElementById('abb-riepilogo');
-  if(riep)riep.textContent=abbCache.length+' abbinamenti'+(nDup?' · '+nDup+' righe in coppie duplicate':'')+(nMancanti?' · '+nMancanti+' B0 non presenti in articoli':'');
+  if(riep)riep.textContent=ordineBer.length+' BER · '+abbCache.length+' abbinamenti'+(nDup?' · '+nDup+' righe in coppie duplicate':'')+(nMancanti?' · '+nMancanti+' B0 non presenti in articoli':'');
   var q=((document.getElementById('abb-cerca')||{}).value||'').trim().toUpperCase();
-  var righe=abbCache.filter(function(r){
+  function descB0(r){var art=artMap[(r.codice_b0||'').toUpperCase()];return (art&&art.descrizione)||r.desc_b0||'';}
+  var berVisibili=ordineBer.filter(function(ber){
     if(!q)return true;
-    var art=artMap[(r.codice_b0||'').toUpperCase()];
-    return (r.codice_ber||'').toUpperCase().indexOf(q)>=0
-      ||descBerAbb(r.codice_ber).toUpperCase().indexOf(q)>=0
-      ||(r.codice_b0||'').toUpperCase().indexOf(q)>=0
-      ||((art&&art.descrizione)||r.desc_b0||'').toUpperCase().indexOf(q)>=0
-      ||(r.desc_ber||'').toUpperCase().indexOf(q)>=0;
+    if(ber.indexOf(q)>=0||descBerAbb(ber).toUpperCase().indexOf(q)>=0)return true;
+    return gruppi[ber].some(function(r){
+      return (r.codice_b0||'').toUpperCase().indexOf(q)>=0
+        ||descB0(r).toUpperCase().indexOf(q)>=0
+        ||(r.desc_ber||'').toUpperCase().indexOf(q)>=0;
+    });
   });
-  if(!righe.length){
-    tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
+  if(!berVisibili.length){
+    tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
     return;
   }
-  tb.innerHTML=righe.map(function(r){
-    var art=artMap[(r.codice_b0||'').toUpperCase()];
-    var dup=conteggioCoppie[(r.codice_ber||'').toUpperCase()+'|'+(r.codice_b0||'').toUpperCase()]>1;
-    var avvisi=[];
-    if(dup)avvisi.push('coppia duplicata');
-    if(!art)avvisi.push('B0 non in articoli');
-    var descBer=descBerAbb(r.codice_ber);
-    var desc=art?escAbb(art.descrizione||''):'<span style="color:#999;">'+escAbb(r.desc_b0||'')+'</span>';
-    if(avvisi.length)desc+='<br><span class="badge badge-warn" style="margin-top:4px;display:inline-block;">⚠ '+avvisi.join(' · ')+'</span>';
-    return '<tr'+(avvisi.length?' style="background-color:#FFF2CC;"':'')+'>'
-      +'<td><strong>'+escAbb(r.codice_ber||'')+'</strong></td>'
-      +'<td style="white-space:normal;min-width:160px;">'+(descBer?escAbb(descBer):'<span style="color:#999;">—</span>')+'</td>'
-      +'<td>'+escAbb(r.codice_b0||'')+'</td>'
-      +'<td style="white-space:normal;min-width:160px;">'+desc+'</td>'
-      +'<td style="white-space:nowrap;"><button class="edit-btn" title="Modifica" style="padding:8px 11px;font-size:16px;" onclick="apriModaleAbb('+r.id+')">✏️</button> '
-      +'<button class="del-btn" title="Elimina" style="padding:8px 11px;font-size:16px;" onclick="eliminaAbbinamentoBer('+r.id+')">✕</button></td>'
+  tb.innerHTML=berVisibili.map(function(ber){
+    var descBer=descBerAbb(ber);
+    var codBer=gruppi[ber][0].codice_ber||ber;
+    var b0Html=gruppi[ber].map(function(r){
+      var b0=(r.codice_b0||'').toUpperCase();
+      var art=artMap[b0];
+      var avvisi=[];
+      if(conteggioCoppie[ber+'|'+b0]>1)avvisi.push('coppia duplicata');
+      if(!art)avvisi.push('B0 non in articoli');
+      var altri=(berPerB0[b0]||[]).filter(function(x){return x!==ber;});
+      return '<div class="abb-b0"'+(avvisi.length?' style="background-color:#FFF2CC;"':'')+'>'
+        +'<div class="abb-b0-info">'
+          +'<strong>'+escAbb(r.codice_b0||'')+'</strong>'
+          +(altri.length?' <span class="badge" style="background:#eee;color:#666;font-size:10px;">anche in '+escAbb(altri.join(', '))+'</span>':'')
+          +'<div style="font-size:12px;'+(art?'':'color:#999;')+'">'+escAbb(descB0(r))+'</div>'
+          +(avvisi.length?'<span class="badge badge-warn" style="margin-top:3px;display:inline-block;">⚠ '+avvisi.join(' · ')+'</span>':'')
+        +'</div>'
+        +'<div style="white-space:nowrap;flex-shrink:0;"><button class="edit-btn" title="Modifica" style="padding:6px 9px;font-size:14px;" onclick="apriModaleAbb('+r.id+')">✏️</button> '
+        +'<button class="del-btn" title="Elimina" style="padding:6px 9px;font-size:14px;" onclick="eliminaAbbinamentoBer('+r.id+')">✕</button></div>'
+      +'</div>';
+    }).join('');
+    return '<tr>'
+      +'<td><strong>'+escAbb(codBer)+'</strong><br>'
+        +'<button class="btn btn-green btn-sm" style="width:auto;padding:6px 10px;font-size:12px;margin:6px 0 0;" data-ber="'+escAbb(codBer)+'" onclick="apriModaleAbbPerBer(this.dataset.ber)">+ B0</button></td>'
+      +'<td>'+(descBer?escAbb(descBer):'<span style="color:#999;">—</span>')+'</td>'
+      +'<td>'+b0Html+'</td>'
     +'</tr>';
   }).join('');
+}
+
+// "+ B0" su una riga BER: apre il modale nuovo abbinamento col Codice BER gia' compilato
+function apriModaleAbbPerBer(codBer){
+  apriModaleAbb();
+  document.getElementById('modal-abb-codice-ber').value=codBer||'';
+  mostraDescBerModaleAbb();
 }
 
 function mostraB0SelAbb(cod){
