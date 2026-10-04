@@ -6240,7 +6240,10 @@ function calcolaFifoBer(ent,usc,abb){
   (ent||[]).forEach(function(r){
     var k=(r.codice_articolo||'').trim().toUpperCase();
     var qty=Number(r.quantita_ddt)||0;
-    if(!k||!berToB0[k]||qty<=0)return;
+    // Entrata registrata col codice BER, oppure direttamente col codice B0
+    // (capita: es. B0SPFIOLBI con "BER00580" nella descrizione): in quel caso
+    // la chiudono le uscite di quello stesso B0.
+    if(!k||qty<=0||(!berToB0[k]&&!b0ToBer[k]))return;
     entAperte.push({ber:k,data:dataRiga(r),id:Number(r.id)||0,residuo:qty});
   });
   entAperte.sort(ordina);
@@ -6258,7 +6261,7 @@ function calcolaFifoBer(ent,usc,abb){
     var bers=b0ToBer[u.b0],resto=u.qty;
     for(var i=0;i<entAperte.length&&resto>0;i++){
       var e=entAperte[i];
-      if(e.residuo<=0||bers.indexOf(e.ber)<0)continue;
+      if(e.residuo<=0||(bers.indexOf(e.ber)<0&&e.ber!==u.b0))continue;
       var q=Math.min(resto,e.residuo);
       e.residuo-=q;resto-=q;
       lavoratiPerBer[e.ber]=(lavoratiPerBer[e.ber]||0)+q;
@@ -6306,6 +6309,11 @@ async function caricaMagazzino(){
       var m=riga(ber,'');
       m.cod_b0s=fifo.berToB0[ber].slice();
       m.spe+=fifo.lavoratiPerBer[ber]||0;
+    });
+    // Entrate registrate col codice B0: il loro Spedito arriva dal FIFO
+    Object.keys(fifo.lavoratiPerBer).forEach(function(k){
+      if(fifo.berToB0[k])return;
+      riga(k,fifo.descB0[k]).spe+=fifo.lavoratiPerBer[k];
     });
     Object.keys(fifo.uscNonAssegnate).forEach(function(b0){
       var m=riga(b0,fifo.descB0[b0]);
@@ -7301,10 +7309,19 @@ function renderAbbinamentiBer(){
     tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
     return;
   }
+  // Ordine alfabetico per descrizione BER (a parita', per codice BER);
+  // dentro ogni BER i B0 in ordine alfabetico per descrizione B0.
+  berVisibili.sort(function(a,b){
+    var da=(descBerAbb(a)||a).toUpperCase(),db=(descBerAbb(b)||b).toUpperCase();
+    return da.localeCompare(db,'it')||a.localeCompare(b);
+  });
   tb.innerHTML=berVisibili.map(function(ber){
     var descBer=descBerAbb(ber);
     var codBer=gruppi[ber][0].codice_ber||ber;
-    var b0Html=gruppi[ber].map(function(r){
+    var righeB0=gruppi[ber].slice().sort(function(x,y){
+      return (descB0(x)||x.codice_b0||'').toUpperCase().localeCompare((descB0(y)||y.codice_b0||'').toUpperCase(),'it');
+    });
+    var b0Html=righeB0.map(function(r){
       var b0=(r.codice_b0||'').toUpperCase();
       var art=artMap[b0];
       var avvisi=[];
