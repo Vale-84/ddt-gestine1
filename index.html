@@ -2998,22 +2998,28 @@ async function caricaRiepilogoBerNew(){
         // direttamente dopo la verniciatura). Se nel periodo l'Imballo e' 0 il confronto
         // e' Verniciato - Scarti - Uscita; se c'e' Imballo resta Verniciato vs Imballo
         // e Imballo vs Uscita.
-        var senzaImb=!a.imb;
-        var diff=senzaImb?0:a.vern-a.imb-scarto;
-        var daSped=senzaImb?(a.vern-scarto-a.ddt):(a.imb-a.ddt);
-        totV+=a.vern;totI+=a.imb;totU+=a.ddt;totS+=scarto;totDiff+=diff;totSped+=daSped;
+        // L'Imballo per Bergamasco si registra solo per alcuni articoli (gli altri si
+        // spediscono subito dopo la verniciatura), quindi non puo' fare da passaggio
+        // obbligato: Da spedire = Verniciato - Scarti - DDT Uscita, l'Imballo e' solo
+        // informativo. Se nel periodo non c'e' Verniciato, l'uscita riguarda pezzi
+        // lavorati prima del periodo: niente "Da spedire" (sarebbe un negativo finto).
+        var soloUscita=!a.vern;
+        var diff=0;
+        var daSped=soloUscita?0:(a.vern-scarto-a.ddt);
+        totV+=a.vern;totI+=a.imb;totU+=a.ddt;totS+=scarto;totSped+=daSped;
         var colSped=daSped===0?'#217346':daSped>0?'#C55A11':'#C00000';
-        var bordo=ambiguo?'#C00000':senzaImb?colSped:(diff===0?'#217346':diff>0?'#C55A11':'#C00000');
+        var bordo=ambiguo?'#C00000':soloUscita?'#999':colSped;
         html+='<div style="margin-top:14px;padding:6px 12px;background:#f0f4f8;border-left:4px solid '+bordo+';border-radius:4px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;">'
           +(bers.length?bers.map(function(b){return '<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+b+'</span>';}).join('')+'<span style="color:#999;">&rarr;</span>':'')
           +(ambiguo?'<span class="badge badge-err">&#9888; verifica manuale</span> ':'')
           +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
           +'<span><strong>'+a.desc+'</strong></span>'
           +'<span style="margin-left:auto;display:flex;gap:10px;white-space:nowrap;color:'+bordo+';">'
-            +'V:<strong>'+a.vern+'</strong> '+(senzaImb?'<span style="color:#888;font-size:11px;">senza imballo</span>':'I:<strong>'+a.imb+'</strong>')+' U:<strong>'+a.ddt+'</strong>'
+            +'V:<strong>'+a.vern+'</strong>'+(a.imb?' I:<strong>'+a.imb+'</strong>':'')+' U:<strong>'+a.ddt+'</strong>'
             +(scarto?' Scarti:<strong>'+scarto+'</strong>':'')
-            +(senzaImb?'':' Diff:<strong>'+(diff>0?'+':'')+diff+'</strong>')
-            +' <span style="color:'+colSped+';">Da spedire:<strong>'+(daSped>0?'+':'')+daSped+'</strong></span>'
+            +(soloUscita
+              ?' <span style="color:#888;font-size:11px;">solo uscita (lavorato prima del periodo)</span>'
+              :' <span style="color:'+colSped+';">Da spedire:<strong>'+(daSped>0?'+':'')+daSped+'</strong></span>')
           +'</span>'
         +'</div>';
         var vernRows=vern.filter(function(r){return (r.codice_articolo||'').trim().toUpperCase()===codUp;});
@@ -3046,8 +3052,8 @@ async function caricaRiepilogoBerNew(){
       var periodoTxt=dataChiusuraFin?('dal '+fmtData(dataChiusuraFin)):'tutta la storia (nessuna chiusura mese impostata)';
       lFin.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:4px;">Periodo DDT Uscita: '+periodoTxt+'</div>'+html;
       if(lTot){
-        var allOk=totDiff===0&&totSped===0;
-        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;DDT Uscita: <strong>'+totU+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> &nbsp;Da spedire: <strong>'+(totSped>0?'+':'')+totSped+'</strong> pz</div>';
+        var allOk=totSped===0;
+        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;DDT Uscita: <strong>'+totU+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Da spedire: <strong>'+(totSped>0?'+':'')+totSped+'</strong> pz</div>';
       }
     }
   }
