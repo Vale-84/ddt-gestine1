@@ -3017,9 +3017,9 @@ async function caricaRiepilogoBerNew(){
           +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
           +'<span><strong>'+a.desc+'</strong></span>'
           +'<span style="margin-left:auto;display:flex;gap:10px;white-space:nowrap;color:'+bordo+';">'
-            +'V:<strong>'+a.vern+'</strong>'+(a.imb?' I:<strong>'+a.imb+'</strong>':'')+' U:<strong>'+a.ddt+'</strong>'
-            +(scarto?' Scarti:<strong>'+scarto+'</strong>':'')
-            +(soloUscita
+            +'Vern: <strong>'+a.vern+'</strong>'+(a.imb?' · Imb: <strong>'+a.imb+'</strong>':'')+' · Usc: <strong>'+a.ddt+'</strong>'
+            +(scarto?' · Scarti: <strong>'+scarto+'</strong>':'')
+            +' ·'+(soloUscita
               ?' <span style="color:#888;font-size:11px;">solo uscita (lavorato prima del periodo)</span>'
               :' <span style="color:'+colSped+';">Da spedire:<strong>'+(daSped>0?'+':'')+daSped+'</strong></span>')
           +'</span>'
