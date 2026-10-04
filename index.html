@@ -6319,6 +6319,7 @@ async function caricaMagazzino(){
       var m=riga(b0,fifo.descB0[b0]);
       m.spe+=fifo.uscNonAssegnate[b0];
       m.eccedenza=true;
+      m.berAbb=(fifo.b0ToBer[b0]||[]).slice();
     });
     magCache=Object.values(map).map(function(a){a.gia=a.ric-a.spe;a.daNova=false;return a;});
     var lblG=document.getElementById('mag-tot-gia');
@@ -6381,12 +6382,13 @@ function renderMagazzino(){
     var bordo=a.gia>0?'#C55A11':a.gia<0?'#C00000':'#217346';
     var suffisso=a.daNova?' (Nova)':'';
     var badge=a.gia>0?'<span class="badge badge-warn">'+a.gia+' in casa'+suffisso+'</span>':a.gia<0?'<span class="badge badge-err">'+a.gia+suffisso+'</span>':'<span class="badge badge-ok">finito'+suffisso+'</span>';
-    var codBadges=(a.cod&&a.cod!=='?'?'<span class="badge badge-ok">'+a.cod+'</span> ':'');
+    var codBadges=(a.berAbb&&a.berAbb.length?a.berAbb.map(function(b){return '<span class="badge badge-ok">'+b+'</span>';}).join(' ')+' → ':'')
+      +(a.cod&&a.cod!=='?'?'<span class="badge'+(a.berAbb&&a.berAbb.length?'" style="background:#E6F1FB;color:#0C447C;':' badge-ok')+'">'+a.cod+'</span> ':'');
     if(a.cod_b0s&&a.cod_b0s.length){codBadges+='→ '+a.cod_b0s.map(function(c){return '<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+c+'</span>';}).join(' ')+' ';}
     return '<div class="row-item" style="border-left-color:'+bordo+';">'
       +'<div class="row-qty" style="color:'+bordo+';" title="'+(a.daNova?'Aperto da Nova':'Ricevuto - Spedito (app)')+'">'+a.gia+'</div>'
       +'<div class="row-info"><div class="rdesc">'+codBadges+a.desc+'</div>'
-      +'<div class="rsub">Ricevuto: '+a.ric+' &nbsp;Spedito: '+a.spe+(a.eccedenza?' &nbsp;<span style="color:#C00000;">⚠ uscite oltre le entrate dei BER abbinati: manca un\'entrata o un abbinamento</span>':'')+'</div></div>'+badge+'</div>';
+      +'<div class="rsub">Ricevuto: '+a.ric+' &nbsp;Spedito: '+a.spe+(a.eccedenza?' &nbsp;<span style="color:#C00000;">⚠ '+(a.berAbb&&a.berAbb.length?'manca il DDT Entrata di '+a.berAbb.join(' / ')+' (o le sue entrate sono già chiuse)':'uscite oltre le entrate: manca un\'entrata o un abbinamento')+'</span>':'')+'</div></div>'+badge+'</div>';
   }).join('');
 }
 
