@@ -2786,7 +2786,7 @@ async function caricaRiepilogoBerNew(){
   var vern=await apiGet('verniciato');
   var imb=await apiGet('imballo');
   var usc=await apiGet('ddt_uscita');
-  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
+  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
   var scartiDB=await apiGet('scarti_ber');
   var artB0=await apiGet('articoli','codice_articolo=like.B0*&select=codice_articolo,descrizione&limit=5000');
   if(!ent||!vern||!imb||!usc)return;
@@ -2821,22 +2821,43 @@ async function caricaRiepilogoBerNew(){
     mapEnt[k].tot+=Number(r.quantita_ddt)||0;
     if(r.numero_ddt)mapEnt[k].nddt=r.numero_ddt;
   });
-  // Per ogni BER, somma verniciato/imballo/DDT uscita su TUTTI i codici B0 abbinati (abbinamenti_ber)
-  function sumByCodes(arr,codes,field,altField){
-    if(!arr||!codes||!codes.length)return 0;
-    var set={};codes.forEach(function(c){set[c]=true;});
-    return arr.filter(function(r){return set[(r.codice_articolo||'').trim().toUpperCase()];})
-      .reduce(function(a,r){return a+(Number(r[field]||(altField?r[altField]:0))||0);},0);
-  }
-  var lavoratiPerBer={};
-  Object.keys(mapEnt).forEach(function(berCod){
-    var berUp=berCod.trim().toUpperCase();
-    var b0Codes=berToB0[berUp]||[];
-    if(!b0Codes.length)return;
-    var vTot=sumByCodes(vern,b0Codes,'quantita');
-    var iTot=sumByCodes(imb,b0Codes,'totale');
-    var dTot=sumByCodes(usc,b0Codes,'quantita_ddt','quantita');
-    lavoratiPerBer[berCod]=Math.max(vTot,iTot,dTot);
+  // Lavorati per BER con FIFO (come Nova), solo DDT Entrata e DDT Uscita:
+  // ogni riga di uscita di un B0 chiude la riga di entrata piu' vecchia ancora
+  // aperta tra i BER abbinati a quel B0, cosi' un B0 condiviso da piu' BER
+  // non viene contato due volte.
+  function dataRiga(r){return (r.data_ddt||r.created_at||'').slice(0,10);}
+  function ordinaPerData(a,b){return a.data.localeCompare(b.data)||(a.id-b.id);}
+  var entAperte=[];
+  ent.forEach(function(r){
+    var k=(r.codice_articolo||'').trim();
+    var kUp=k.toUpperCase();
+    var qty=Number(r.quantita_ddt)||0;
+    if(!k||!berToB0[kUp]||qty<=0)return;
+    entAperte.push({ber:k,berUp:kUp,data:dataRiga(r),id:Number(r.id)||0,residuo:qty});
+  });
+  entAperte.sort(ordinaPerData);
+  var uscB0=[];
+  usc.forEach(function(r){
+    var k=(r.codice_articolo||'').trim().toUpperCase();
+    var qty=Number(r.quantita_ddt||r.quantita||0);
+    if(!k||!b0ToBer[k]||qty<=0)return;
+    uscB0.push({b0:k,data:dataRiga(r),id:Number(r.id)||0,qty:qty});
+  });
+  uscB0.sort(ordinaPerData);
+  var lavoratiPerBer={},lavoratiDaB0={},uscNonAssegnate={};
+  uscB0.forEach(function(u){
+    var bers=b0ToBer[u.b0];
+    var resto=u.qty;
+    for(var i=0;i<entAperte.length&&resto>0;i++){
+      var e=entAperte[i];
+      if(e.residuo<=0||bers.indexOf(e.berUp)<0)continue;
+      var q=Math.min(resto,e.residuo);
+      e.residuo-=q;resto-=q;
+      lavoratiPerBer[e.ber]=(lavoratiPerBer[e.ber]||0)+q;
+      if(!lavoratiDaB0[e.ber])lavoratiDaB0[e.ber]={};
+      lavoratiDaB0[e.ber][u.b0]=(lavoratiDaB0[e.ber][u.b0]||0)+q;
+    }
+    if(resto>0)uscNonAssegnate[u.b0]=(uscNonAssegnate[u.b0]||0)+resto;
   });
 
   var lEnt=document.getElementById('ber-new-entrata');
@@ -2856,8 +2877,14 @@ async function caricaRiepilogoBerNew(){
           +'<div class="row-info">'
             +'<div class="rdesc"><span class="badge" style="background:#E6F1FB;color:#0C447C;">'+a.cod+'</span> '+a.desc+' '+badge+'</div>'
             +'<div class="rsub">DDT '+a.nddt+' &nbsp;·&nbsp; Lavorati: <strong>'+lavorati+'</strong></div>'
+            +(lavoratiDaB0[a.cod]?'<div class="rsub" style="font-size:11px;color:#888;">'+Object.keys(lavoratiDaB0[a.cod]).sort().map(function(b0){return b0+' '+lavoratiDaB0[a.cod][b0];}).join(' · ')+'</div>':'')
           +'</div></div>';
       }).join('');
+    }
+    var nonAss=Object.keys(uscNonAssegnate).sort();
+    if(nonAss.length){
+      lEnt.innerHTML+='<div class="warn-box" style="margin-top:10px;">⚠ Uscite non assegnabili (più uscite che entrate): '
+        +nonAss.map(function(b0){return '<strong>'+b0+'</strong> '+uscNonAssegnate[b0];}).join(' · ')+'</div>';
     }
   }
 
@@ -3741,7 +3768,7 @@ async function aggiornaConfrrontoBer(){
   var imb=await apiGet('imballo');
   var ddte=await apiGet('ddt_entrata');
   var ddtu=await apiGet('ddt_uscita');
-  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
+  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
   if(!vern||!imb||!ddte||!ddtu)return;
 
   var dataChiusuraBer=localStorage.getItem('chiusura_'+getCliente())||'';
@@ -4039,7 +4066,7 @@ async function caricaControlloDate(){
   var ddte=await apiGet('ddt_entrata');
   var ddtu=await apiGet('ddt_uscita');
   if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
-  var abb=isBer?await apiGet('abbinamenti_ber','order=id.asc&limit=5000'):null;
+  var abb=isBer?await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000'):null;
 
   // Statistiche per codice_articolo distinto in ddt_entrata (per suggerimenti di codici simili/typo)
   var entrataCodiceStats={};
@@ -6154,7 +6181,7 @@ var magCache=[];
 async function caricaMagazzino(){
   var ent=await apiGet('ddt_entrata');var usc=await apiGet('ddt_uscita');
   if(!ent||!usc)return;
-  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
+  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
   var b0ToBer={};
   if(abb&&abb.length){
     abb.forEach(function(r){
@@ -6262,7 +6289,7 @@ async function selDettaglioArt(cod,desc){
   var usc=await apiGet('ddt_uscita');
   var vern=await apiGet('verniciato');
   var imb=await apiGet('imballo');
-  var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
+  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
   // se il codice e' un finito (B0), trova il grezzo (BER) abbinato; se e' un grezzo (BER), trova TUTTI i finiti (B0) abbinati
   var altCodes=[];
   if(abb&&abb.length){
@@ -7064,7 +7091,7 @@ async function caricaAbbinamentiBer(){
   var tb=document.getElementById('abb-tbody');
   if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
   var ris=await Promise.all([
-    apiGet('abbinamenti_ber','order=codice_ber.asc,codice_b0.asc&limit=5000'),
+    apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=codice_ber.asc,codice_b0.asc&limit=5000'),
     apiGet('articoli','codice_articolo=like.B0*&order=codice_articolo.asc&limit=5000'),
     apiGet('articoli','codice_articolo=like.BER*&select=codice_articolo,descrizione&limit=5000'),
     apiGet('ddt_entrata','codice_articolo=like.BER*&select=codice_articolo,descrizione,data_ddt&order=data_ddt.desc.nullslast,id.desc&limit=5000')
