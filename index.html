@@ -209,6 +209,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
   <div class="tab admin-tab" data-page="abbinamenti-azzurra" onclick="showPage('abbinamenti-azzurra',this)" style="display:none">Abbinamenti AZZURRA</div>
   <div class="tab admin-tab" data-page="sostituzioni-azzurra" onclick="showPage('sostituzioni-azzurra',this)" style="display:none">Sostituzioni AZZURRA</div>
+  <div class="tab admin-tab" data-page="abbinamenti-ber" onclick="showPage('abbinamenti-ber',this)" style="display:none">Abbinamenti BERGAMASCO</div>
   <div class="tab" data-page="cfg" onclick="showPage('cfg',this)">Config</div>
 </div>
 
@@ -837,6 +838,48 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <br><br>
     <button class="btn btn-orange" style="padding:12px 20px;font-size:15px;" onclick="salvaModaleAbz()">SALVA</button>
     <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="chiudiModaleAbz()">ANNULLA</button>
+  </div>
+</div>
+
+<!-- ABBINAMENTI BERGAMASCO (codici BER -> codici B0, tabella abbinamenti_ber) -->
+<div id="page-abbinamenti-ber" class="page">
+  <div id="msg-abbinamenti-ber"></div>
+  <div class="card">
+    <h2>Gestione abbinamenti</h2>
+    <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaAbbinamentiBer()">↻ AGGIORNA</button>
+    <button class="btn btn-green btn-sm" style="margin-bottom:10px;" onclick="apriModaleAbb()">+ NUOVO ABBINAMENTO</button>
+    <input class="cerca-input" id="abb-cerca" placeholder="Filtra per codice BER, codice B0 o descrizione..." oninput="renderAbbinamentiBerDebounced()" autocomplete="off" style="margin-bottom:10px;">
+    <p id="abb-riepilogo" style="font-size:12px;color:#888;margin-bottom:8px;"></p>
+    <div class="rc-table-scroll">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th>Codice BER</th><th>Codice B0</th><th>Descrizione B0</th><th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="abb-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUOVO/MODIFICA ABBINAMENTO BERGAMASCO -->
+<div class="modal" id="modal-abb">
+  <div class="modal-box">
+    <h3 id="modal-abb-title" style="color:#1F4E79;">Nuovo abbinamento</h3>
+    <input type="hidden" id="modal-abb-id">
+    <label>Codice BER</label>
+    <input type="text" id="modal-abb-codice-ber" placeholder="es. BER00531" style="text-transform:uppercase;font-size:16px;" autocomplete="off">
+    <label>Codice B0</label>
+    <div class="cerca-box">
+      <input class="cerca-input" id="modal-abb-b0-cerca" placeholder="Cerca codice B0 o descrizione..." oninput="cercaB0Abb()" autocomplete="off" style="font-size:16px;">
+      <div class="cerca-risultati" id="modal-abb-b0-ris"></div>
+    </div>
+    <div class="art-sel" id="modal-abb-b0-sel"></div>
+    <input type="hidden" id="modal-abb-b0-cod">
+    <br>
+    <button class="btn btn-orange" style="padding:12px 20px;font-size:15px;" onclick="salvaModaleAbb()">SALVA</button>
+    <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="chiudiModaleAbb()">ANNULLA</button>
   </div>
 </div>
 
@@ -1494,6 +1537,7 @@ function showPage(name,el){
   if(name==='confronto')aggiornaConfronto();
   if(name==='abbinamenti-azzurra')caricaAbbinamentiAzzurra();
   if(name==='sostituzioni-azzurra')caricaSostituzioniAzzurra();
+  if(name==='abbinamenti-ber')caricaAbbinamentiBer();
   if(name==='cfg'){var c=getConfig();document.getElementById('cfg-url').value=c.url;document.getElementById('cfg-key').value=c.key;}
 }
 
@@ -6998,6 +7042,172 @@ async function eliminaAbbinamentoAzzurra(id){
   showMsg('msg-abbinamenti-azzurra','Abbinamento eliminato.','ok');
 }
 
+// ── ABBINAMENTI BERGAMASCO (abbinamenti_ber: codice_ber -> codice_b0) ──
+// Un BER puo' avere piu' B0: si blocca solo la coppia BER+B0 identica.
+// Gli articoli B0 vengono letti a parte (artCache e' limitato a 500 righe).
+var abbCache=[],abbArtB0=[],_abbB0Ris=[];
+function escAbb(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+async function caricaAbbinamentiBer(){
+  var tb=document.getElementById('abb-tbody');
+  if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  var ris=await Promise.all([
+    apiGet('abbinamenti_ber','order=codice_ber.asc,codice_b0.asc&limit=5000'),
+    apiGet('articoli','codice_articolo=like.B0*&order=codice_articolo.asc&limit=5000')
+  ]);
+  if(!ris[0]){if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  abbCache=ris[0];
+  abbArtB0=ris[1]||[];
+  renderAbbinamentiBer();
+}
+
+var _abbRenderTimer=null;
+function renderAbbinamentiBerDebounced(){
+  clearTimeout(_abbRenderTimer);
+  _abbRenderTimer=setTimeout(renderAbbinamentiBer,180);
+}
+
+function mappaArtB0Abb(){
+  var m={};
+  abbArtB0.forEach(function(a){m[(a.codice_articolo||'').toUpperCase()]=a;});
+  return m;
+}
+
+function renderAbbinamentiBer(){
+  var tb=document.getElementById('abb-tbody');
+  if(!tb)return;
+  var artMap=mappaArtB0Abb();
+  var conteggioCoppie={};
+  abbCache.forEach(function(r){
+    var k=(r.codice_ber||'').toUpperCase()+'|'+(r.codice_b0||'').toUpperCase();
+    conteggioCoppie[k]=(conteggioCoppie[k]||0)+1;
+  });
+  var nDup=0,nMancanti=0;
+  abbCache.forEach(function(r){
+    if(conteggioCoppie[(r.codice_ber||'').toUpperCase()+'|'+(r.codice_b0||'').toUpperCase()]>1)nDup++;
+    if(!artMap[(r.codice_b0||'').toUpperCase()])nMancanti++;
+  });
+  var riep=document.getElementById('abb-riepilogo');
+  if(riep)riep.textContent=abbCache.length+' abbinamenti'+(nDup?' · '+nDup+' righe in coppie duplicate':'')+(nMancanti?' · '+nMancanti+' B0 non presenti in articoli':'');
+  var q=((document.getElementById('abb-cerca')||{}).value||'').trim().toUpperCase();
+  var righe=abbCache.filter(function(r){
+    if(!q)return true;
+    var art=artMap[(r.codice_b0||'').toUpperCase()];
+    return (r.codice_ber||'').toUpperCase().indexOf(q)>=0
+      ||(r.codice_b0||'').toUpperCase().indexOf(q)>=0
+      ||((art&&art.descrizione)||r.desc_b0||'').toUpperCase().indexOf(q)>=0
+      ||(r.desc_ber||'').toUpperCase().indexOf(q)>=0;
+  });
+  if(!righe.length){
+    tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
+    return;
+  }
+  tb.innerHTML=righe.map(function(r){
+    var art=artMap[(r.codice_b0||'').toUpperCase()];
+    var dup=conteggioCoppie[(r.codice_ber||'').toUpperCase()+'|'+(r.codice_b0||'').toUpperCase()]>1;
+    var avvisi=[];
+    if(dup)avvisi.push('coppia duplicata');
+    if(!art)avvisi.push('B0 non in articoli');
+    var desc=art?escAbb(art.descrizione||''):'<span style="color:#999;">'+escAbb(r.desc_b0||'')+'</span>';
+    if(avvisi.length)desc+='<br><span class="badge badge-warn" style="margin-top:4px;display:inline-block;">⚠ '+avvisi.join(' · ')+'</span>';
+    return '<tr'+(avvisi.length?' style="background-color:#FFF2CC;"':'')+'>'
+      +'<td><strong>'+escAbb(r.codice_ber||'')+'</strong></td>'
+      +'<td>'+escAbb(r.codice_b0||'')+'</td>'
+      +'<td style="white-space:normal;min-width:160px;">'+desc+'</td>'
+      +'<td style="white-space:nowrap;"><button class="edit-btn" title="Modifica" style="padding:8px 11px;font-size:16px;" onclick="apriModaleAbb('+r.id+')">✏️</button> '
+      +'<button class="del-btn" title="Elimina" style="padding:8px 11px;font-size:16px;" onclick="eliminaAbbinamentoBer('+r.id+')">✕</button></td>'
+    +'</tr>';
+  }).join('');
+}
+
+function mostraB0SelAbb(cod){
+  var sel=document.getElementById('modal-abb-b0-sel');
+  if(!cod){sel.style.display='none';sel.innerHTML='';return;}
+  var art=mappaArtB0Abb()[cod.toUpperCase()];
+  sel.innerHTML=art
+    ?'✓ <strong>'+escAbb(cod)+'</strong> — '+escAbb(art.descrizione||'')
+    :'<span style="color:#C00000;">⚠ <strong>'+escAbb(cod)+'</strong> non presente in articoli</span>';
+  sel.style.display='block';
+}
+
+function apriModaleAbb(id){
+  var r=id?abbCache.find(function(x){return x.id===id;}):null;
+  document.getElementById('modal-abb-id').value=r?r.id:'';
+  document.getElementById('modal-abb-title').textContent=r?'Modifica abbinamento':'Nuovo abbinamento';
+  document.getElementById('modal-abb-codice-ber').value=r?(r.codice_ber||''):'';
+  document.getElementById('modal-abb-b0-cerca').value='';
+  document.getElementById('modal-abb-b0-ris').style.display='none';
+  document.getElementById('modal-abb-b0-cod').value=r?(r.codice_b0||''):'';
+  mostraB0SelAbb(r?(r.codice_b0||''):'');
+  document.getElementById('modal-abb').style.display='flex';
+}
+
+function chiudiModaleAbb(){
+  document.getElementById('modal-abb').style.display='none';
+}
+
+function cercaB0Abb(){
+  var q=(document.getElementById('modal-abb-b0-cerca').value||'').trim().toUpperCase();
+  var box=document.getElementById('modal-abb-b0-ris');
+  if(!q){box.style.display='none';return;}
+  _abbB0Ris=abbArtB0.filter(function(a){
+    return (a.codice_articolo||'').toUpperCase().indexOf(q)>=0||(a.descrizione||'').toUpperCase().indexOf(q)>=0;
+  }).slice(0,40);
+  box.innerHTML=_abbB0Ris.length
+    ?_abbB0Ris.map(function(a,i){
+      return '<div class="cerca-item" onclick="selB0Abb('+i+')"><div class="cerca-codice">'+escAbb(a.codice_articolo)+'</div>'+escAbb(a.descrizione||'')+'</div>';
+    }).join('')
+    :'<div class="cerca-item" style="color:#999;cursor:default;">Nessun articolo B0 trovato</div>';
+  box.style.display='block';
+}
+
+function selB0Abb(i){
+  var a=_abbB0Ris[i];if(!a)return;
+  var cod=(a.codice_articolo||'').toUpperCase();
+  document.getElementById('modal-abb-b0-cod').value=cod;
+  document.getElementById('modal-abb-b0-cerca').value='';
+  document.getElementById('modal-abb-b0-ris').style.display='none';
+  mostraB0SelAbb(cod);
+}
+
+async function salvaModaleAbb(){
+  var idVal=document.getElementById('modal-abb-id').value;
+  var id=idVal?Number(idVal):null;
+  var codiceBer=(document.getElementById('modal-abb-codice-ber').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  var codiceB0=(document.getElementById('modal-abb-b0-cod').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(!codiceBer){showMsg('msg-abbinamenti-ber','Inserisci il Codice BER.','err');return;}
+  if(!codiceB0){showMsg('msg-abbinamenti-ber','Scegli il Codice B0 dalla ricerca.','err');return;}
+  var doppio=abbCache.find(function(x){
+    return (x.codice_ber||'').toUpperCase()===codiceBer&&(x.codice_b0||'').toUpperCase()===codiceB0&&x.id!==id;
+  });
+  if(doppio){showMsg('msg-abbinamenti-ber','La coppia '+codiceBer+' + '+codiceB0+' esiste già.','err');return;}
+  var art=mappaArtB0Abb()[codiceB0];
+  if(!art&&!confirm(codiceB0+' non è presente negli articoli. Salvare comunque?'))return;
+  var corrente=id?abbCache.find(function(x){return x.id===id;}):null;
+  var descB0=art?(art.descrizione||''):(corrente?corrente.desc_b0:null);
+  if(id){
+    var ok=await apiPatch('abbinamenti_ber','id=eq.'+id,{codice_ber:codiceBer,codice_b0:codiceB0,desc_b0:descB0});
+    if(!ok){showMsg('msg-abbinamenti-ber','Errore salvataggio.','err');return;}
+  }else{
+    // desc_ber: ripresa da un altro abbinamento dello stesso BER, se esiste
+    var fratello=abbCache.find(function(x){return (x.codice_ber||'').toUpperCase()===codiceBer&&x.desc_ber;});
+    var ris=await apiPost('abbinamenti_ber',{codice_ber:codiceBer,codice_b0:codiceB0,desc_b0:descB0,desc_ber:fratello?fratello.desc_ber:null,cliente:'BERGAMASCO'});
+    if(!ris){showMsg('msg-abbinamenti-ber','Errore salvataggio.','err');return;}
+  }
+  chiudiModaleAbb();
+  await caricaAbbinamentiBer();
+  showMsg('msg-abbinamenti-ber','Abbinamento salvato.','ok');
+}
+
+async function eliminaAbbinamentoBer(id){
+  var r=abbCache.find(function(x){return x.id===id;});
+  var testo=r?(r.codice_ber+' → '+r.codice_b0):'';
+  if(!confirm('Eliminare l\'abbinamento '+testo+'?'))return;
+  await apiDel('abbinamenti_ber','id=eq.'+id);
+  await caricaAbbinamentiBer();
+  showMsg('msg-abbinamenti-ber','Abbinamento eliminato.','ok');
+}
+
 async function leggiImportCodiciIA(input){
   var file=input.files[0];if(!file)return;
   try{
@@ -7160,7 +7370,7 @@ async function salvaSostituzioneAzzurra(){
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
   AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sostituzioni-azzurra','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','cfg']
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','cfg']
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
@@ -7204,7 +7414,7 @@ function cambiaCliente(){
     if(name==='confronto')aggiornaConfronto();
     if(name==='abbinamenti-azzurra')caricaAbbinamentiAzzurra();
     if(name==='sostituzioni-azzurra')caricaSostituzioniAzzurra();
-
+    if(name==='abbinamenti-ber')caricaAbbinamentiBer();
   }
 }
 
