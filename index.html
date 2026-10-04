@@ -744,6 +744,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti (Entrata ≠ Uscita)</h3>
       <p style="font-size:12px;color:#666;margin-bottom:10px;">Solo articoli con quantità totale DDT Entrata diversa da DDT Uscita.</p>
       <p id="rc-aperti-ultimo-import" style="font-size:12px;color:#888;margin-bottom:10px;"></p>
+      <p id="rc-aperti-senza-a0" style="display:none;font-size:12px;color:#8a5a00;background:#FFF2CC;border-radius:6px;padding:8px 10px;margin-bottom:10px;"></p>
       <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaArticoliApertiAzzurra()">↻ AGGIORNA</button>
       <button class="btn btn-green btn-sm" style="margin-bottom:10px;" onclick="esportaArticoliApertiExcel()">📥 Esporta Excel</button>
       <div class="rc-table-scroll">
@@ -2169,6 +2170,46 @@ function sceltaUscitaToggle(cod,valore){
   if(btnWa)btnWa.className='btn btn-sm '+(valore==='wa'?'btn-green':'btn-gray');
 }
 
+// USA WA: a differenza di "USA IMBALLO" (solo evidenziazione locale, sopra), scrive
+// davvero in Imballo una riga per ogni riga WA Uscita dell'articolo, con la data del
+// messaggio WA (non oggi) e nota "da WA". Antidoppione tramite wa_origine_id (id della
+// riga whatsapp_uscita di origine): non riscrive mai una riga gia' creata in precedenza,
+// nemmeno premendo il tasto piu' volte. Non tocca Verniciato/DDT/WA Uscita.
+async function usaWA(cod){
+  var btn=document.getElementById('su-btn-wa-'+cod);
+  if(btn){if(btn.disabled)return;btn.disabled=true;btn.textContent='...';}
+  try{
+    var righeWA=await apiGet('whatsapp_uscita','codice_articolo=eq.'+encodeURIComponent(cod));
+    if(!righeWA||!righeWA.length){
+      showMsg('msg-imballo2','Nessuna riga WA Uscita trovata per '+cod+'.','err');
+      if(btn){btn.disabled=false;btn.textContent='USA WA';}
+      return;
+    }
+    var ids=righeWA.map(function(r){return r.id;});
+    var esistenti=await apiGet('imballo','wa_origine_id=in.('+ids.join(',')+')&select=wa_origine_id');
+    var giaFatte={};
+    (esistenti||[]).forEach(function(r){if(r.wa_origine_id!=null)giaFatte[r.wa_origine_id]=true;});
+    var nCreate=0;
+    for(var i=0;i<righeWA.length;i++){
+      var r=righeWA[i];
+      if(giaFatte[r.id])continue;
+      var dataWA=(r.data_inserimento||r.created_at||'').slice(0,10)||oggiISO();
+      var qty=Number(r.quantita)||0;
+      var seq=r.testo_seq||String(qty);
+      var desc=r.descrizione_articolo||r.descrizione||'';
+      var res=await apiPost('imballo',{codice_articolo:cod,articolo:desc,sequenza:seq,totale:qty,note:'da WA',data_inserimento:dataWA,wa_origine_id:r.id});
+      if(res)nCreate++;
+    }
+    showMsg('msg-imballo2',nCreate?('✓ '+nCreate+' riga/e create in Imballo da WA per '+cod+'.'):('Già tutto sistemato per '+cod+', nessuna riga nuova.'),'ok');
+  }catch(e){
+    showMsg('msg-imballo2','Errore: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='USA WA';}
+    return;
+  }
+  caricaImballo();
+  verificaVerniciatoImballo();
+}
+
 async function verificaVerniciatoImballo(){
   var imb=await apiGet('imballo');
   var vern=await apiGet('verniciato');
@@ -2262,9 +2303,9 @@ async function verificaVerniciatoImballo(){
       var waHi=scelta==='wa'?'background:#C6EFCE;font-weight:bold;':'';
       celImb='<td style="text-align:right;'+imbHi+'" id="su-imb-'+a.cod+'">'+a.imb+'</td>';
       celWau='<td style="text-align:right;'+waHi+'" id="su-wa-'+a.cod+'">'+a.wau
-        +'<div style="margin-top:4px;display:flex;gap:4px;justify-content:flex-end;">'
-          +'<button id="su-btn-imb-'+a.cod+'" class="btn btn-sm '+(scelta==='imballo'?'btn-green':'btn-gray')+'" style="width:auto;padding:2px 6px;font-size:10px;" onclick="sceltaUscitaToggle(\''+a.cod+'\',\'imballo\')">Usa Imballo</button>'
-          +'<button id="su-btn-wa-'+a.cod+'" class="btn btn-sm '+(scelta==='wa'?'btn-green':'btn-gray')+'" style="width:auto;padding:2px 6px;font-size:10px;" onclick="sceltaUscitaToggle(\''+a.cod+'\',\'wa\')">Usa WA</button>'
+        +'<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
+          +'<button id="su-btn-imb-'+a.cod+'" class="btn btn-sm '+(scelta==='imballo'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="sceltaUscitaToggle(\''+a.cod+'\',\'imballo\')">USA IMBALLO</button>'
+          +'<button id="su-btn-wa-'+a.cod+'" class="btn btn-sm '+(scelta==='wa'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="usaWA(\''+a.cod+'\')">USA WA</button>'
         +'</div>'
       +'</td>';
     } else {
@@ -3351,6 +3392,8 @@ async function aggiornaConfronto(){
 
 // ── ARTICOLI APERTI (solo AZZURRA): Tot. Entrata ≠ Tot. Uscita per codice diretto ──
 var _apertiAzzurraUltimoRis=null;
+var _apertiAzzurraSenzaA0=[]; // codici IA con inevaso Nova ma senza codice A0 abbinato
+var _apertiAzzurraIAperA0={}; // A0 -> [codici IA abbinati]
 
 // Inevaso Nova (Abbinamenti AZZURRA, campo giacenza_iniziale) sommato per codice A0: un A0
 // puo' avere piu' codici IA abbinati. Condivisa tra "Articoli Aperti" e "Magazzino" cosi'
@@ -3410,6 +3453,21 @@ async function caricaArticoliApertiAzzurra(){
     var a0=(r.codice_a0||'').trim().toUpperCase();
     if(ia&&a0)mappaIA[ia]=a0;
   });
+  // Codici Azzurra (IA) per ogni A0, per la colonna "Codice Azzurra" dell'Excel.
+  // E codici IA che hanno un inevaso Nova ma NESSUN codice A0: getGiacenzaNovaPerA0()
+  // li salta, quindi senza questa lista sparirebbero dagli aperti senza avvisi.
+  var iaPerA0={},senzaA0=[];
+  (abzIA||[]).forEach(function(r){
+    var ia=(r.codice_ia||'').trim().toUpperCase();
+    var a0=(r.codice_a0||'').trim().toUpperCase();
+    var ine=Number(r.giacenza_iniziale)||0;
+    if(!ia)return;
+    if(a0){(iaPerA0[a0]=iaPerA0[a0]||[]).push(ia);}
+    else if(ine!==0){senzaA0.push({ia:ia,desc:r.descrizione_ia||'',ine:ine});}
+  });
+  senzaA0.sort(function(a,b){return b.ine-a.ine;});
+  _apertiAzzurraIAperA0=iaPerA0;
+  _apertiAzzurraSenzaA0=senzaA0;
 
   var mE={},mU={};
   ddte.forEach(function(r){
@@ -3447,6 +3505,14 @@ async function caricaArticoliApertiAzzurra(){
   righeAperti.sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
   _apertiAzzurraUltimoRis=righeAperti;
   await aggiornaLabelUltimoImportInevasiNova();
+  var avv=document.getElementById('rc-aperti-senza-a0');
+  if(avv){
+    if(senzaA0.length){
+      var pzSenza=senzaA0.reduce(function(t,r){return t+r.ine;},0);
+      avv.style.display='';
+      avv.innerHTML='⚠️ <strong>'+senzaA0.length+' codici Azzurra ('+pzSenza+' pz)</strong> hanno un inevaso Nova ma nessun codice A0 abbinato: non compaiono in questa tabella. Abbinali in "Abbinamenti AZZURRA". L\'elenco è nel foglio "Senza codice A0" dell\'Excel.';
+    } else {avv.style.display='none';avv.innerHTML='';}
+  }
 
   if(!tb)return;
   if(!righeAperti.length){
@@ -3483,6 +3549,41 @@ function esportaArticoliApertiExcel(){
   var ws=XLSX.utils.json_to_sheet(righeExcel);
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Articoli Aperti');
+
+  // Foglio "Codici A0 + Azzurra": codice A0, descrizione, quanto c'e' da evadere e codice/i Azzurra abbinati.
+  var righeCod=_apertiAzzurraUltimoRis.map(function(r){
+    return {
+      'Codice A0':r.cod,
+      'Descrizione':r.desc||'',
+      'Da evadere':r.diff,
+      'Codice Azzurra':(_apertiAzzurraIAperA0[(r.cod||'').toUpperCase()]||[]).join(', ')
+    };
+  });
+  var wsCod=XLSX.utils.json_to_sheet(righeCod);
+  wsCod['!cols']=[{wch:16},{wch:50},{wch:11},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,wsCod,'Codici A0 + Azzurra');
+
+  // Foglio "Senza codice A0": codici Azzurra con inevaso Nova ma senza abbinamento (non sono nella tabella).
+  var righeSenza=(_apertiAzzurraSenzaA0||[]).map(function(r){
+    return {'Codice Azzurra':r.ia,'Descrizione':r.desc,'Da evadere':r.ine,'Codice A0 (da abbinare)':''};
+  });
+  if(!righeSenza.length)righeSenza=[{'Codice Azzurra':'Nessun codice senza abbinamento','Descrizione':'','Da evadere':'','Codice A0 (da abbinare)':''}];
+  var wsSenza=XLSX.utils.json_to_sheet(righeSenza);
+  wsSenza['!cols']=[{wch:16},{wch:50},{wch:11},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,wsSenza,'Senza codice A0');
+
+  // Foglio "Riepilogo": totali, cosi' si vede subito se torna con il totale inevaso di Nova.
+  var totAbb=_apertiAzzurraUltimoRis.reduce(function(t,r){return t+(Number(r.diff)||0);},0);
+  var totSenza=(_apertiAzzurraSenzaA0||[]).reduce(function(t,r){return t+r.ine;},0);
+  var wsRiep=XLSX.utils.aoa_to_sheet([
+    ['Voce','Pezzi','Articoli'],
+    ['Aperti con codice A0',totAbb,_apertiAzzurraUltimoRis.length],
+    ['Aperti senza codice A0',totSenza,(_apertiAzzurraSenzaA0||[]).length],
+    ['TOTALE (deve coincidere con il totale Qtà Ine di Nova)',totAbb+totSenza,_apertiAzzurraUltimoRis.length+(_apertiAzzurraSenzaA0||[]).length]
+  ]);
+  wsRiep['!cols']=[{wch:52},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,wsRiep,'Riepilogo');
+
   var oggi=new Date();
   var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
   XLSX.writeFile(wb,'articoli_aperti_'+dataStr+'.xlsx');
