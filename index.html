@@ -4345,7 +4345,14 @@ async function importaDaPDF(){
   for(var i=0;i<pdfDati.articoli.length;i++){
     var a=pdfDati.articoli[i];
     var cod=a.cod||'';
-    if(cod&&pfx&&!artCache.some(function(x){return x.codice_articolo.toUpperCase()===cod.toUpperCase();})){
+    // Bergamasco: il codice BER spesso finisce in testa alla descrizione
+    // ("BER00672 EL. FONDO CASSETTO..."). Va usato come codice, altrimenti la
+    // ricerca per descrizione sotto sceglie un B0 a caso (es. B0IMBKITEVO).
+    if(!cod){
+      var mBer=(a.desc||'').match(/\b(BER\d{4,6})\b/i);
+      if(mBer){cod=mBer[1].toUpperCase();a.desc=(a.desc||'').replace(mBer[0],'').replace(/\s+/g,' ').trim();}
+    }
+    if(cod&&pfx&&!/^BER\d/i.test(cod)&&!artCache.some(function(x){return x.codice_articolo.toUpperCase()===cod.toUpperCase();})){
       var withPfx=artCache.find(function(x){return x.codice_articolo.toUpperCase()===(pfx+cod).toUpperCase();});
       if(withPfx)cod=withPfx.codice_articolo;
     }
