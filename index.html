@@ -1055,9 +1055,18 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-purple" onclick="aggiungiSostituzione()">AGGIUNGI SOSTITUZIONE</button>
   </div>
 
+  <!-- CARICA ORDINE/DDT DEL CLIENTE (PDF): crea le richieste -->
+  <div class="card">
+    <h2 style="color:#5B2C8D;">1 · Carica ordine riparazioni del cliente (PDF)</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Carica il PDF dell'ordine con i pezzi da riparare (es. OVC6000008): l'app legge codici e quantità e li aggiunge all'elenco come "da fare". Puoi caricarne più di uno.</p>
+    <input type="file" id="sost-ord-inp" accept=".pdf" multiple style="display:none;" onchange="leggiPdfOrdiniSost(this)">
+    <button type="button" class="pdf-drop" style="width:100%;border:none;background:#F3EEFA;" onclick="document.getElementById('sost-ord-inp').click()"><p>Tocca qui per caricare l'ordine del cliente</p></button>
+    <div id="sost-ord-res" style="margin-top:10px;"></div>
+  </div>
+
   <!-- CARICA DDT USCITA (PDF): scala le sostituzioni aperte -->
   <div class="card">
-    <h2 style="color:#5B2C8D;">Carica DDT di uscita (PDF)</h2>
+    <h2 style="color:#5B2C8D;">2 · Carica il tuo DDT di uscita / reso riparato (PDF)</h2>
     <p style="font-size:13px;color:#666;margin-bottom:10px;">Carica il PDF del DDT con cui spedisci i pezzi: per ogni riga l'app propone la sostituzione aperta corrispondente. Controlla le scelte e premi CONFERMA: le quantità vengono scalate partendo dalla richiesta più vecchia.</p>
     <input type="file" id="sost-pdf-inp" accept=".pdf" multiple style="display:none;" onchange="leggiPdfSostituzioni(this)">
     <button type="button" class="pdf-drop" style="width:100%;border:none;background:#F3EEFA;" onclick="document.getElementById('sost-pdf-inp').click()"><p>Tocca qui per caricare uno o più PDF dei DDT</p></button>
@@ -3242,6 +3251,72 @@ function _normSost(t){
   return String(t||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').split(/\s+/).filter(function(w){return w.length>1&&w!=='CER'&&w!=='DA'&&w!=='PER';}).map(function(w){return ab[w]||w;});
 }
 function _simSost(a,b){var A=_normSost(a),B=_normSost(b),n=0;A.forEach(function(w){if(B.indexOf(w)>=0)n++;});return n;}
+var _sostOrdRighe=[];
+async function _testoDaPdf(file){
+  var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;var testo='';
+  for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+  return testo;
+}
+function parseOrdineSost(testo,nomeFile){
+  var mesi={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+  var mN=testo.match(/\b(C6\d{6})\b/);
+  var nr=mN?mN[1]:'';
+  var mF=(nomeFile||'').match(/([A-Z]{0,3}C6\d{6})/i);if(mF)nr=mF[1].toUpperCase();
+  var data='';var mD=testo.match(/(\d{1,2})\s+(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)[a-z]*\s+(\d{4})/i);
+  if(mD)data=mD[3]+'-'+('0'+mesi[mD[2].toLowerCase()]).slice(-2)+'-'+('0'+mD[1]).slice(-2);
+  var righe=[];
+  testo.split('\n').forEach(function(rr){
+    var r=rr.trim();if(!r)return;
+    var m=r.match(/^(\S{4,})\s+(.+?)\s+PZ\.?\s+([\d.]*\d,\d{2}|\d+)\b/);
+    if(!m)return;
+    if(/^(ARTICOLO|DESCRIZIONE|CODICE)$/i.test(m[1]))return;
+    var q=parseQty(m[3]);if(q<=0)return;
+    righe.push({cod:m[1].toUpperCase(),desc:m[2].trim().replace(/\s+/g,' '),qty:q});
+  });
+  return {nr:nr,data:data,righe:righe};
+}
+async function leggiPdfOrdiniSost(input){
+  var files=Array.prototype.slice.call(input.files||[]);if(!files.length)return;
+  var res=document.getElementById('sost-ord-res');
+  res.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura '+files.length+' PDF...</div>';
+  try{
+    _sostOrdRighe=[];var docs=[];
+    for(var f=0;f<files.length;f++){
+      var o=parseOrdineSost(await _testoDaPdf(files[f]),files[f].name);
+      docs.push(o);
+      o.righe.forEach(function(r){_sostOrdRighe.push({nr:o.nr,data:o.data,cod:r.cod,desc:r.desc,qty:r.qty});});
+    }
+    if(!_sostOrdRighe.length){res.innerHTML='<div class="msg msg-err">Nessuna riga articolo trovata nel PDF.</div>';input.value='';return;}
+    // gia' caricati? (stessa nota ordine + stesso codice)
+    var esist=await apiGet(tabSost(),'select=codice_articolo,note&limit=5000')||[];
+    var gia={};esist.forEach(function(e){gia[(e.note||'')+'|'+(e.codice_articolo||'').toUpperCase()]=true;});
+    var html='<div style="font-size:13px;margin-bottom:8px;">Documenti: <strong>'+docs.map(function(d){return (d.nr||'?')+(d.data?' del '+fmtData(d.data):'')+' ('+d.righe.length+' righe)';}).join(', ')+'</strong></div>'
+      +'<div class="rc-table-scroll"><table class="rc-table"><thead><tr><th></th><th>Articolo</th><th>Pz</th><th>Ordine</th></tr></thead><tbody>'
+      +_sostOrdRighe.map(function(r,i){
+        r.nota='Ordine '+(r.nr||'?')+(r.data?' del '+fmtData(r.data):'');
+        var dup=gia[r.nota+'|'+r.cod];
+        return '<tr'+(dup?' style="opacity:.5;"':'')+'><td><input type="checkbox" id="sost-ord-chk-'+i+'"'+(dup?'':' checked')+'></td>'
+          +'<td><strong>'+r.cod+'</strong><br><span style="font-size:12px;color:#666;">'+r.desc+'</span>'+(dup?'<br><span class="badge badge-warn">già nell\'elenco</span>':'')+'</td>'
+          +'<td style="text-align:right;">'+r.qty+'</td><td style="font-size:12px;">'+r.nota+'</td></tr>';
+      }).join('')
+      +'</tbody></table></div>'
+      +'<button class="btn btn-purple" style="margin-top:10px;" onclick="confermaOrdiniSost()">AGGIUNGI ALL\'ELENCO</button>';
+    res.innerHTML=html;
+  }catch(e){res.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+async function confermaOrdiniSost(){
+  var res=document.getElementById('sost-ord-res');var ok=0,err=0;
+  for(var i=0;i<_sostOrdRighe.length;i++){
+    var el=document.getElementById('sost-ord-chk-'+i);if(!el||!el.checked)continue;
+    var r=_sostOrdRighe[i];
+    var x=await apiPost(tabSost(),{codice_articolo:r.cod,descrizione:r.desc,quantita:r.qty,note:r.nota,evaso:false});
+    if(x)ok++;else err++;
+  }
+  res.innerHTML='<div class="ok-box">✅ Aggiunte '+ok+' righe all\'elenco'+(err?' — '+err+' errori':'')+'.</div>';
+  caricaSostituzioni();
+}
+
 async function leggiPdfSostituzioni(input){
   var files=Array.prototype.slice.call(input.files||[]);if(!files.length)return;
   var res=document.getElementById('sost-pdf-res');
