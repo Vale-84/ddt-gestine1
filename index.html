@@ -3029,7 +3029,7 @@ async function caricaRiepilogoBerNew(){
           var data=fmtData(r.data_inserimento||r.created_at);
           var seq=r.sequenza||'';
           html+='<div class="row-item" style="border-left-color:#4A90D9;padding:5px 12px 5px 28px;margin-top:2px;">'
-            +'<div class="row-qty" style="color:#4A90D9;min-width:40px;">'+qty+'</div>'
+            +'<div class="row-qty" style="color:#4A90D9;min-width:40px;"><span style="font-size:12px;">V </span>'+qty+'</div>'
             +'<div class="row-info">'
               +'<div class="rdesc">🎨 <strong>Verniciato</strong>'+(seq?' <span style="color:#888;font-size:12px;">'+seq+'</span>':'')+'</div>'
               +'<div class="rsub">'+data+'</div>'
@@ -3042,7 +3042,7 @@ async function caricaRiepilogoBerNew(){
           var data=fmtData(r.data_inserimento||r.created_at);
           var seq=r.sequenza||'';
           html+='<div class="row-item" style="border-left-color:#217346;padding:5px 12px 5px 28px;margin-top:2px;">'
-            +'<div class="row-qty" style="color:#217346;min-width:40px;">'+qty+'</div>'
+            +'<div class="row-qty" style="color:#217346;min-width:40px;"><span style="font-size:12px;">I </span>'+qty+'</div>'
             +'<div class="row-info">'
               +'<div class="rdesc">📦 <strong>Imballo</strong>'+(seq?' <span style="color:#888;font-size:12px;">'+seq+'</span>':'')+'</div>'
               +'<div class="rsub">'+data+'</div>'
