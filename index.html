@@ -3003,9 +3003,11 @@ async function caricaRiepilogoBerNew(){
         // obbligato: Da spedire = Verniciato - Scarti - DDT Uscita, l'Imballo e' solo
         // informativo. Se nel periodo non c'e' Verniciato, l'uscita riguarda pezzi
         // lavorati prima del periodo: niente "Da spedire" (sarebbe un negativo finto).
-        var soloUscita=!a.vern;
+        // Verniciato 0 ma Imballo presente: pezzi verniciati prima del periodo e
+        // imballati adesso -> Da spedire = Imballo - Uscita.
+        var soloUscita=!a.vern&&!a.imb;
         var diff=0;
-        var daSped=soloUscita?0:(a.vern-scarto-a.ddt);
+        var daSped=soloUscita?0:(a.vern?(a.vern-scarto-a.ddt):(a.imb-a.ddt));
         totV+=a.vern;totI+=a.imb;totU+=a.ddt;totS+=scarto;totSped+=daSped;
         var colSped=daSped===0?'#217346':daSped>0?'#C55A11':'#C00000';
         var bordo=ambiguo?'#C00000':soloUscita?'#999':colSped;
