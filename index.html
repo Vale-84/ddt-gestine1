@@ -4847,7 +4847,7 @@ function parsePdfMultiAzzurra(testo){
       riga=riga.trim();
       if(!riga||riga[0]==='*')return;
       if(/^(ARTICOLO|DESCRIZIONE|UMI|U\.M\.|QUANT|PREZZO|COD\.|CODICE|TOTALE|PAGINA)\b/i.test(riga))return;
-      var mArt=riga.match(/^(A0[A-Z]+)\s+(.+?)\s+PZ\.\s+(\d+,\d{2})/);
+      var mArt=riga.match(/^(\S+)\s+(.+?)\s+PZ\.\s+(\d+,\d{2})/);
       if(mArt){
         var qty=parseQty(mArt[3]);
         if(qty>0)mappa[nddt].righe.push({cod:mArt[1],desc:mArt[2].trim().replace(/\s+/g,' '),qty:qty});
