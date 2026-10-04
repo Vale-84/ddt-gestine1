@@ -1029,8 +1029,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div id="page-sost-ber" class="page">
   <div id="msg-sost-ber"></div>
 
-  <!-- MODALITÀ INCOLLA MAIL -->
-  <div class="card">
+  <!-- MODALITÀ INCOLLA MAIL (solo BERGAMASCO) -->
+  <div class="card" id="sost-mail-card">
     <h2 style="color:#5B2C8D;">Incolla mail</h2>
     <p style="font-size:13px;color:#666;margin-bottom:10px;">Copia tutto il testo della mail e incollalo qui. L'app estrae automaticamente gli articoli (formato: <strong>N. 5 0090343110 RETE BCO...</strong>)</p>
     <textarea id="sost-mail-text" rows="6" placeholder="Incolla qui il testo della mail..." style="width:100%;font-size:13px;padding:10px;border:1px solid #ccc;border-radius:8px;resize:vertical;box-sizing:border-box;"></textarea>
@@ -1053,6 +1053,15 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <label>Note (es. numero mail, riferimento)</label>
     <input type="text" id="sost-note" placeholder="es. mail 10/06">
     <button class="btn btn-purple" onclick="aggiungiSostituzione()">AGGIUNGI SOSTITUZIONE</button>
+  </div>
+
+  <!-- CARICA DDT USCITA (PDF): scala le sostituzioni aperte -->
+  <div class="card">
+    <h2 style="color:#5B2C8D;">Carica DDT di uscita (PDF)</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Carica il PDF del DDT con cui spedisci i pezzi: per ogni riga l'app propone la sostituzione aperta corrispondente. Controlla le scelte e premi CONFERMA: le quantità vengono scalate partendo dalla richiesta più vecchia.</p>
+    <input type="file" id="sost-pdf-inp" accept=".pdf" style="display:none;" onchange="leggiPdfSostituzioni(this)">
+    <button type="button" class="pdf-drop" style="width:100%;border:none;background:#F3EEFA;" onclick="document.getElementById('sost-pdf-inp').click()"><p>Tocca qui per caricare il PDF del DDT</p></button>
+    <div id="sost-pdf-res" style="margin-top:10px;"></div>
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -3170,7 +3179,7 @@ async function parseMail(){
   var ok=0;var err=0;
   for(var i=0;i<trovati.length;i++){
     var t=trovati[i];
-    var r=await apiPost('sostituzioni_ber',{codice_articolo:t.cod,descrizione:t.desc,quantita:t.qty,note:'da mail',evaso:false});
+    var r=await apiPost(tabSost(),{codice_articolo:t.cod,descrizione:t.desc,quantita:t.qty,note:'da mail',evaso:false});
     if(r)ok++;else err++;
   }
   document.getElementById('sost-mail-text').value='';
@@ -3188,7 +3197,7 @@ async function aggiungiSostituzione(){
   var note=document.getElementById('sost-note').value.trim();
   if(!dsc&&!cod){alert('Seleziona un articolo!');return;}
   if(!qty||qty<=0){alert('Inserisci una quantità!');return;}
-  var r=await apiPost('sostituzioni_ber',{codice_articolo:cod,descrizione:dsc,quantita:qty,note:note,evaso:false});
+  var r=await apiPost(tabSost(),{codice_articolo:cod,descrizione:dsc,quantita:qty,note:note,evaso:false});
   if(!r){alert('Errore salvataggio!');return;}
   document.getElementById('sost-cerca').value='';
   document.getElementById('sost-sel').innerHTML='';
@@ -3199,18 +3208,24 @@ async function aggiungiSostituzione(){
   caricaSostituzioni();
 }
 
+function tabSost(){return getCliente()==='AZZURRA'?'resi_azzurra':'sostituzioni_ber';}
+
 async function caricaSostituzioni(){
-  var d=await apiGet('sostituzioni_ber','order=created_at.desc');
+  var mc=document.getElementById('sost-mail-card');if(mc)mc.style.display=getCliente()==='AZZURRA'?'none':'';
+  var d=await apiGet(tabSost(),'order=created_at.desc');
   var l=document.getElementById('sost-lista');
   if(!d||!l){if(l)l.innerHTML='<div class="empty">Errore connessione</div>';return;}
   sostCache=d;
   if(!d.length){l.innerHTML='<div class="empty">Nessuna sostituzione</div>';return;}
   l.innerHTML=d.map(function(r){
     var evaso=r.evaso?'<span class="badge badge-ok">✅ Evaso</span>':'<span class="badge badge-warn">⏳ Da fare</span>';
+    var ev=Number(r.quantita_evasa)||0;
+    var resto=Math.max(0,(Number(r.quantita)||0)-ev);
+    var infoEv=ev?' — scalati '+ev+' di '+r.quantita+(r.ddt_evasione?' (DDT '+r.ddt_evasione+')':''):'';
     return '<div class="row-item" style="border-left-color:'+(r.evaso?'#217346':'#C55A11')+';">'
-      +'<div class="row-qty" style="color:'+(r.evaso?'#217346':'#C55A11')+';">'+r.quantita+'</div>'
-      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ':'')+r.descrizione+'</div>'
-      +'<div class="rsub">'+(r.note?r.note+' — ':'')+evaso+'</div></div>'
+      +'<div class="row-qty" style="color:'+(r.evaso?'#217346':'#C55A11')+';">'+(r.evaso?r.quantita:resto)+'</div>'
+      +'<div class="row-info"><div class="rdesc">'+(r.codice_articolo?'<strong>'+r.codice_articolo+'</strong> ':'')+(r.descrizione||'')+'</div>'
+      +'<div class="rsub">'+(r.note?r.note+' — ':'')+evaso+infoEv+'</div></div>'
       +'<div style="display:flex;gap:6px;align-items:center;">'
       +(r.evaso?'':'<button onclick="evadiSostituzione('+r.id+')" style="padding:6px 10px;background:#217346;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✅</button>')
       +'<button onclick="apriModificaSost('+r.id+','+r.quantita+',\''+encodeURIComponent(r.note||'')+'\',\''+encodeURIComponent((r.codice_articolo||'')+' '+(r.descrizione||''))+'\')" style="padding:6px 10px;background:#1F4E79;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✏️</button>'
@@ -3218,6 +3233,76 @@ async function caricaSostituzioni(){
       +'</div>'
       +'</div>';
   }).join('');
+}
+
+// ── CARICA DDT USCITA (PDF) -> SCALA SOSTITUZIONI ──────────────────────
+var _sostPdfRighe=[],_sostPdfAperte=[];
+function _normSost(t){
+  var ab={BCO:'BIANCO',BI:'BIANCO',NT:'NATURALE',NAT:'NATURALE',GR:'GRIGIO',TO:'TORTORA',TEST:'TESTATA',TS:'TESTATA',SPO:'SPONDA',SP:'SPONDA',RET:'RETE',RETI:'RETE',PIC:'PICCOLA',PICC:'PICCOLA',GR_:'GRANDE',LET:'LETTINO',LETT:'LETTINO',MOB:'MOBILE',FIS:'FISSA'};
+  return String(t||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').split(/\s+/).filter(function(w){return w.length>1&&w!=='CER'&&w!=='DA'&&w!=='PER';}).map(function(w){return ab[w]||w;});
+}
+function _simSost(a,b){var A=_normSost(a),B=_normSost(b),n=0;A.forEach(function(w){if(B.indexOf(w)>=0)n++;});return n;}
+async function leggiPdfSostituzioni(input){
+  var file=input.files[0];if(!file)return;
+  var res=document.getElementById('sost-pdf-res');
+  res.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  try{
+    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    var testo='';
+    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    var parsed=parsePdfVerificaNova(testo);
+    var ddts=(parsed&&parsed.ddts)||[];
+    if(!ddts.length){res.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
+    var aperte=await apiGet(tabSost(),'evaso=eq.false&order=created_at.asc');
+    if(!aperte){res.innerHTML='<div class="msg msg-err">Errore caricamento sostituzioni (se il messaggio parla di colonne mancanti, va prima eseguito l\'SQL di aggiornamento).</div>';input.value='';return;}
+    _sostPdfAperte=aperte.map(function(r){return {id:r.id,cod:r.codice_articolo||'',desc:r.descrizione||'',qta:Number(r.quantita)||0,ev:Number(r.quantita_evasa)||0,ddt:r.ddt_evasione||''};}).filter(function(r){return r.qta-r.ev>0;});
+    if(!_sostPdfAperte.length){res.innerHTML='<div class="ok-box">Nessuna sostituzione aperta da scalare.</div>';input.value='';return;}
+    _sostPdfRighe=[];
+    ddts.forEach(function(d){d.righe.forEach(function(r){
+      if(r.cod==='SENZA_CODICE')return;
+      var best=null,bestSc=0;
+      _sostPdfAperte.forEach(function(s){
+        var sc=(s.cod&&r.cod&&s.cod.toUpperCase()===r.cod.toUpperCase())?100:_simSost(s.desc,r.desc);
+        if(sc>bestSc){bestSc=sc;best=s;}
+      });
+      _sostPdfRighe.push({nddt:d.nddt,data:d.data,cod:r.cod,desc:r.desc,qty:r.qty,sugg:(best&&bestSc>=2)?best.id:''});
+    });});
+    var opz=function(sel){return '<option value="">— non è una sostituzione —</option>'+_sostPdfAperte.map(function(s){
+      return '<option value="'+s.id+'"'+(String(sel)===String(s.id)?' selected':'')+'>'+(s.cod?s.cod+' ':'')+s.desc+' (aperti '+(s.qta-s.ev)+')</option>';}).join('');};
+    var html='<div style="font-size:13px;margin-bottom:8px;">DDT trovati: <strong>'+ddts.map(function(d){return d.nddt+(d.data?' del '+fmtData(d.data):'');}).join(', ')+'</strong></div>'
+      +'<div class="rc-table-scroll"><table class="rc-table"><thead><tr><th>Riga DDT</th><th>Pz</th><th>Scala dalla sostituzione</th></tr></thead><tbody>'
+      +_sostPdfRighe.map(function(r,i){
+        return '<tr><td><strong>'+r.cod+'</strong><br><span style="font-size:12px;color:#666;">'+r.desc+'</span></td><td style="text-align:right;">'+r.qty+'</td>'
+          +'<td><select id="sost-pdf-sel-'+i+'" style="width:100%;font-size:13px;">'+opz(r.sugg)+'</select></td></tr>';
+      }).join('')
+      +'</tbody></table></div>'
+      +'<button class="btn btn-purple" style="margin-top:10px;" onclick="confermaPdfSostituzioni()">CONFERMA E SCALA</button>'
+      +'<p style="font-size:12px;color:#888;margin-top:6px;">Si scala al massimo la quantità ancora aperta: il resto della riga (pezzi normali della bolla) viene ignorato.</p>';
+    res.innerHTML=html;
+  }catch(e){res.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+async function confermaPdfSostituzioni(){
+  var res=document.getElementById('sost-pdf-res');
+  var perId={};_sostPdfAperte.forEach(function(s){perId[s.id]={qta:s.qta,ev:s.ev,ddt:s.ddt,mod:false};});
+  _sostPdfRighe.forEach(function(r,i){
+    var el=document.getElementById('sost-pdf-sel-'+i);var id=el?el.value:'';
+    if(!id||!perId[id])return;
+    var s=perId[id];var q=Math.min(r.qty,s.qta-s.ev);
+    if(q<=0)return;
+    s.ev+=q;s.mod=true;
+    var lista=s.ddt?s.ddt.split(', '):[];if(lista.indexOf(r.nddt)<0)lista.push(r.nddt);s.ddt=lista.join(', ');
+  });
+  var ids=Object.keys(perId).filter(function(id){return perId[id].mod;});
+  if(!ids.length){res.innerHTML='<div class="warn-box">Nessuna riga abbinata a una sostituzione: niente da scalare.</div>';return;}
+  var ok=0;
+  for(var k=0;k<ids.length;k++){
+    var s=perId[ids[k]];
+    var r=await apiPatch(tabSost(),'id=eq.'+ids[k],{quantita_evasa:s.ev,evaso:s.ev>=s.qta,ddt_evasione:s.ddt});
+    if(r)ok++;
+  }
+  res.innerHTML='<div class="ok-box">✅ Scalate '+ok+' sostituzioni.</div>';
+  caricaSostituzioni();
 }
 
 function apriModificaSost(id,qty,noteEnc,descEnc){
@@ -3233,19 +3318,19 @@ async function salvaModificaSost(){
   var qty=parseInt(document.getElementById('modal-sost-qty').value)||0;
   var note=document.getElementById('modal-sost-note').value.trim();
   if(!qty||qty<=0){alert('Inserisci una quantità valida!');return;}
-  await apiPatch('sostituzioni_ber','id=eq.'+id,{quantita:qty,note:note});
+  await apiPatch(tabSost(),'id=eq.'+id,{quantita:qty,note:note});
   document.getElementById('modal-sost').style.display='none';
   caricaSostituzioni();
 }
 
 async function evadiSostituzione(id){
-  await apiPatch('sostituzioni_ber','id=eq.'+id,{evaso:true});
+  await apiPatch(tabSost(),'id=eq.'+id,{evaso:true});
   caricaSostituzioni();
 }
 
 async function eliminaSostituzione(id){
   if(!confirm('Eliminare questa sostituzione?'))return;
-  await apiDel('sostituzioni_ber','id=eq.'+id);
+  await apiDel(tabSost(),'id=eq.'+id);
   caricaSostituzioni();
 }
 
@@ -3264,7 +3349,7 @@ async function verificaDisponibilitaSost(){
   var ent=await apiGet('ddt_entrata');
   var usc=await apiGet('ddt_uscita');
   var scartiDB=await apiGet('scarti_ber');
-  var sost=await apiGet('sostituzioni_ber','evaso=eq.false');
+  var sost=await apiGet(tabSost(),'evaso=eq.false');
   if(!vern||!imb||!ent||!usc||!sost){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
   if(!sost.length){res.innerHTML='<div class="ok-box">✅ Nessuna sostituzione da evadere.</div>';return;}
   var scartoMap={};
@@ -7703,7 +7788,7 @@ async function salvaSostituzioneAzzurra(){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sostituzioni-azzurra','cfg'],
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','cfg'],
   BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','cfg']
 };
 
