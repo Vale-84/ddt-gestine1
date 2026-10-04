@@ -1059,8 +1059,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="card">
     <h2 style="color:#5B2C8D;">Carica DDT di uscita (PDF)</h2>
     <p style="font-size:13px;color:#666;margin-bottom:10px;">Carica il PDF del DDT con cui spedisci i pezzi: per ogni riga l'app propone la sostituzione aperta corrispondente. Controlla le scelte e premi CONFERMA: le quantità vengono scalate partendo dalla richiesta più vecchia.</p>
-    <input type="file" id="sost-pdf-inp" accept=".pdf" style="display:none;" onchange="leggiPdfSostituzioni(this)">
-    <button type="button" class="pdf-drop" style="width:100%;border:none;background:#F3EEFA;" onclick="document.getElementById('sost-pdf-inp').click()"><p>Tocca qui per caricare il PDF del DDT</p></button>
+    <input type="file" id="sost-pdf-inp" accept=".pdf" multiple style="display:none;" onchange="leggiPdfSostituzioni(this)">
+    <button type="button" class="pdf-drop" style="width:100%;border:none;background:#F3EEFA;" onclick="document.getElementById('sost-pdf-inp').click()"><p>Tocca qui per caricare uno o più PDF dei DDT</p></button>
     <div id="sost-pdf-res" style="margin-top:10px;"></div>
   </div>
   <div class="card">
@@ -3243,13 +3243,15 @@ function _normSost(t){
 }
 function _simSost(a,b){var A=_normSost(a),B=_normSost(b),n=0;A.forEach(function(w){if(B.indexOf(w)>=0)n++;});return n;}
 async function leggiPdfSostituzioni(input){
-  var file=input.files[0];if(!file)return;
+  var files=Array.prototype.slice.call(input.files||[]);if(!files.length)return;
   var res=document.getElementById('sost-pdf-res');
-  res.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
+  res.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura '+files.length+' PDF...</div>';
   try{
-    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
+    for(var f=0;f<files.length;f++){
+    var ab=await files[f].arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    }
     var parsed=parsePdfVerificaNova(testo);
     var ddts=(parsed&&parsed.ddts)||[];
     if(!ddts.length){res.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
