@@ -2788,13 +2788,16 @@ async function caricaRiepilogoBerNew(){
   var usc=await apiGet('ddt_uscita');
   var abb=await apiGet('abbinamenti_ber','order=id.asc&limit=5000');
   var scartiDB=await apiGet('scarti_ber');
+  var artB0=await apiGet('articoli','codice_articolo=like.B0*&select=codice_articolo,descrizione&limit=5000');
   if(!ent||!vern||!imb||!usc)return;
+  var descArtB0={};
+  (artB0||[]).forEach(function(a){var k=(a.codice_articolo||'').trim().toUpperCase();if(k&&a.descrizione)descArtB0[k]=a.descrizione;});
   var scartoMap={};
   if(scartiDB&&scartiDB.length){
     scartiDB.forEach(function(r){scartoMap[r.codice_articolo]=Number(r.quantita)||0;});
   }
 
-  // Mappa abbinamenti: codice_b0 -> codice_ber (normalizzati trim+uppercase)
+  // Mappa abbinamenti: codice_b0 -> [codici_ber] (un B0 puo' essere abbinato a piu' BER)
   var b0ToBer={};
   var berToB0={};
   if(abb&&abb.length){
@@ -2802,7 +2805,8 @@ async function caricaRiepilogoBerNew(){
       var b0=(r.codice_b0||'').trim().toUpperCase();
       var ber=(r.codice_ber||'').trim().toUpperCase();
       if(!b0||!ber)return;
-      b0ToBer[b0]=ber;
+      if(!b0ToBer[b0])b0ToBer[b0]=[];
+      if(b0ToBer[b0].indexOf(ber)<0)b0ToBer[b0].push(ber);
       if(!berToB0[ber])berToB0[ber]=[];
       if(berToB0[ber].indexOf(b0)<0)berToB0[ber].push(b0);
     });
@@ -2884,7 +2888,7 @@ async function caricaRiepilogoBerNew(){
     var b0Codes=berToB0[berUp]||[];
     b0Codes.forEach(function(b0c){
       if(mapFin[b0c])return;
-      mapFin[b0c]={cod:b0c,desc:findDesc(b0c),vern:exactSum(vern,b0c,'quantita'),imb:exactSum(imb,b0c,'totale'),ddt:exactSum(usc,b0c,'quantita_ddt','quantita')};
+      mapFin[b0c]={cod:b0c,desc:descArtB0[b0c]||findDesc(b0c),vern:exactSum(vern,b0c,'quantita'),imb:exactSum(imb,b0c,'totale'),ddt:exactSum(usc,b0c,'quantita_ddt','quantita')};
       b0Usati[b0c]=true;
     });
   });
@@ -2917,33 +2921,40 @@ async function caricaRiepilogoBerNew(){
     mapFin[k].ddt+=Number(r.quantita_ddt||r.quantita||0);
   });
 
+  // Descrizione B0 prima da articoli, anche per le righe senza BER
+  Object.keys(mapFin).forEach(function(k){var d=descArtB0[k.toUpperCase()];if(d)mapFin[k].desc=d;});
+
   var lFin=document.getElementById('ber-new-finiti');
   var lTot=document.getElementById('ber-new-finiti-tot');
   if(lFin){
-    var allB0Codes=Object.keys(mapFin);
+    // Nasconde le righe con Verniciato, Imballo e DDT Uscita tutti a 0
+    var allB0Codes=Object.keys(mapFin).filter(function(k){var a=mapFin[k];return a.vern||a.imb||a.ddt;});
     if(!allB0Codes.length){lFin.innerHTML='<div class="empty">Nessun articolo</div>';}
     else{
-      var totV=0,totI=0,totS=0,totDiff=0;
+      var totV=0,totI=0,totU=0,totS=0,totDiff=0,totSped=0;
       var html='';
       allB0Codes.sort(function(a,b){return (mapFin[a].desc||a).localeCompare(mapFin[b].desc||b);});
       allB0Codes.forEach(function(b0c){
         var a=mapFin[b0c];
         var codUp=(a.cod||'').toUpperCase();
-        var ber=b0ToBer[codUp]||'';
-        var ambiguo=!ber&&berToB0[codUp]&&berToB0[codUp].length>1;
+        var bers=b0ToBer[codUp]||[];
+        var ambiguo=!bers.length&&berToB0[codUp]&&berToB0[codUp].length>1;
         var scarto=scartoMap[a.cod]||0;
         var diff=a.vern-a.imb-scarto;
-        totV+=a.vern;totI+=a.imb;totS+=scarto;totDiff+=diff;
+        var daSped=a.imb-a.ddt;
+        totV+=a.vern;totI+=a.imb;totU+=a.ddt;totS+=scarto;totDiff+=diff;totSped+=daSped;
         var bordo=ambiguo?'#C00000':diff===0?'#217346':diff>0?'#C55A11':'#C00000';
+        var colSped=daSped===0?'#217346':daSped>0?'#C55A11':'#C00000';
         html+='<div style="margin-top:14px;padding:6px 12px;background:#f0f4f8;border-left:4px solid '+bordo+';border-radius:4px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;">'
-          +(ber?'<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+ber+'</span><span style="color:#999;">&rarr;</span>':'')
+          +(bers.length?bers.map(function(b){return '<span class="badge" style="background:#E6F1FB;color:#0C447C;">'+b+'</span>';}).join('')+'<span style="color:#999;">&rarr;</span>':'')
           +(ambiguo?'<span class="badge badge-err">&#9888; verifica manuale</span> ':'')
           +'<span class="badge" style="background:#E1F5EE;color:#085041;">'+a.cod+'</span>'
           +'<span><strong>'+a.desc+'</strong></span>'
           +'<span style="margin-left:auto;display:flex;gap:10px;white-space:nowrap;color:'+bordo+';">'
-            +'V:<strong>'+a.vern+'</strong> I:<strong>'+a.imb+'</strong>'
+            +'V:<strong>'+a.vern+'</strong> I:<strong>'+a.imb+'</strong> U:<strong>'+a.ddt+'</strong>'
             +(scarto?' Scarti:<strong>'+scarto+'</strong>':'')
             +' Diff:<strong>'+(diff>0?'+':'')+diff+'</strong>'
+            +' <span style="color:'+colSped+';">Da spedire:<strong>'+(daSped>0?'+':'')+daSped+'</strong></span>'
           +'</span>'
         +'</div>';
         var vernRows=vern.filter(function(r){return (r.codice_articolo||'').trim().toUpperCase()===codUp;});
@@ -2975,8 +2986,8 @@ async function caricaRiepilogoBerNew(){
       });
       lFin.innerHTML=html;
       if(lTot){
-        var allOk=totDiff===0;
-        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> pz</div>';
+        var allOk=totDiff===0&&totSped===0;
+        lTot.innerHTML='<div class="'+(allOk?'ok-box':'warn-box')+'">Totale — Verniciato: <strong>'+totV+'</strong> &nbsp;Imballato: <strong>'+totI+'</strong> &nbsp;DDT Uscita: <strong>'+totU+'</strong> &nbsp;Scarti: <strong>'+totS+'</strong> &nbsp;Diff: <strong>'+(totDiff>0?'+':'')+totDiff+'</strong> &nbsp;Da spedire: <strong>'+(totSped>0?'+':'')+totSped+'</strong> pz</div>';
       }
     }
   }
