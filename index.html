@@ -854,10 +854,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Codice BER</th><th>Codice B0</th><th>Descrizione B0</th><th>Azioni</th>
+            <th>Codice BER</th><th>Descrizione BER</th><th>Codice B0</th><th>Descrizione B0</th><th>Azioni</th>
           </tr>
         </thead>
-        <tbody id="abb-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="abb-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -869,7 +869,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <h3 id="modal-abb-title" style="color:#1F4E79;">Nuovo abbinamento</h3>
     <input type="hidden" id="modal-abb-id">
     <label>Codice BER</label>
-    <input type="text" id="modal-abb-codice-ber" placeholder="es. BER00531" style="text-transform:uppercase;font-size:16px;" autocomplete="off">
+    <input type="text" id="modal-abb-codice-ber" placeholder="es. BER00531" style="text-transform:uppercase;font-size:16px;" autocomplete="off" oninput="mostraDescBerModaleAbb()">
+    <div id="modal-abb-ber-desc" style="font-size:13px;color:#375623;margin:-4px 0 10px;"></div>
     <label>Codice B0</label>
     <div class="cerca-box">
       <input class="cerca-input" id="modal-abb-b0-cerca" placeholder="Cerca codice B0 o descrizione..." oninput="cercaB0Abb()" autocomplete="off" style="font-size:16px;">
@@ -7045,20 +7046,44 @@ async function eliminaAbbinamentoAzzurra(id){
 // ── ABBINAMENTI BERGAMASCO (abbinamenti_ber: codice_ber -> codice_b0) ──
 // Un BER puo' avere piu' B0: si blocca solo la coppia BER+B0 identica.
 // Gli articoli B0 vengono letti a parte (artCache e' limitato a 500 righe).
-var abbCache=[],abbArtB0=[],_abbB0Ris=[];
+var abbCache=[],abbArtB0=[],_abbB0Ris=[],abbDescBerFonti={art:{},ddt:{}};
 function escAbb(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 async function caricaAbbinamentiBer(){
   var tb=document.getElementById('abb-tbody');
-  if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
   var ris=await Promise.all([
     apiGet('abbinamenti_ber','order=codice_ber.asc,codice_b0.asc&limit=5000'),
-    apiGet('articoli','codice_articolo=like.B0*&order=codice_articolo.asc&limit=5000')
+    apiGet('articoli','codice_articolo=like.B0*&order=codice_articolo.asc&limit=5000'),
+    apiGet('articoli','codice_articolo=like.BER*&select=codice_articolo,descrizione&limit=5000'),
+    apiGet('ddt_entrata','codice_articolo=like.BER*&select=codice_articolo,descrizione,data_ddt&order=data_ddt.desc.nullslast,id.desc&limit=5000')
   ]);
-  if(!ris[0]){if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  if(!ris[0]){if(tb)tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   abbCache=ris[0];
   abbArtB0=ris[1]||[];
+  // Fonti descrizione BER: articoli, poi riga piu' recente di ddt_entrata (gia' ordinata desc)
+  abbDescBerFonti={art:{},ddt:{}};
+  (ris[2]||[]).forEach(function(a){var k=(a.codice_articolo||'').toUpperCase();if(a.descrizione&&!abbDescBerFonti.art[k])abbDescBerFonti.art[k]=a.descrizione;});
+  (ris[3]||[]).forEach(function(r){var k=(r.codice_articolo||'').toUpperCase();if(r.descrizione&&!abbDescBerFonti.ddt[k])abbDescBerFonti.ddt[k]=r.descrizione;});
   renderAbbinamentiBer();
+}
+
+// Descrizione BER: 1) articoli 2) ddt_entrata piu' recente 3) desc_ber di abbinamenti_ber
+function descBerAbb(codiceBer){
+  var k=(codiceBer||'').toUpperCase();
+  if(!k)return '';
+  if(abbDescBerFonti.art[k])return abbDescBerFonti.art[k];
+  if(abbDescBerFonti.ddt[k])return abbDescBerFonti.ddt[k];
+  var r=abbCache.find(function(x){return (x.codice_ber||'').toUpperCase()===k&&x.desc_ber;});
+  return r?r.desc_ber:'';
+}
+
+function mostraDescBerModaleAbb(){
+  var cod=(document.getElementById('modal-abb-codice-ber').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  var el=document.getElementById('modal-abb-ber-desc');
+  if(!cod){el.innerHTML='';return;}
+  var d=descBerAbb(cod);
+  el.innerHTML=d?'✓ '+escAbb(d):'<span style="color:#999;">— codice BER non trovato</span>';
 }
 
 var _abbRenderTimer=null;
@@ -7094,12 +7119,13 @@ function renderAbbinamentiBer(){
     if(!q)return true;
     var art=artMap[(r.codice_b0||'').toUpperCase()];
     return (r.codice_ber||'').toUpperCase().indexOf(q)>=0
+      ||descBerAbb(r.codice_ber).toUpperCase().indexOf(q)>=0
       ||(r.codice_b0||'').toUpperCase().indexOf(q)>=0
       ||((art&&art.descrizione)||r.desc_b0||'').toUpperCase().indexOf(q)>=0
       ||(r.desc_ber||'').toUpperCase().indexOf(q)>=0;
   });
   if(!righe.length){
-    tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
+    tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Nessun abbinamento trovato</td></tr>';
     return;
   }
   tb.innerHTML=righe.map(function(r){
@@ -7108,10 +7134,12 @@ function renderAbbinamentiBer(){
     var avvisi=[];
     if(dup)avvisi.push('coppia duplicata');
     if(!art)avvisi.push('B0 non in articoli');
+    var descBer=descBerAbb(r.codice_ber);
     var desc=art?escAbb(art.descrizione||''):'<span style="color:#999;">'+escAbb(r.desc_b0||'')+'</span>';
     if(avvisi.length)desc+='<br><span class="badge badge-warn" style="margin-top:4px;display:inline-block;">⚠ '+avvisi.join(' · ')+'</span>';
     return '<tr'+(avvisi.length?' style="background-color:#FFF2CC;"':'')+'>'
       +'<td><strong>'+escAbb(r.codice_ber||'')+'</strong></td>'
+      +'<td style="white-space:normal;min-width:160px;">'+(descBer?escAbb(descBer):'<span style="color:#999;">—</span>')+'</td>'
       +'<td>'+escAbb(r.codice_b0||'')+'</td>'
       +'<td style="white-space:normal;min-width:160px;">'+desc+'</td>'
       +'<td style="white-space:nowrap;"><button class="edit-btn" title="Modifica" style="padding:8px 11px;font-size:16px;" onclick="apriModaleAbb('+r.id+')">✏️</button> '
@@ -7135,6 +7163,7 @@ function apriModaleAbb(id){
   document.getElementById('modal-abb-id').value=r?r.id:'';
   document.getElementById('modal-abb-title').textContent=r?'Modifica abbinamento':'Nuovo abbinamento';
   document.getElementById('modal-abb-codice-ber').value=r?(r.codice_ber||''):'';
+  mostraDescBerModaleAbb();
   document.getElementById('modal-abb-b0-cerca').value='';
   document.getElementById('modal-abb-b0-ris').style.display='none';
   document.getElementById('modal-abb-b0-cod').value=r?(r.codice_b0||''):'';
