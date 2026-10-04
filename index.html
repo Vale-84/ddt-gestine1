@@ -2907,7 +2907,14 @@ async function caricaRiepilogoBerNew(){
   // DDT Uscita tutta la storia: qui le uscite vanno filtrate sullo stesso periodo,
   // altrimenti U e "Da spedire" confrontano periodi diversi. (La sezione Grezzi
   // sopra continua a usare tutta la storia per il FIFO.)
-  var dataChiusuraFin=localStorage.getItem('chiusura_'+getCliente())||'';
+  // Inizio periodo = data piu' vecchia presente in Verniciato/Imballo (cioe' da
+  // quando sono stati svuotati l'ultima volta). Non dipende dal browser: la data
+  // "chiusura_" in localStorage esiste solo sul dispositivo dove si e' chiuso il
+  // mese, quindi la uso solo come riserva se Verniciato e Imballo sono vuoti.
+  var dateVI=vern.map(function(r){return (r.data_inserimento||r.created_at||'').slice(0,10);})
+    .concat(imb.map(function(r){return (r.data_inserimento||r.created_at||'').slice(0,10);}))
+    .filter(Boolean).sort();
+  var dataChiusuraFin=dateVI[0]||localStorage.getItem('chiusura_'+getCliente())||'';
   var uscFin=dataChiusuraFin?usc.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraFin;}):usc;
   // Calcolato PER COPPIA (BER, B0) tramite abbinamenti_ber: ogni B0 viene
   // sommato in modo esatto e isolato, mai mescolando quantita' di BER diversi
