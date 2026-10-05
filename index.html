@@ -627,6 +627,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="file" id="pdf-multi-ber-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiBergamasco(this)">
     <div id="pdf-multi-ber-status" style="margin-top:8px;"></div>
   </div>
+  <div id="du-sost-box"></div>
   <div class="card">
     <h2>Nuovo DDT Uscita</h2>
     <label>N. DDT</label><input type="text" id="du-nddt">
@@ -3326,13 +3327,24 @@ async function leggiPdfSostituzioni(input){
     var ab=await files[f].arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
     }
+    await prepSostituzioniDaTesto(testo,res);
+  }catch(e){res.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+// Preparazione anteprima "scala sostituzioni" da un testo PDF gia' estratto: usata dal
+// riquadro 2 di Sostituzioni e, per i DDT "RESO RIPARATO", anche da DDT Uscita.
+var _sostPdfResId='sost-pdf-res';
+async function prepSostituzioniDaTesto(testo,res){
+  _sostPdfResId=res.id;
+  if(res.id!=='sost-pdf-res'){var o=document.getElementById('sost-pdf-res');if(o)o.innerHTML='';}
+  else{var o2=document.getElementById('du-sost-box');if(o2)o2.innerHTML='';}
     var parsed=parsePdfVerificaNova(testo);
     var ddts=(parsed&&parsed.ddts)||[];
-    if(!ddts.length){res.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
+    if(!ddts.length){res.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';return;}
     var aperte=await apiGet(tabSost(),'evaso=eq.false&order=created_at.asc');
-    if(!aperte){res.innerHTML='<div class="msg msg-err">Errore caricamento sostituzioni (se il messaggio parla di colonne mancanti, va prima eseguito l\'SQL di aggiornamento).</div>';input.value='';return;}
+    if(!aperte){res.innerHTML='<div class="msg msg-err">Errore caricamento sostituzioni (se il messaggio parla di colonne mancanti, va prima eseguito l\'SQL di aggiornamento).</div>';return;}
     _sostPdfAperte=aperte.map(function(r){return {id:r.id,cod:r.codice_articolo||'',desc:r.descrizione||'',qta:Number(r.quantita)||0,ev:Number(r.quantita_evasa)||0,ddt:r.ddt_evasione||''};}).filter(function(r){return r.qta-r.ev>0;});
-    if(!_sostPdfAperte.length){res.innerHTML='<div class="ok-box">Nessuna sostituzione aperta da scalare.</div>';input.value='';return;}
+    if(!_sostPdfAperte.length){res.innerHTML='<div class="ok-box">Nessuna sostituzione aperta da scalare.</div>';return;}
     _sostPdfRighe=[];
     ddts.forEach(function(d){d.righe.forEach(function(r){
       if(r.cod==='SENZA_CODICE')return;
@@ -3355,11 +3367,10 @@ async function leggiPdfSostituzioni(input){
       +'<button class="btn btn-purple" style="margin-top:10px;" onclick="confermaPdfSostituzioni()">CONFERMA E SCALA</button>'
       +'<p style="font-size:12px;color:#888;margin-top:6px;">Si scala al massimo la quantità ancora aperta: il resto della riga (pezzi normali della bolla) viene ignorato.</p>';
     res.innerHTML=html;
-  }catch(e){res.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
-  input.value='';
 }
+
 async function confermaPdfSostituzioni(){
-  var res=document.getElementById('sost-pdf-res');
+  var res=document.getElementById(_sostPdfResId)||document.getElementById('sost-pdf-res');
   var perId={};_sostPdfAperte.forEach(function(s){perId[s.id]={qta:s.qta,ev:s.ev,ddt:s.ddt,mod:false};});
   _sostPdfRighe.forEach(function(r,i){
     var el=document.getElementById('sost-pdf-sel-'+i);var id=el?el.value:'';
@@ -5149,6 +5160,14 @@ async function rimuoviDoppioniDDTEntrata(){
   caricaDDTE();
 }
 
+async function offriScalaSostDaUscita(testo){
+  var box=document.getElementById('du-sost-box');if(!box)return;
+  if(!/RESO\s+RIPARAT|RIPARAZION/i.test(testo)){box.innerHTML='';return;}
+  box.innerHTML='<div class="card" style="border:2px solid #5B2C8D;"><h2 style="color:#5B2C8D;">DDT di riparazione: scala anche le Sostituzioni</h2><div id="du-sost-res"></div></div>';
+  try{await prepSostituzioniDaTesto(testo,document.getElementById('du-sost-res'));}
+  catch(e){var r=document.getElementById('du-sost-res');if(r)r.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+}
+
 async function leggiPDFUscita(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('pdf-usc-prev');
@@ -5157,6 +5176,7 @@ async function leggiPDFUscita(input){
     var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    offriScalaSostDaUscita(testo);
     var nddt='',data='',cliente='',articoli=[];
     var mN=testo.match(/NUM\.?\s*D\.?D\.?T\.?\s*:?\s*([A-Z]\d{5,8})/i);
     if(!mN)mN=testo.match(/([C-Z]\d{6,8})\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/i);
@@ -5247,6 +5267,7 @@ async function leggiPDFMultiUscita(input){
     var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    offriScalaSostDaUscita(testo);
     var ddts=parsePdfMultiAzzurra(testo);
     if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
     var numeri=ddts.map(function(d){return d.nddt;});
@@ -5963,6 +5984,7 @@ async function leggiPDFMultiBergamasco(input){
     var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
+    offriScalaSostDaUscita(testo);
     var ddts=parsePdfMultiBergamasco(testo);
     if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';input.value='';return;}
     var numeri=ddts.map(function(d){return d.nddt;});
