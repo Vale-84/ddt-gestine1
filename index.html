@@ -114,6 +114,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .modal { display: none; position: fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; padding:16px; }
 .modal-box { background:white; border-radius:16px; padding:20px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
 .modal-box h3 { color:#1F4E79; margin-bottom:12px; font-size:15px; }
+/* Pulsante ⛶ per ingrandire una finestra a tutto schermo */
+.modal-box.modal-full { width:98vw; max-width:98vw !important; height:96vh; max-height:96vh; }
+.modal-box.modal-full .rc-table-scroll { max-height:none; }
+.modal-full-btn { position:sticky; top:0; float:right; z-index:5; margin:-8px -8px 0 8px; width:36px; height:36px; border-radius:8px; border:1px solid #ccc; background:#fff; font-size:18px; line-height:1; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.15); }
 .modal-desc { background:#f0f2f5; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:14px; color:#555; }
 /* WA testo originale */
 .wa-orig { font-size:11px; color:#888; font-style:italic; margin-top:2px; border-left:2px solid #FFD966; padding-left:6px; }
@@ -7975,6 +7979,17 @@ function cambiaCliente(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
+function aggiungiPulsantiIngrandisci(){
+  document.querySelectorAll('.modal-box').forEach(function(box){
+    if(box.querySelector(':scope > .modal-full-btn'))return;
+    var b=document.createElement('button');
+    b.type='button';b.className='modal-full-btn';b.title='Ingrandisci / riduci';b.textContent='⛶';
+    b.onclick=function(e){e.stopPropagation();box.classList.toggle('modal-full');};
+    box.insertBefore(b,box.firstChild);
+  });
+}
+window.addEventListener('load',aggiungiPulsantiIngrandisci);
+
 window.onload=function(){
   document.getElementById('cliente-selector').style.display='block';
   var savedCliente=localStorage.getItem('ddt_cliente');
