@@ -1055,13 +1055,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-purple" onclick="aggiungiSostituzione()">AGGIUNGI SOSTITUZIONE</button>
   </div>
 
-  <!-- CARICA ORDINE/DDT DEL CLIENTE (PDF): crea le richieste -->
+  <!-- RIPARAZIONI DAL DDT ENTRATA (spunta "Senza add.") -->
   <div class="card">
-    <h2 style="color:#5B2C8D;">1 · Carica ordine riparazioni del cliente (PDF)</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:10px;">Carica il PDF dell'ordine con i pezzi da riparare (es. OVC6000008): l'app legge codici e quantità e li aggiunge all'elenco come "da fare". Puoi caricarne più di uno.</p>
-    <input type="file" id="sost-ord-inp" accept=".pdf" multiple style="display:none;" onchange="leggiPdfOrdiniSost(this)">
-    <button type="button" class="pdf-drop" style="width:100%;border:none;background:#F3EEFA;" onclick="document.getElementById('sost-ord-inp').click()"><p>Tocca qui per caricare l'ordine del cliente</p></button>
-    <div id="sost-ord-res" style="margin-top:10px;"></div>
+    <h2 style="color:#5B2C8D;">1 · Riparazioni dal DDT Entrata</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Quando in DDT Entrata spunti <strong>"Senza add."</strong> su una riga, quella riga arriva qui da sola come "da fare" (togliendo la spunta sparisce, se non è ancora stata scalata). Per le righe spuntate prima di questa funzione premi il pulsante una volta.</p>
+    <button class="btn btn-purple btn-sm" onclick="sincronizzaRiparazioniDaEntrata()">⇩ IMPORTA RIGHE GIÀ SPUNTATE</button>
+    <div id="sost-sync-res" style="margin-top:10px;"></div>
   </div>
 
   <!-- CARICA DDT USCITA (PDF): scala le sostituzioni aperte -->
@@ -4784,8 +4783,47 @@ async function toggleSenzaAddebitoDE(id,checked){
   var pulita=noteAttuale.replace(/\s*\|?\s*SENZA_ADDEBITO\s*/g,'').trim();
   var nuova=checked?(pulita?pulita+' | SENZA_ADDEBITO':'SENZA_ADDEBITO'):pulita;
   var ok=await apiPatch('ddt_entrata','id=eq.'+id,{note:nuova});
-  if(ok){if(r)r.note=nuova;caricaRiparazioniDaFare();}
+  if(ok){if(r)r.note=nuova;caricaRiparazioniDaFare();await collegaSostituzioneDE(r,id,checked);}
   else{alert('Errore nel salvare, riprova.');}
+}
+
+// Riga DDT Entrata spuntata "Senza add." (riparazione) -> riga nella pagina Sostituzioni.
+// Il collegamento e' il marcatore [de:ID] nella nota della sostituzione: evita doppioni
+// e permette di toglierla se si toglie la spunta (solo se non e' ancora stata scalata).
+function _marcDE(id){return '[de:'+id+']';}
+async function collegaSostituzioneDE(r,id,checked){
+  var marc=_marcDE(id);
+  var esist=await apiGet(tabSost(),'note=like.*'+encodeURIComponent(marc)+'*&select=id,quantita_evasa,evaso')||[];
+  if(checked){
+    if(esist.length)return;
+    if(!r)return;
+    var nota='DDT Entrata '+(r.numero_ddt||'')+(r.data_ddt?' del '+fmtData(r.data_ddt):'')+' '+marc;
+    await apiPost(tabSost(),{codice_articolo:r.codice_articolo||'',descrizione:r.descrizione||'',quantita:Number(r.quantita_ddt)||0,note:nota,evaso:false});
+  }else{
+    for(var i=0;i<esist.length;i++){
+      if((Number(esist[i].quantita_evasa)||0)>0||esist[i].evaso){alert('La riparazione collegata è già stata scalata con un DDT: la lascio nella pagina Sostituzioni.');continue;}
+      await apiDel(tabSost(),'id=eq.'+esist[i].id);
+    }
+  }
+}
+// Porta in Sostituzioni tutte le righe DDT Entrata gia' spuntate "Senza add." che non ci sono ancora.
+async function sincronizzaRiparazioniDaEntrata(){
+  var res=document.getElementById('sost-sync-res');
+  if(res)res.innerHTML='<div style="padding:10px;color:#C55A11;">Controllo DDT Entrata...</div>';
+  var ent=await apiGet('ddt_entrata');
+  var esist=await apiGet(tabSost(),'select=note&limit=5000');
+  if(!ent||!esist){if(res)res.innerHTML='<div class="msg msg-err">Errore connessione (se parla di colonne mancanti, esegui prima l\'SQL).</div>';return;}
+  var gia={};esist.forEach(function(e){var m=(e.note||'').match(/\[de:(\d+)\]/);if(m)gia[m[1]]=true;});
+  var daFare=ent.filter(function(r){return (r.note||'').indexOf('SENZA_ADDEBITO')>=0&&!gia[String(r.id)];});
+  var ok=0;
+  for(var i=0;i<daFare.length;i++){
+    var r=daFare[i];
+    var nota='DDT Entrata '+(r.numero_ddt||'')+(r.data_ddt?' del '+fmtData(r.data_ddt):'')+' '+_marcDE(r.id);
+    var x=await apiPost(tabSost(),{codice_articolo:r.codice_articolo||'',descrizione:r.descrizione||'',quantita:Number(r.quantita_ddt)||0,note:nota,evaso:false});
+    if(x)ok++;
+  }
+  if(res)res.innerHTML='<div class="ok-box">'+(daFare.length?'✅ Aggiunte '+ok+' riparazioni dal DDT Entrata.':'Tutte le righe spuntate sono già nell\'elenco.')+'</div>';
+  caricaSostituzioni();
 }
 
 async function caricaRiparazioniDaFare(){
