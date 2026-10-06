@@ -115,6 +115,20 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .ext-info .warn { color: #7B2C2C; font-weight: bold; }
 .ext-info label { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #7B2C2C; margin: 6px 0 0; cursor: pointer; }
 .ext-info input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
+.ext-fatt-msg { border-radius: 10px; padding: 12px 14px; margin: 12px 0 8px; font-size: 17px; font-weight: bold; text-align: center; }
+.ext-fatt-msg.ok { background: #E2EFDA; color: #375623; border: 2px solid #217346; }
+.ext-fatt-msg.ko { background: #FCE4D6; color: #7B2C2C; border: 2px solid #C55A11; }
+.ext-fatt-ries { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.ext-fatt-ries b { color: #1F4E79; }
+.ext-fatt-ries .w { grid-column: 1 / -1; }
+.ext-fatt-conta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.ext-fatt-conta span { flex: 1; min-width: 90px; text-align: center; border-radius: 8px; padding: 8px 4px; font-weight: bold; font-size: 13px; }
+.ext-tab tr.f-verde td { background: #E2EFDA; }
+.ext-tab tr.f-rosso td { background: #FFC7CE; }
+.ext-tab tr.f-arancio td { background: #FCE4D6; }
+.ext-tab tr.f-rosso .ext-info .warn { color: #C00000; }
+.ext-fatt-ddt td { background: #DDEBF7 !important; color: #1F4E79; font-weight: bold; font-size: 12px; }
+@media (max-width: 600px) { .ext-tab tr.ext-fatt-ddt td::before { display: none; } }
 .ext-ddt-tot { text-align: right; font-weight: bold; color: #217346; font-size: 15px; margin-bottom: 8px; }
 @media (max-width: 600px) {
   .ext-tab thead { display: none; }
@@ -1101,6 +1115,14 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-orange" onclick="document.getElementById('ext-pdf').click()">CARICA DDT PDF</button>
     <div id="msg-ext-pdf"></div>
     <div id="ext-pdf-anteprima"></div>
+  </div>
+  <div class="card">
+    <h2>Controlla fattura PDF</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Prima dell'invio allo SDI: confronta la fattura di Nova con i DDT caricati qui. Non salva niente.</p>
+    <input type="file" id="ext-fatt-pdf" class="pdf-input" accept="application/pdf,.pdf" onchange="controllaFatturaExtra(this)">
+    <button class="btn btn-blue" onclick="document.getElementById('ext-fatt-pdf').click()">CONTROLLA FATTURA PDF</button>
+    <div id="msg-ext-fatt"></div>
+    <div id="ext-fatt-esito"></div>
   </div>
   <div class="card">
     <h2>Lavori inseriti</h2>
@@ -8197,6 +8219,181 @@ function mappaListinoExtra(lista){
   (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]=Number(l.prezzo);});
   return m;
 }
+
+// ── Controllo fattura Nova (WinNOVA) prima dell'invio allo SDI ──
+// Scritte in sovrimpressione della copia di cortesia: da ignorare
+var SOVRIMPR_FATT_EXTRA=/documento non valido|ai fini fiscali|copia di cortesia|trasmessa tramite|tramite sdi/i;
+// pagine: array (una per pagina) di array {str,x,y} → {cliente,numero,data,dataTesto,totaleImponibile,righe,ddt}
+function parseFatturaExtra(pagine){
+  var f={cliente:'',numero:'',dataTesto:'',data:'',totaleImponibile:NaN,righe:[],ddt:[]};
+  var ddtCur=null,ultima=null,aperta=null;
+  // Riga articolo completa: chiude quella "aperta" (descrizione stampata sopra i numeri)
+  function nuovaRiga(cod,desc,um,num,pag){
+    var r={ddt:ddtCur?ddtCur.numero:'',codice:cod,descrizione:desc,um:um,quantita:num.q,prezzo:num.p,importo:num.i,iva:num.iva,note:[],pagina:pag,dopo:[]};
+    f.righe.push(r);ultima=r;
+    return r;
+  }
+  pagine.forEach(function(items,pi){
+    var righe=righePaginaExtra((items||[]).filter(function(it){return !SOVRIMPR_FATT_EXTRA.test(String(it.str));}));
+    if(!f.numero){
+      var sp=trovaExtra(righe,/^Spettabile/i);
+      if(sp&&righe[sp.r+1])f.cliente=righe[sp.r+1].items.filter(function(e){return e.x>=sp.it.x-15;}).map(function(e){return e.s;}).join(' ').replace(/\s+/g,' ').trim();
+      var nr=trovaExtra(righe,/^FATTURA NR\.?$/i);
+      if(nr){
+        var hData=righe[nr.r].items.find(function(e){return /^DATA$/i.test(e.s);});
+        f.numero=sottoExtra(righe,nr.r,nr.it.x,function(s){return /\d/.test(s);});
+        if(hData)f.dataTesto=sottoExtra(righe,nr.r,hData.x,function(s){return /\d/.test(s);});
+        f.data=dataDdtExtraISO(f.dataTesto);
+      }
+    }
+    // TOTALE IMPONIBILE: il valore è a destra dell'etichetta, sulla stessa riga o quasi (solo l'ultima pagina lo ha)
+    var ti=trovaExtra(righe,/TOTALE IMPONIBILE/i);
+    if(ti){
+      for(var k=Math.max(0,ti.r-2);k<=Math.min(righe.length-1,ti.r+2);k++){
+        if(Math.abs(righe[k].y-righe[ti.r].y)>8)continue;
+        righe[k].items.forEach(function(e){var v=qtaItExtra(e.s);if(e.x>ti.it.x+40&&!isNaN(v))f.totaleImponibile=v;});
+      }
+    }
+    var hd=trovaExtra(righe,/^ARTICOLO$/i);
+    if(!hd)return;
+    var hr=righe[hd.r].items;
+    var col=function(re,def){var e=hr.find(function(e){return re.test(e.s);});return e?e.x:def;};
+    var xDesc=col(/^DESCRIZIONE/i,86),xUm=col(/^UM/i,357),xQta=col(/^QUANTIT/i,377),xPrezzo=col(/^PREZZO/i,426),xImp=col(/^IMPORTO/i,481),xIva=col(/^IVA$/i,539);
+    for(var i=hd.r+1;i<righe.length;i++){
+      var it=righe[i].items;
+      if(it.some(function(e){return /^(C\.I\.|IMPONIBILE|TOTALE IMPONIBILE)/i.test(e.s);}))break;
+      if(it.some(function(e){return /^(article code|description|units|quantity|price|amount|vat)$/i.test(e.s);}))continue;
+      // Colonne per posizione x (i numeri sono allineati a destra: si usa l'inizio del testo con un margine)
+      var cod=[],desc=[],um=[],q=[],p=[],imp=[],iva=[];
+      it.forEach(function(e){
+        if(e.x<xDesc-5)cod.push(e.s);
+        else if(e.x<xUm-5)desc.push(e.s);
+        else if(e.x<xQta-5)um.push(e.s);
+        else if(e.x<xPrezzo+15)q.push(e.s);
+        else if(e.x<xImp+10)p.push(e.s);
+        else if(e.x<xIva-5)imp.push(e.s);
+        else iva.push(e.s);
+      });
+      var tCod=cod.join(' ').trim(),tDesc=desc.join(' ').replace(/\s+/g,' ').trim();
+      var num={q:qtaItExtra(q.join('')),p:qtaItExtra(p.join('')),i:qtaItExtra(imp.join('')),iva:iva.join(' ')};
+      var rif=tDesc.match(/^Rif\s+(\S*\d\S*)\s+del\s+(.+)$/i);
+      if(rif&&isNaN(num.q)&&!tCod){
+        // "Rif BVC6000282 del 08 set 2026": le righe seguenti vengono da questo DDT (salvato senza "BV")
+        ddtCur={numero:rif[1].replace(/^BV/i,''),dataTesto:rif[2].trim(),data:dataDdtExtraISO(rif[2])};
+        f.ddt.push(ddtCur);ultima=null;aperta=null;
+        continue;
+      }
+      if(!isNaN(num.q)&&!isNaN(num.i)){
+        if(aperta&&!tDesc){
+          // Numeri sotto una descrizione stampata sopra
+          var r=nuovaRiga(aperta.codice||tCod,aperta.desc.join(' '),um.join(' '),num,pi+1);
+          aperta=null;continue;
+        }
+        if(aperta){nuovaRiga(aperta.codice,aperta.desc.join(' '),'',{q:NaN,p:NaN,i:NaN,iva:''},pi+1);aperta=null;}
+        var d=tDesc;
+        // Senza descrizione e senza riga "aperta": le righe di testo appena sopra erano la sua descrizione
+        if(!d&&ultima&&ultima.dopo.length){d=ultima.dopo.join(' ');ultima.descrizione=ultima.descrizione.slice(0,ultima.descrizione.length-d.length).trim();ultima.dopo=[];}
+        nuovaRiga(tCod,d,um.join(' '),num,pi+1);
+        continue;
+      }
+      var testo=cod.concat(desc,um,q,p,imp,iva).join(' ').replace(/\s+/g,' ').trim();
+      if(!testo)continue;
+      if(tCod&&!/^RIF\b/i.test(tDesc)){aperta={codice:tCod,desc:tDesc?[tDesc]:[]};continue;}
+      if(/^RIF\b/i.test(testo)){var dove=aperta?null:ultima;if(dove)dove.note.push(testo);else if(aperta)aperta.desc.push(testo);continue;}
+      // Descrizione che va a capo
+      if(aperta)aperta.desc.push(testo);
+      else if(ultima){ultima.descrizione+=' '+testo;ultima.dopo.push(testo);}
+    }
+  });
+  if(aperta)nuovaRiga(aperta.codice,aperta.desc.join(' '),'',{q:NaN,p:NaN,i:NaN,iva:''},pagine.length);
+  f.righe.forEach(function(r){delete r.dopo;});
+  return f;
+}
+// Testo per confrontare le descrizioni: senza le note "RIF. VS DDT ...", senza spazi e punteggiatura
+function chiaveDescFattExtra(s){
+  s=String(s||'').replace(/ — /g,' ').toUpperCase();
+  var m=s.search(/(RIF\W*)?VS\W*DDT\b|\bRIF\W*DDT\b/);
+  if(m>0)s=s.slice(0,m);
+  return s.replace(/[^A-Z0-9]/g,'');
+}
+function distanzaExtra(a,b){
+  if(a===b)return 0;
+  var prev=[],cur=[],i,j;
+  for(j=0;j<=b.length;j++)prev[j]=j;
+  for(i=1;i<=a.length;i++){
+    cur=[i];
+    for(j=1;j<=b.length;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[b.length];
+}
+function somiglianzaExtra(a,b){var n=Math.max(a.length,b.length);return n?1-distanzaExtra(a,b)/n:1;}
+function stessoNumExtra(a,b,dec){return Math.round(Number(a)*dec)===Math.round(Number(b)*dec);}
+// fattura: da parseFatturaExtra; lavori: righe di lavori_extra → resoconto (nessun salvataggio)
+function confrontaFatturaExtra(fattura,lavori){
+  lavori=lavori||[];
+  var cli=normTestoExtra(fattura.cliente);
+  var perDdt={};
+  lavori.forEach(function(l){var n=normTestoExtra(l.numero_ddt);if(n)(perDdt[n]=perDdt[n]||[]).push(l);});
+  var usate={};
+  var esiti=fattura.righe.map(function(r){
+    var e={riga:r,chiave:chiaveDescFattExtra(r.descrizione+' '+r.note.join(' ')),app:null,incerto:false,qtaDiversa:false,storico:null};
+    e.calcoloOk=!isNaN(r.quantita)&&!isNaN(r.prezzo)&&!isNaN(r.importo)&&Math.abs(Math.round(r.quantita*r.prezzo*100)/100-r.importo)<=0.0101;
+    e.ddtCaricato=!!(r.ddt&&perDdt[normTestoExtra(r.ddt)]);
+    return e;
+  });
+  // Candidate: righe dello stesso DDT non ancora abbinate, ordinate dalla più simile
+  function candidate(e,soloQta){
+    return (perDdt[normTestoExtra(e.riga.ddt)]||[]).filter(function(l){return !usate[l.id]&&(!soloQta||stessoNumExtra(l.quantita,e.riga.quantita,1000));})
+      .map(function(l){var k=chiaveDescFattExtra(l.descrizione);return{l:l,k:k,d:distanzaExtra(e.chiave,k),s:somiglianzaExtra(e.chiave,k)};})
+      .sort(function(a,b){return a.d-b.d;});
+  }
+  function abbina(e,c,qtaDiversa){
+    e.app=c[0].l;usate[c[0].l.id]=1;e.somiglianza=c[0].s;e.qtaDiversa=qtaDiversa;
+    // Incerto: un'altra riga diversa è quasi uguale (al massimo 1 carattere in più di differenza) e la migliore non è identica
+    e.incerto=c[0].d>0&&c.length>1&&c[1].k!==c[0].k&&c[1].d-c[0].d<=1;
+  }
+  // 1) stessa quantità e descrizione identica  2) stessa quantità e descrizione simile  3) quantità diversa ma descrizione molto simile
+  esiti.forEach(function(e){if(!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].d===0)abbina(e,c,false);});
+  esiti.forEach(function(e){if(e.app||!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].s>=0.75)abbina(e,c,false);});
+  esiti.forEach(function(e){if(e.app||!e.ddtCaricato)return;var c=candidate(e,false);if(c.length&&c[0].s>=0.85)abbina(e,c,true);});
+  esiti.forEach(function(e){
+    var r=e.riga;
+    if(e.app){
+      e.prezzoApp=Number(e.app.prezzo_unitario);
+      e.prezzoOk=e.app.prezzo_unitario!=null&&stessoNumExtra(e.prezzoApp,r.prezzo,10000);
+      e.diff=Math.round(((r.importo||0)-(Number(e.app.importo)||0))*100)/100;
+    }else{
+      // Non trovata: confronto con lo storico (stesso cliente, descrizione uguale o molto simile, il più recente)
+      var best=null;
+      lavori.forEach(function(l){
+        if(l.prezzo_unitario==null||normTestoExtra(l.cliente)!==cli)return;
+        if(somiglianzaExtra(e.chiave,chiaveDescFattExtra(l.descrizione))<0.9)return;
+        var d=String(l.data||''),bd=best?String(best.data||''):'';
+        if(!best||d>bd||(d===bd&&l.id>best.id))best=l;
+      });
+      e.storico=best;
+      if(best)e.storicoOk=stessoNumExtra(best.prezzo_unitario,r.prezzo,10000);
+    }
+    e.stato=!e.calcoloOk||(e.app&&!e.prezzoOk)?'rosso':(e.app&&!e.incerto&&!e.qtaDiversa?'verde':'arancio');
+  });
+  // Righe salvate nell'app per i DDT della fattura che non sono in fattura
+  var mancanti=[],visti={};
+  fattura.ddt.forEach(function(d){
+    var n=normTestoExtra(d.numero);if(visti[n])return;visti[n]=1;
+    (perDdt[n]||[]).forEach(function(l){if(!usate[l.id])mancanti.push(l);});
+  });
+  var somma=fattura.righe.reduce(function(s,r){return s+(isNaN(r.importo)?0:r.importo);},0);
+  somma=Math.round(somma*100)/100;
+  var conta={verde:0,rosso:0,arancio:0};
+  esiti.forEach(function(e){conta[e.stato]++;});
+  var diffTot=Math.round(esiti.reduce(function(s,e){return s+(e.app?e.diff:0);},0)*100)/100;
+  var ddtNonCaricati=[];
+  fattura.ddt.forEach(function(d){if(!perDdt[normTestoExtra(d.numero)]&&ddtNonCaricati.indexOf(d.numero)<0)ddtNonCaricati.push(d.numero);});
+  var letturaOk=!isNaN(fattura.totaleImponibile)&&Math.abs(somma-fattura.totaleImponibile)<=0.0101&&fattura.righe.length>0;
+  return{esiti:esiti,mancanti:mancanti,somma:somma,letturaOk:letturaOk,conta:conta,diffTot:diffTot,ddtNonCaricati:ddtNonCaricati,
+    ok:letturaOk&&conta.rosso===0&&conta.arancio===0&&mancanti.length===0};
+}
 // EXTRA-PARSER-END
 
 var extraPdfDdts=[];
@@ -8373,6 +8570,99 @@ async function salvaPdfExtra(i){
   renderPdfExtra();
   showMsg('msg-ext-pdf','DDT '+escAbb(d.numero)+' salvato!','ok');
   caricaExtra();
+}
+
+// ── EXTRA: controllo fattura PDF prima dell'invio allo SDI (sola lettura, non salva niente) ──
+async function controllaFatturaExtra(input){
+  var file=input.files&&input.files[0];
+  input.value='';
+  if(!file)return;
+  var box=document.getElementById('ext-fatt-esito');
+  box.innerHTML='<div class="empty">Lettura fattura...</div>';
+  var f;
+  try{
+    var pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    var pagine=[];
+    for(var i=1;i<=pdf.numPages;i++){
+      var tc=await (await pdf.getPage(i)).getTextContent();
+      pagine.push(tc.items.map(function(it){return{str:it.str,x:it.transform[4],y:it.transform[5]};}));
+    }
+    f=parseFatturaExtra(pagine);
+  }catch(e){
+    console.error(e);box.innerHTML='';
+    showMsg('msg-ext-fatt','Errore nella lettura del PDF: '+escAbb(e.message),'err');return;
+  }
+  if(!f.numero&&!f.righe.length){box.innerHTML='';showMsg('msg-ext-fatt','Nessuna fattura trovata nel PDF','err');return;}
+  // Dati aggiornati dal database (anche righe appena caricate da un altro dispositivo)
+  var lavori=await apiGet('lavori_extra','select=*&order=data.desc,id.desc&limit=5000');
+  if(lavori===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
+  box.innerHTML=htmlFatturaExtra(f,confrontaFatturaExtra(f,lavori),file.name);
+}
+
+function htmlFatturaExtra(f,c,nomeFile){
+  var e2=function(n){return isNaN(n)?'-':fmtEuroExtra(n);};
+  var segno=function(n){return (n>0?'+':'')+fmtEuroExtra(n);};
+  var h='<div class="ext-fatt-msg '+(c.ok?'ok':'ko')+'">'+(c.ok?'✅ FATTURA OK, puoi inviare':'⚠ CONTROLLA LE RIGHE EVIDENZIATE')+'</div>';
+  h+='<div class="ext-fatt-ries">'
+    +'<div>Fattura nr. <b>'+escAbb(f.numero||'?')+'</b></div><div>del <b>'+escAbb(f.data?fmtData(f.data):(f.dataTesto||'?'))+'</b></div>'
+    +'<div class="w">Cliente: <b>'+escAbb(f.cliente||'non letto')+'</b></div>'
+    +'<div>Totale imponibile PDF:<br><b>'+e2(f.totaleImponibile)+'</b></div><div>Somma righe lette:<br><b>'+e2(c.somma)+'</b></div>'
+    +'<div class="w">'+f.righe.length+' righe · '+f.ddt.length+' DDT: '+escAbb(f.ddt.map(function(d){return d.numero;}).join(', ')||'nessuno')+'</div>'
+    +'<div class="w" style="color:#999;font-size:11px;">'+escAbb(nomeFile)+'</div>'
+    +'</div>';
+  if(!c.letturaOk)h+='<div class="ext-avviso">⛔ '+(isNaN(f.totaleImponibile)?'Totale imponibile non letto':'La somma delle righe ('+fmtEuroExtra(c.somma)+') non coincide con il totale imponibile ('+fmtEuroExtra(f.totaleImponibile)+')')+': lettura incompleta, controlla la fattura a mano</div>';
+  if(c.ddtNonCaricati.length)h+='<div class="ext-avviso">⛔ DDT non caricati nell\'app: '+escAbb(c.ddtNonCaricati.join(', '))+'</div>';
+  h+='<div class="ext-fatt-conta">'
+    +'<span style="background:#E2EFDA;color:#375623;">'+c.conta.verde+' verdi</span>'
+    +'<span style="background:#FFC7CE;color:#C00000;">'+c.conta.rosso+' rosse</span>'
+    +'<span style="background:#FCE4D6;color:#C55A11;">'+c.conta.arancio+' arancioni</span>'
+    +(c.mancanti.length?'<span style="background:#FCE4D6;color:#C55A11;">'+c.mancanti.length+' mancano in fattura</span>':'')
+    +'</div>';
+  if(c.diffTot!==0)h+='<div class="ext-avviso">Differenza totale fattura − app: '+segno(c.diffTot)+'</div>';
+  var righe='',ddtPrec=null;
+  c.esiti.forEach(function(e){
+    var r=e.riga;
+    if(r.ddt!==ddtPrec){
+      ddtPrec=r.ddt;
+      var d=f.ddt.find(function(x){return x.numero===r.ddt;});
+      righe+='<tr class="ext-fatt-ddt"><td colspan="4">'+(r.ddt?'DDT '+escAbb(r.ddt)+(d&&d.data?' del '+escAbb(fmtData(d.data)):''):'Righe senza DDT di riferimento')+'</td></tr>';
+    }
+    var info=[];
+    if(!e.calcoloOk)info.push('<span class="warn">calcolo errato: '+fmtNumExtra(r.quantita)+' × '+fmtPrezzoExtra(r.prezzo)+' non fa '+e2(r.importo)+'</span>');
+    if(e.app){
+      if(e.prezzoOk)info.push('<span class="ok">prezzo uguale all\'app</span>');
+      else info.push('<span class="warn">in fattura '+fmtPrezzoExtra(r.prezzo)+', nell\'app '+(e.app.prezzo_unitario==null?'nessun prezzo':fmtPrezzoExtra(e.prezzoApp))+'</span>');
+      if(e.diff!==0)info.push('<span class="warn">differenza '+segno(e.diff)+'</span>');
+      if(e.qtaDiversa)info.push('<span class="warn">quantità diversa: in fattura '+fmtNumExtra(r.quantita)+', nell\'app '+fmtNumExtra(e.app.quantita)+'</span>');
+      if(e.incerto)info.push('<span class="warn">abbinamento incerto: controlla la riga</span>');
+      if(e.somiglianza<1)info.push('nell\'app: '+escAbb(String(e.app.descrizione).split(' — ')[0]));
+    }else{
+      info.push('<span class="warn">'+(!r.ddt?'DDT non indicato':!e.ddtCaricato?'DDT non caricato nell\'app':'riga non trovata nel DDT dell\'app')+'</span>');
+      if(e.storico)info.push(e.storicoOk?'storico: stesso prezzo dell\'ultima volta ('+fmtPrezzoExtra(e.storico.prezzo_unitario)+' del '+escAbb(fmtData(e.storico.data))+')'
+        :'<span class="warn">storico: ultimo prezzo '+fmtPrezzoExtra(e.storico.prezzo_unitario)+' del '+escAbb(fmtData(e.storico.data))+'</span>');
+      else info.push('storico: nessun prezzo precedente per questo articolo');
+    }
+    righe+='<tr class="f-'+e.stato+'">'
+      +'<td class="desc">'+(codiceVeroExtra(r.codice)?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
+      +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
+      +'<div class="ext-info">'+info.join('<br>')+'</div></td>'
+      +'<td class="num" data-l="Quantità">'+(isNaN(r.quantita)?'-':fmtNumExtra(r.quantita))+' '+escAbb(r.um)+'</td>'
+      +'<td class="num" data-l="Prezzo">'+(isNaN(r.prezzo)?'-':fmtPrezzoExtra(r.prezzo))+'</td>'
+      +'<td class="num" data-l="Importo">'+e2(r.importo)+'</td></tr>';
+  });
+  if(c.mancanti.length){
+    righe+='<tr class="ext-fatt-ddt"><td colspan="4">Nell\'app ma NON in fattura</td></tr>';
+    c.mancanti.forEach(function(l){
+      righe+='<tr class="f-arancio"><td class="desc">'+escAbb(l.descrizione)
+        +'<div class="ext-info"><span class="warn">manca in fattura · DDT '+escAbb(l.numero_ddt)+' del '+escAbb(fmtData(l.data))+'</span></div></td>'
+        +'<td class="num" data-l="Quantità">'+(l.quantita==null?'-':fmtNumExtra(l.quantita))+'</td>'
+        +'<td class="num" data-l="Prezzo">'+(l.prezzo_unitario==null?'-':fmtPrezzoExtra(l.prezzo_unitario))+'</td>'
+        +'<td class="num" data-l="Importo">'+fmtEuroExtra(l.importo)+'</td></tr>';
+    });
+  }
+  h+='<table class="ext-tab"><thead><tr><th>Descrizione</th><th style="text-align:right;">Quantità</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Importo</th></tr></thead><tbody>'+righe+'</tbody></table>';
+  h+='<button class="btn btn-gray btn-sm" onclick="document.getElementById(\'ext-fatt-esito\').innerHTML=\'\'">CHIUDI</button>';
+  return h;
 }
 
 // Campi QUANTITÀ e PREZZO UNITARIO: visibili solo in modifica di righe che li hanno
