@@ -91,6 +91,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   #page-abbinamenti-ber .rc-table td { border-bottom: none; min-width: 0 !important; }
   #page-abbinamenti-ber .rc-table td:first-child { position: static; }
 }
+/* EXTRA: lavori piccoli clienti */
+.ext-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#page-extra input { font-size: 16px; }
+.ext-imp { font-size: 15px; font-weight: bold; color: #217346; white-space: nowrap; }
+.ext-tot { background: #E2EFDA; border-radius: 8px; padding: 12px 14px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; color: #375623; font-size: 14px; font-weight: bold; }
+.ext-tot span:last-child { font-size: 18px; }
+@media (max-width: 500px) {
+  #page-extra .row-item { flex-wrap: wrap; }
+  #page-extra .row-info { flex-basis: calc(100% - 90px); }
+}
 .edit-btn { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; cursor: pointer; flex-shrink: 0; }
 .msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
 .msg-ok { background: #E2EFDA; color: #375623; }
@@ -220,6 +230,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
   <div class="tab" data-page="dettaglio" onclick="showPage('dettaglio',this)">Dettaglio</div>
+  <div class="tab" data-page="extra" onclick="showPage('extra',this)">EXTRA</div>
   <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
   <div class="tab admin-tab" data-page="controllo-date" onclick="showPage('controllo-date',this)" style="display:none">Controllo Date</div>
@@ -1030,6 +1041,32 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- EXTRA: lavori di piccoli clienti senza codice articolo -->
+<div id="page-extra" class="page">
+  <div id="msg-extra"></div>
+  <div class="card">
+    <h2 id="ext-titolo">Nuovo lavoro extra</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Lavori di piccoli clienti senza codice articolo.</p>
+    <input type="hidden" id="ext-id">
+    <div class="ext-grid">
+      <div><label>Data</label><input type="date" id="ext-data"></div>
+      <div><label>Importo (€)</label><input type="text" id="ext-importo" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+    </div>
+    <label>Cliente</label>
+    <input type="text" id="ext-cliente" list="ext-clienti-list" placeholder="Nome cliente" autocomplete="off">
+    <datalist id="ext-clienti-list"></datalist>
+    <label>Descrizione</label>
+    <input type="text" id="ext-desc" placeholder="Descrizione del lavoro" autocomplete="off">
+    <button class="btn btn-green" id="ext-salva" onclick="salvaExtra()">SALVA</button>
+    <button class="btn btn-gray" id="ext-annulla" onclick="resetFormExtra()" style="display:none;">ANNULLA MODIFICA</button>
+  </div>
+  <div class="card">
+    <h2>Lavori inseriti</h2>
+    <div id="ext-lista"><div class="empty">Caricamento...</div></div>
+    <div class="ext-tot"><span id="ext-tot-label">Totale mese</span><span id="ext-tot">-</span></div>
+  </div>
+</div>
+
 <!-- SOSTITUZIONI BERGAMASCO -->
 <div id="page-sost-ber" class="page">
   <div id="msg-sost-ber"></div>
@@ -1585,6 +1622,7 @@ function showPage(name,el){
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
   if(name==='dettaglio')resetDettaglioArt();
+  if(name==='extra')caricaExtra();
   if(name==='sost-ber')caricaSostituzioni();
   if(name==='riepilogo-ber')caricaRiepilogoBerNew();
   if(name==='controllo-date')caricaControlloDate();
@@ -7927,10 +7965,116 @@ async function salvaSostituzioneAzzurra(){
   caricaSostituzioniAzzurra();
 }
 
+// ── EXTRA: lavori piccoli clienti (tabella lavori_extra) ──────────────
+var extraCache=[];
+
+// Data locale (non UTC) così a mezzanotte il giorno/mese è quello giusto
+function oggiLocaleExtra(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtEuroExtra(n){return (Number(n)||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'});}
+// Accetta "12,50", "12.50", "1.234,50", "€ 12"
+function parseImportoExtra(s){
+  s=String(s||'').replace(/[€\s]/g,'');
+  if(!s)return NaN;
+  if(s.indexOf(',')>=0)s=s.replace(/\./g,'').replace(',','.');
+  return /^-?\d+(\.\d+)?$/.test(s)?parseFloat(s):NaN;
+}
+
+function resetFormExtra(){
+  document.getElementById('ext-id').value='';
+  document.getElementById('ext-data').value=oggiLocaleExtra();
+  ['ext-cliente','ext-desc','ext-importo'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('ext-titolo').textContent='Nuovo lavoro extra';
+  document.getElementById('ext-salva').textContent='SALVA';
+  document.getElementById('ext-annulla').style.display='none';
+}
+
+async function caricaExtra(){
+  if(!document.getElementById('ext-id').value)resetFormExtra();
+  var d=await apiGet('lavori_extra','select=*&order=data.desc,id.desc&limit=5000');
+  if(d===null){document.getElementById('ext-lista').innerHTML='<div class="empty">Errore nel caricamento dei lavori</div>';return;}
+  extraCache=d;
+  renderExtra();
+}
+
+function renderExtra(){
+  var lista=document.getElementById('ext-lista');
+  if(!extraCache.length)lista.innerHTML='<div class="empty">Nessun lavoro inserito</div>';
+  else lista.innerHTML=extraCache.map(function(r){
+    return '<div class="row-item verde">'
+      +'<div class="row-info"><div class="rdesc"><b>'+escAbb(r.cliente)+'</b></div>'
+      +'<div class="rdesc">'+escAbb(r.descrizione)+'</div>'
+      +'<div class="rsub">'+escAbb(fmtData(r.data))+'</div></div>'
+      +'<div class="ext-imp">'+fmtEuroExtra(r.importo)+'</div>'
+      +'<button class="edit-btn" title="Modifica" onclick="modificaExtra('+r.id+')">✎</button>'
+      +'<button class="del-btn" title="Elimina" onclick="eliminaExtra('+r.id+')">🗑</button>'
+      +'</div>';
+  }).join('');
+
+  // Totale del mese corrente
+  var mese=oggiLocaleExtra().slice(0,7);
+  var tot=extraCache.reduce(function(s,r){return String(r.data||'').slice(0,7)===mese?s+(Number(r.importo)||0):s;},0);
+  var nomeMese=new Date().toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  document.getElementById('ext-tot-label').textContent='Totale '+nomeMese;
+  document.getElementById('ext-tot').textContent=fmtEuroExtra(tot);
+
+  // Suggerimenti: clienti già inseriti in passato
+  var visti={},opts=[];
+  extraCache.forEach(function(r){var c=String(r.cliente||'').trim();if(c&&!visti[c.toLowerCase()]){visti[c.toLowerCase()]=1;opts.push(c);}});
+  opts.sort(function(a,b){return a.localeCompare(b,'it');});
+  document.getElementById('ext-clienti-list').innerHTML=opts.map(function(c){return '<option value="'+escAbb(c)+'">';}).join('');
+}
+
+async function salvaExtra(){
+  var id=document.getElementById('ext-id').value;
+  var data=document.getElementById('ext-data').value;
+  var cliente=document.getElementById('ext-cliente').value.trim();
+  var descrizione=document.getElementById('ext-desc').value.trim();
+  var importo=parseImportoExtra(document.getElementById('ext-importo').value);
+  if(!data||!cliente||!descrizione){showMsg('msg-extra','Compila data, cliente e descrizione!','err');return;}
+  if(isNaN(importo)){showMsg('msg-extra','Importo non valido (es. 25,50)','err');return;}
+  var b={data:data,cliente:cliente,descrizione:descrizione,importo:Math.round(importo*100)/100};
+  var btn=document.getElementById('ext-salva');btn.disabled=true;
+  try{
+    if(id){
+      var ok=await apiPatch('lavori_extra','id=eq.'+encodeURIComponent(id),b);
+      if(!ok){showMsg('msg-extra','Errore durante la modifica','err');return;}
+      showMsg('msg-extra','Lavoro modificato!','ok');
+    }else{
+      var r=await apiPost('lavori_extra',b);
+      if(!r)return;
+      showMsg('msg-extra','Lavoro salvato!','ok');
+    }
+    resetFormExtra();
+    await caricaExtra();
+  }finally{btn.disabled=false;}
+}
+
+function modificaExtra(id){
+  var r=extraCache.find(function(x){return x.id===id;});if(!r)return;
+  document.getElementById('ext-id').value=r.id;
+  document.getElementById('ext-data').value=String(r.data||'').slice(0,10);
+  document.getElementById('ext-cliente').value=r.cliente||'';
+  document.getElementById('ext-desc').value=r.descrizione||'';
+  document.getElementById('ext-importo').value=r.importo==null?'':String(r.importo).replace('.',',');
+  document.getElementById('ext-titolo').textContent='Modifica lavoro extra';
+  document.getElementById('ext-salva').textContent='SALVA MODIFICA';
+  document.getElementById('ext-annulla').style.display='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function eliminaExtra(id){
+  var r=extraCache.find(function(x){return x.id===id;});if(!r)return;
+  if(!confirm('Eliminare il lavoro di '+r.cliente+' del '+fmtData(r.data)+' ('+fmtEuroExtra(r.importo)+')?'))return;
+  await apiDel('lavori_extra','id=eq.'+encodeURIComponent(id));
+  if(String(document.getElementById('ext-id').value)===String(id))resetFormExtra();
+  showMsg('msg-extra','Lavoro eliminato','ok');
+  caricaExtra();
+}
+
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','cfg']
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','extra','cfg'],
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','extra','cfg']
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
