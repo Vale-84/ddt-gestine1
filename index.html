@@ -540,7 +540,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <label>Note</label>
     <input type="text" id="vernp-note" placeholder="">
     <button class="btn btn-orange" onclick="salvaVerniciatoP()">SALVA VERNICIATO</button>
-    <button class="btn btn-blue btn-sm" id="btn-modulo-vern" style="display:none;margin-bottom:0;" onclick="stampaModuloVerniciato()">🖨 STAMPA MODULO VERNICIATO</button>
+    <button class="btn btn-blue btn-sm" id="btn-modulo-vern" style="display:none;margin-bottom:0;" onclick="stampaModuloVerniciato()">🖨 STAMPA FOGLIO IMBALLO</button>
   </div>
   <div class="card">
     <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
@@ -8404,8 +8404,9 @@ async function eliminaExtra(id){
   caricaExtra();
 }
 
-// ── MODULO VERNICIATO AZZURRA (foglio da compilare a mano) ───────────
-// Articoli = tutti quelli che compaiono nel Verniciato AZZURRA, raggruppati per tipo elemento.
+// ── MODULO IMBALLO VERNICIATO AZZURRA (foglio da compilare a mano) ────
+// Articoli = quelli registrati nel Verniciato AZZURRA nella data scelta, raggruppati per tipo elemento,
+// con la quantità verniciata e una casella vuota IMBALLATI.
 // Codice Nova: lettera cliente + "0" + tipo elemento (2 lettere) + nome + colore, es. A0TSGLAMBI = TeStata GLAM BIanco
 var TIPI_ELEMENTO_AZ={AN:'ANTE',AS:'ASTE',CO:'COPERCHI',DO:'DONDOLI',FA:'FASCIONI',FI:'FIANCHI',FR:'FRONTALI',FS:'FASCIONI',
   GA:'GAMBE',LO:'LONGHERONI',MA:'MANIGLIE',MS:'MINISPONDE',OR:'ORSETTI',PA:'PANNELLI',PE:'PEDIERE',PI:'PIEDINI',
@@ -8430,6 +8431,9 @@ async function caricaTuttoModuloVern(tabella,select,order){
   return tutte;
 }
 
+// Oggi in ora locale (YYYY-MM-DD) per il campo data del foglio
+function dataOggiModuloVern(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
 function tipoElementoAz(codice){
   var m=String(codice||'').toUpperCase().match(/^[A-Z]0([A-Z]{2})/);
   return m?m[1]:'';
@@ -8442,71 +8446,108 @@ async function stampaModuloVerniciato(){
   if(!w){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
   w.document.write('<p style="font-family:Arial;padding:20px;">Preparazione modulo...</p>');
   var res=await Promise.all([
-    caricaTuttoModuloVern('verniciato','codice_articolo,descrizione','id.asc'),
+    caricaTuttoModuloVern('verniciato','codice_articolo,descrizione,quantita,data_inserimento','id.asc'),
     caricaTuttoModuloVern('articoli','codice_articolo,descrizione','id.asc')
   ]);
   if(!res[0]||!res[1]){w.document.body.innerHTML='<p style="font-family:Arial;padding:20px;">Errore nel caricamento dei dati.</p>';return;}
   var descArt={};
   res[1].forEach(function(a){if(a.codice_articolo)descArt[String(a.codice_articolo).toUpperCase().trim()]=a.descrizione;});
-  var art={};
-  res[0].forEach(function(r){
-    var c=String(r.codice_articolo||'').toUpperCase().trim();if(!c||art[c])return;
-    art[c]={codice:c,desc:descArt[c]||r.descrizione||c};
-  });
-  var gruppi={};
-  Object.keys(art).forEach(function(c){
-    var t=tipoElementoAz(c);
-    var nome=TIPI_ELEMENTO_AZ[t]||(t?String(art[c].desc).split(' ')[0]:'ALTRI');
-    (gruppi[nome]=gruppi[nome]||[]).push(art[c]);
-  });
-  var nomi=Object.keys(gruppi).sort(function(a,b){return a.localeCompare(b,'it');});
-  var nArt=Object.keys(art).length;
-  var corpo=nomi.map(function(g){
-    var lista=gruppi[g].sort(function(a,b){return String(a.desc).localeCompare(String(b.desc),'it')||a.codice.localeCompare(b.codice);});
-    return '<div class="g">'+escAbb(g)+'</div>'+lista.map(function(a){
-      return '<div class="r"><div class="d"><b>'+escAbb(a.desc)+'</b><small>'+escAbb(a.codice)+'</small></div><div class="p"></div></div>';
-    }).join('');
-  }).join('');
-  var altro='';
-  for(var i=0;i<4;i++)altro+='<div class="r altro"><div class="d"><b>Altro:</b><span class="linea"></span></div><div class="p"></div></div>';
-  // Due colonne quando gli articoli sono tanti, per stare in una pagina
-  var colonne=nArt+nomi.length>22?2:1;
-  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Verniciato AZZURRA</title><style>'
+  var D={
+    tipi:TIPI_ELEMENTO_AZ,desc:descArt,
+    righe:res[0].map(function(r){
+      return{c:String(r.codice_articolo||'').toUpperCase().trim(),d:r.descrizione,q:r.quantita,data:String(r.data_inserimento||'').slice(0,10)};
+    }).filter(function(r){return r.c&&r.data;})
+  };
+  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Imballo verniciato AZZURRA</title><style>'
     +'@page{size:A4 portrait;margin:10mm;}'
     +'*{box-sizing:border-box;margin:0;padding:0;}'
     +'body{font-family:Arial,sans-serif;color:#000;padding:10mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
-    +'.barra{display:flex;gap:8px;margin-bottom:12px;}'
+    +'.barra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:15px;font-weight:bold;}'
+    +'.barra input{font-size:16px;padding:8px 10px;border:2px solid #1F4E79;border-radius:8px;}'
     +'.barra button{padding:10px 18px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#1F4E79;color:#fff;cursor:pointer;}'
+    +'.barra button:disabled{opacity:.4;cursor:default;}'
     +'.barra button+button{background:#aaa;}'
-    +'.top{display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;border-bottom:2px solid #000;padding-bottom:3mm;margin-bottom:3mm;}'
-    +'h1{font-size:20pt;letter-spacing:1px;}'
-    +'.campi{font-size:12pt;white-space:nowrap;}'
-    +'.campi div{margin-top:3mm;}'
-    +'.campi span{display:inline-block;width:48mm;border-bottom:1px solid #000;margin-left:2mm;}'
-    +'.cols{column-count:'+colonne+';column-gap:6mm;}'
-    +'.g{font-weight:bold;font-size:10pt;background:#d9d9d9;border:1px solid #000;padding:1mm 2mm;margin-top:2.5mm;break-after:avoid;page-break-after:avoid;}'
-    +'.g:first-child{margin-top:0;}'
-    +'.r{display:flex;border:1px solid #000;border-top:none;min-height:11mm;break-inside:avoid;page-break-inside:avoid;}'
-    +'.d{flex:1;min-width:0;padding:1mm 2mm;display:flex;flex-direction:column;justify-content:center;}'
-    +'.d b{font-size:'+(colonne===2?'10.5pt':'12.5pt')+';line-height:1.15;}'
-    +'.d small{font-size:7.5pt;color:#444;margin-top:0.5mm;}'
-    +'.p{width:'+(colonne===2?'24mm':'32mm')+';flex-shrink:0;border-left:1px solid #000;position:relative;}'
-    +'.p:before{content:"PEZZI";position:absolute;top:0.6mm;left:1.2mm;font-size:6.5pt;color:#555;}'
-    +'.extra{margin-top:4mm;}'
-    +'.extra .r:first-child{border-top:1px solid #000;}'
-    +'.altro .d{flex-direction:row;align-items:flex-end;padding-bottom:2mm;}'
-    +'.altro .d b{font-size:12pt;white-space:nowrap;}'
-    +'.linea{flex:1;border-bottom:1px solid #000;margin-left:2mm;}'
-    +'.vuoto{padding:6mm 0;font-size:12pt;color:#666;}'
+    +'.avviso{background:#FCE4D6;border:2px solid #C55A11;color:#7B2C2C;border-radius:10px;padding:16px;font-size:16px;font-weight:bold;max-width:190mm;}'
+    +'.foglio{max-width:190mm;}'
+    +'.top{display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;border-bottom:2px solid #000;padding-bottom:3mm;margin-bottom:4mm;}'
+    +'h1{font-size:18pt;letter-spacing:.5px;line-height:1.2;}'
+    +'.campi{white-space:nowrap;text-align:right;}'
+    +'.campi .data{font-size:20pt;font-weight:bold;}'
+    +'.campi .op{font-size:12pt;margin-top:3mm;}'
+    +'.campi .op span{display:inline-block;width:48mm;border-bottom:1px solid #000;margin-left:2mm;}'
+    +'table{width:100%;border-collapse:collapse;}'
+    +'th{background:#d9d9d9;border:1px solid #000;font-size:10pt;padding:1.5mm 2mm;text-align:left;}'
+    +'th.tv,th.ti{text-align:center;}'
+    +'td{border:1px solid #000;vertical-align:middle;}'
+    +'tr{break-inside:avoid;page-break-inside:avoid;}'
+    +'.g td{background:#eee;font-weight:bold;font-size:10.5pt;padding:1mm 2mm;}'
+    +'.r td{height:15mm;}'
+    +'.d{padding:1mm 2.5mm;}'
+    +'.d b{display:block;font-size:13pt;line-height:1.15;}'
+    +'.d small{display:block;font-size:8pt;color:#444;margin-top:.5mm;}'
+    +'.v{width:32mm;text-align:center;font-size:20pt;font-weight:bold;}'
+    +'.i{width:55mm;}'
+    +'.alt{display:flex;align-items:flex-end;}'
+    +'.alt b{font-size:13pt;}'
+    +'.linea{flex:1;border-bottom:1px solid #000;margin-left:2mm;height:6mm;}'
     +'@media print{.barra{display:none !important;}body{padding:0;}}'
     +'</style></head><body>'
-    +'<div class="barra"><button onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
-    +'<div class="top"><h1>VERNICIATO AZZURRA</h1><div class="campi"><div>Data:<span></span></div><div>Operatrice:<span></span></div></div></div>'
-    +(nArt?'<div class="cols">'+corpo+'</div>':'<div class="vuoto">Nessun articolo nel Verniciato AZZURRA.</div>')
-    +'<div class="extra">'+altro+'</div>'
+    +'<div class="barra"><label>Data del foglio: <input type="date" id="data-foglio" value="'+dataOggiModuloVern()+'"></label>'
+    +'<button id="btn-stampa" onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
+    +'<div class="avviso" id="avviso" style="display:none;"></div>'
+    +'<div class="foglio" id="foglio">'
+    +'<div class="top"><h1>IMBALLO VERNICIATO<br>AZZURRA</h1><div class="campi"><div class="data">Data: <span id="data-stampa"></span></div><div class="op">Operatrice:<span></span></div></div></div>'
+    +'<table><thead><tr><th>ARTICOLO</th><th class="tv">VERNICIATI</th><th class="ti">IMBALLATI</th></tr></thead><tbody id="corpo"></tbody></table>'
+    +'</div>'
+    // La pagina di stampa ridisegna il foglio da sola quando cambia la data
+    +'<scr'+'ipt>('+moduloImballoPagina.toString()+')('+JSON.stringify(D).replace(/</g,'\\u003c')+');</scr'+'ipt>'
     +'</body></html>';
   w.document.open();w.document.write(html);w.document.close();
-  setTimeout(function(){try{w.focus();w.print();}catch(e){}},400);
+  try{w.focus();}catch(e){}
+}
+
+// Gira DENTRO la finestra di stampa (deve bastare a se stessa): filtra per data, raggruppa e disegna
+function moduloImballoPagina(D){
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function gg(iso){var p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  function num(n){n=Math.round((Number(n)||0)*100)/100;return String(n).replace('.',',');}
+  function tipo(c){var m=c.match(/^[A-Z]0([A-Z]{2})/);return m?m[1]:'';}
+  var inData=document.getElementById('data-foglio');
+  function disegna(){
+    var data=inData.value,art={};
+    D.righe.forEach(function(r){
+      if(r.data!==data)return;
+      if(!art[r.c])art[r.c]={c:r.c,d:D.desc[r.c]||r.d||r.c,q:0};
+      art[r.c].q+=Number(r.q)||0;
+    });
+    var codici=Object.keys(art);
+    var avv=document.getElementById('avviso'),fog=document.getElementById('foglio'),btn=document.getElementById('btn-stampa');
+    if(!data||!codici.length){
+      avv.textContent=data?'Nessun articolo registrato nel Verniciato AZZURRA il '+gg(data)+': niente da stampare.':'Scegli la data del foglio.';
+      avv.style.display='';fog.style.display='none';btn.disabled=true;return;
+    }
+    avv.style.display='none';fog.style.display='';btn.disabled=false;
+    document.getElementById('data-stampa').textContent=gg(data);
+    var gruppi={};
+    codici.forEach(function(c){
+      var t=tipo(c),nome=D.tipi[t]||(t?String(art[c].d).split(' ')[0]:'ALTRI');
+      (gruppi[nome]=gruppi[nome]||[]).push(art[c]);
+    });
+    var h=Object.keys(gruppi).sort(function(a,b){return a.localeCompare(b,'it');}).map(function(g){
+      return '<tr class="g"><td colspan="3">'+esc(g)+'</td></tr>'+gruppi[g].sort(function(a,b){
+        return String(a.d).localeCompare(String(b.d),'it')||a.c.localeCompare(b.c);
+      }).map(function(a){
+        return '<tr class="r"><td class="d"><b>'+esc(a.d)+'</b><small>'+esc(a.c)+'</small></td><td class="v">'+num(a.q)+'</td><td class="i"></td></tr>';
+      }).join('');
+    }).join('');
+    // Righe vuote per i residui dei giorni prima
+    h+='<tr class="g"><td colspan="3">ALTRO (residui dei giorni prima)</td></tr>';
+    for(var i=0;i<6;i++)h+='<tr class="r"><td class="d"><div class="alt"><b>Altro:</b><span class="linea"></span></div></td><td class="v"></td><td class="i"></td></tr>';
+    document.getElementById('corpo').innerHTML=h;
+  }
+  inData.addEventListener('input',disegna);
+  inData.addEventListener('change',disegna);
+  disegna();
 }
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
