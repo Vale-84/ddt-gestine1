@@ -244,6 +244,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <select id="cliente-sel" onchange="cambiaCliente()" style="background:#2a5f8f;color:white;border:1px solid #aac4e0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:bold;cursor:pointer;">
         <option value="AZZURRA">AZZURRA</option>
         <option value="BERGAMASCO">BERGAMASCO</option>
+        <option value="ALTRI">ALTRI CLIENTI</option>
       </select>
     </div>
   </div>
@@ -8597,8 +8598,9 @@ function moduloImballoPagina(D){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','extra','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','extra','cfg']
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','cfg'],
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','cfg'],
+  ALTRI:['extra'] // piccoli clienti (anche Foppa Pedretti): solo la scheda EXTRA
 };
 
 function getCliente(){var sel=document.getElementById('cliente-sel');return sel?sel.value:'AZZURRA';}
