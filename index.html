@@ -540,6 +540,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <label>Note</label>
     <input type="text" id="vernp-note" placeholder="">
     <button class="btn btn-orange" onclick="salvaVerniciatoP()">SALVA VERNICIATO</button>
+    <button class="btn btn-blue btn-sm" id="btn-modulo-vern" style="display:none;margin-bottom:0;" onclick="stampaModuloVerniciato()">🖨 STAMPA MODULO VERNICIATO</button>
   </div>
   <div class="card">
     <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
@@ -8401,6 +8402,111 @@ async function eliminaExtra(id){
   if(String(document.getElementById('ext-id').value)===String(id))resetFormExtra();
   showMsg('msg-extra','Lavoro eliminato','ok');
   caricaExtra();
+}
+
+// ── MODULO VERNICIATO AZZURRA (foglio da compilare a mano) ───────────
+// Articoli = tutti quelli che compaiono nel Verniciato AZZURRA, raggruppati per tipo elemento.
+// Codice Nova: lettera cliente + "0" + tipo elemento (2 lettere) + nome + colore, es. A0TSGLAMBI = TeStata GLAM BIanco
+var TIPI_ELEMENTO_AZ={AN:'ANTE',AS:'ASTE',CO:'COPERCHI',DO:'DONDOLI',FA:'FASCIONI',FI:'FIANCHI',FR:'FRONTALI',FS:'FASCIONI',
+  GA:'GAMBE',LO:'LONGHERONI',MA:'MANIGLIE',MS:'MINISPONDE',OR:'ORSETTI',PA:'PANNELLI',PE:'PEDIERE',PI:'PIEDINI',
+  PO:'POMOLI',PS:'PEDIERE',RE:'RETI',SP:'SPONDE',TE:'TELAI',TR:'TRAVERSI',TS:'TESTATE',ZO:'ZOCCOLI'};
+
+function aggiornaBtnModuloVern(){
+  var b=document.getElementById('btn-modulo-vern');
+  if(b)b.style.display=getCliente()==='AZZURRA'?'':'none';
+}
+document.getElementById('cliente-sel').addEventListener('change',aggiornaBtnModuloVern);
+window.addEventListener('load',function(){setTimeout(aggiornaBtnModuloVern,0);});
+
+// Supabase restituisce max 1000 righe per richiesta: carica a blocchi finché finiscono
+async function caricaTuttoModuloVern(tabella,select,order){
+  var tutte=[],offset=0;
+  while(true){
+    var b=await apiGet(tabella,'select='+select+'&order='+order+'&limit=1000&offset='+offset);
+    if(b===null)return null;
+    if(!b.length)break;
+    tutte=tutte.concat(b);offset+=b.length;
+  }
+  return tutte;
+}
+
+function tipoElementoAz(codice){
+  var m=String(codice||'').toUpperCase().match(/^[A-Z]0([A-Z]{2})/);
+  return m?m[1]:'';
+}
+
+async function stampaModuloVerniciato(){
+  if(getCliente()!=='AZZURRA')return;
+  // La finestra si apre subito (dentro il click), altrimenti il blocco popup la ferma
+  var w=window.open('','_blank');
+  if(!w){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
+  w.document.write('<p style="font-family:Arial;padding:20px;">Preparazione modulo...</p>');
+  var res=await Promise.all([
+    caricaTuttoModuloVern('verniciato','codice_articolo,descrizione','id.asc'),
+    caricaTuttoModuloVern('articoli','codice_articolo,descrizione','id.asc')
+  ]);
+  if(!res[0]||!res[1]){w.document.body.innerHTML='<p style="font-family:Arial;padding:20px;">Errore nel caricamento dei dati.</p>';return;}
+  var descArt={};
+  res[1].forEach(function(a){if(a.codice_articolo)descArt[String(a.codice_articolo).toUpperCase().trim()]=a.descrizione;});
+  var art={};
+  res[0].forEach(function(r){
+    var c=String(r.codice_articolo||'').toUpperCase().trim();if(!c||art[c])return;
+    art[c]={codice:c,desc:descArt[c]||r.descrizione||c};
+  });
+  var gruppi={};
+  Object.keys(art).forEach(function(c){
+    var t=tipoElementoAz(c);
+    var nome=TIPI_ELEMENTO_AZ[t]||(t?String(art[c].desc).split(' ')[0]:'ALTRI');
+    (gruppi[nome]=gruppi[nome]||[]).push(art[c]);
+  });
+  var nomi=Object.keys(gruppi).sort(function(a,b){return a.localeCompare(b,'it');});
+  var nArt=Object.keys(art).length;
+  var corpo=nomi.map(function(g){
+    var lista=gruppi[g].sort(function(a,b){return String(a.desc).localeCompare(String(b.desc),'it')||a.codice.localeCompare(b.codice);});
+    return '<div class="g">'+escAbb(g)+'</div>'+lista.map(function(a){
+      return '<div class="r"><div class="d"><b>'+escAbb(a.desc)+'</b><small>'+escAbb(a.codice)+'</small></div><div class="p"></div></div>';
+    }).join('');
+  }).join('');
+  var altro='';
+  for(var i=0;i<4;i++)altro+='<div class="r altro"><div class="d"><b>Altro:</b><span class="linea"></span></div><div class="p"></div></div>';
+  // Due colonne quando gli articoli sono tanti, per stare in una pagina
+  var colonne=nArt+nomi.length>22?2:1;
+  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Verniciato AZZURRA</title><style>'
+    +'@page{size:A4 portrait;margin:10mm;}'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Arial,sans-serif;color:#000;padding:10mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'.barra{display:flex;gap:8px;margin-bottom:12px;}'
+    +'.barra button{padding:10px 18px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#1F4E79;color:#fff;cursor:pointer;}'
+    +'.barra button+button{background:#aaa;}'
+    +'.top{display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;border-bottom:2px solid #000;padding-bottom:3mm;margin-bottom:3mm;}'
+    +'h1{font-size:20pt;letter-spacing:1px;}'
+    +'.campi{font-size:12pt;white-space:nowrap;}'
+    +'.campi div{margin-top:3mm;}'
+    +'.campi span{display:inline-block;width:48mm;border-bottom:1px solid #000;margin-left:2mm;}'
+    +'.cols{column-count:'+colonne+';column-gap:6mm;}'
+    +'.g{font-weight:bold;font-size:10pt;background:#d9d9d9;border:1px solid #000;padding:1mm 2mm;margin-top:2.5mm;break-after:avoid;page-break-after:avoid;}'
+    +'.g:first-child{margin-top:0;}'
+    +'.r{display:flex;border:1px solid #000;border-top:none;min-height:11mm;break-inside:avoid;page-break-inside:avoid;}'
+    +'.d{flex:1;min-width:0;padding:1mm 2mm;display:flex;flex-direction:column;justify-content:center;}'
+    +'.d b{font-size:'+(colonne===2?'10.5pt':'12.5pt')+';line-height:1.15;}'
+    +'.d small{font-size:7.5pt;color:#444;margin-top:0.5mm;}'
+    +'.p{width:'+(colonne===2?'24mm':'32mm')+';flex-shrink:0;border-left:1px solid #000;position:relative;}'
+    +'.p:before{content:"PEZZI";position:absolute;top:0.6mm;left:1.2mm;font-size:6.5pt;color:#555;}'
+    +'.extra{margin-top:4mm;}'
+    +'.extra .r:first-child{border-top:1px solid #000;}'
+    +'.altro .d{flex-direction:row;align-items:flex-end;padding-bottom:2mm;}'
+    +'.altro .d b{font-size:12pt;white-space:nowrap;}'
+    +'.linea{flex:1;border-bottom:1px solid #000;margin-left:2mm;}'
+    +'.vuoto{padding:6mm 0;font-size:12pt;color:#666;}'
+    +'@media print{.barra{display:none !important;}body{padding:0;}}'
+    +'</style></head><body>'
+    +'<div class="barra"><button onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
+    +'<div class="top"><h1>VERNICIATO AZZURRA</h1><div class="campi"><div>Data:<span></span></div><div>Operatrice:<span></span></div></div></div>'
+    +(nArt?'<div class="cols">'+corpo+'</div>':'<div class="vuoto">Nessun articolo nel Verniciato AZZURRA.</div>')
+    +'<div class="extra">'+altro+'</div>'
+    +'</body></html>';
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(function(){try{w.focus();w.print();}catch(e){}},400);
 }
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
