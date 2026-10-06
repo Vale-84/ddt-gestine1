@@ -8213,35 +8213,55 @@ function ultimoPrezzoExtra(lista,cliente,desc){
 // Codice articolo: maiuscolo e senza spazi. "" e "*" = nessun codice vero (prezzo dallo storico)
 function normCodiceExtra(s){return String(s||'').toUpperCase().replace(/\s+/g,'');}
 function codiceVeroExtra(s){var c=normCodiceExtra(s);return c!==''&&c!=='*';}
-// Righe del listino ({codice,prezzo}) → {CODICE: prezzo}
+// Righe del listino ({codice,prezzo}) → {CODICE: prezzo arrotondato a 2 decimali come Nova}
 function mappaListinoExtra(lista){
   var m={};
-  (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]=Number(l.prezzo);});
+  (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]=arrot2Extra(l.prezzo);});
   return m;
 }
 
 // ── Controllo fattura Nova (WinNOVA) prima dell'invio allo SDI ──
 // Scritte in sovrimpressione della copia di cortesia: da ignorare
 var SOVRIMPR_FATT_EXTRA=/documento non valido|ai fini fiscali|copia di cortesia|trasmessa tramite|tramite sdi/i;
-// pagine: array (una per pagina) di array {str,x,y} → {cliente,numero,data,dataTesto,totaleImponibile,righe,ddt}
-function parseFatturaExtra(pagine){
+// Prezzo arrotondato a 2 decimali come fa Nova (6,825 → 6,83): calcolo su interi per evitare gli errori dei decimali
+function arrot2Extra(p){return Math.round(Math.round(Number(p)*10000)/100)/100;}
+function righeFattPaginaExtra(items){return righePaginaExtra((items||[]).filter(function(it){return !SOVRIMPR_FATT_EXTRA.test(String(it.str));}));}
+// Numero fattura stampato sotto "FATTURA NR." ('' se la pagina non lo ha)
+function numeroFattPaginaExtra(righe){
+  var nr=trovaExtra(righe,/^FATTURA NR\.?$/i);
+  return nr?sottoExtra(righe,nr.r,nr.it.x,function(s){return /\d/.test(s);}):'';
+}
+// Un PDF può contenere più fatture: si separano per numero (una fattura può avere più pagine)
+function parseFattureExtra(pagine){
+  var gruppi=[],cur=null;
+  (pagine||[]).forEach(function(items,pi){
+    var n=numeroFattPaginaExtra(righeFattPaginaExtra(items));
+    if(!cur||(n&&normTestoExtra(n)!==normTestoExtra(cur.numero))){cur={numero:n,pagine:[],nPagine:[]};gruppi.push(cur);}
+    cur.pagine.push(items);cur.nPagine.push(pi+1);
+  });
+  return gruppi.map(function(g){var f=parseFatturaExtra(g.pagine,g.nPagine[0]);f.pagine=g.nPagine;return f;});
+}
+// pagine di UNA fattura: array di array {str,x,y} → {cliente,numero,data,dataTesto,totaleImponibile,righe,ddt}
+function parseFatturaExtra(pagine,primaPagina){
+  primaPagina=primaPagina||1;
   var f={cliente:'',numero:'',dataTesto:'',data:'',totaleImponibile:NaN,righe:[],ddt:[]};
   var ddtCur=null,ultima=null,aperta=null;
-  // Riga articolo completa: chiude quella "aperta" (descrizione stampata sopra i numeri)
   function nuovaRiga(cod,desc,um,num,pag){
     var r={ddt:ddtCur?ddtCur.numero:'',codice:cod,descrizione:desc,um:um,quantita:num.q,prezzo:num.p,importo:num.i,iva:num.iva,note:[],pagina:pag,dopo:[]};
     f.righe.push(r);ultima=r;
     return r;
   }
+  var vuoti={q:NaN,p:NaN,i:NaN,iva:''};
   pagine.forEach(function(items,pi){
-    var righe=righePaginaExtra((items||[]).filter(function(it){return !SOVRIMPR_FATT_EXTRA.test(String(it.str));}));
+    var pag=primaPagina+pi;
+    var righe=righeFattPaginaExtra(items);
     if(!f.numero){
       var sp=trovaExtra(righe,/^Spettabile/i);
       if(sp&&righe[sp.r+1])f.cliente=righe[sp.r+1].items.filter(function(e){return e.x>=sp.it.x-15;}).map(function(e){return e.s;}).join(' ').replace(/\s+/g,' ').trim();
       var nr=trovaExtra(righe,/^FATTURA NR\.?$/i);
       if(nr){
         var hData=righe[nr.r].items.find(function(e){return /^DATA$/i.test(e.s);});
-        f.numero=sottoExtra(righe,nr.r,nr.it.x,function(s){return /\d/.test(s);});
+        f.numero=numeroFattPaginaExtra(righe);
         if(hData)f.dataTesto=sottoExtra(righe,nr.r,hData.x,function(s){return /\d/.test(s);});
         f.data=dataDdtExtraISO(f.dataTesto);
       }
@@ -8279,33 +8299,39 @@ function parseFatturaExtra(pagine){
       var rif=tDesc.match(/^Rif\s+(\S*\d\S*)\s+del\s+(.+)$/i);
       if(rif&&isNaN(num.q)&&!tCod){
         // "Rif BVC6000282 del 08 set 2026": le righe seguenti vengono da questo DDT (salvato senza "BV")
+        if(aperta){nuovaRiga(aperta.codice,aperta.desc.join(' '),'',vuoti,pag);aperta=null;}
         ddtCur={numero:rif[1].replace(/^BV/i,''),dataTesto:rif[2].trim(),data:dataDdtExtraISO(rif[2])};
-        f.ddt.push(ddtCur);ultima=null;aperta=null;
+        f.ddt.push(ddtCur);ultima=null;
         continue;
       }
-      if(!isNaN(num.q)&&!isNaN(num.i)){
-        if(aperta&&!tDesc){
-          // Numeri sotto una descrizione stampata sopra
-          var r=nuovaRiga(aperta.codice||tCod,aperta.desc.join(' '),um.join(' '),num,pi+1);
+      // Riga con la quantità (prezzo e importo possono mancare: riga non fatturata)
+      if(!isNaN(num.q)){
+        if(aperta&&(!tCod||!tDesc)){
+          // La riga era spezzata (es. da una scritta in sovrimpressione): codice/descrizione sopra, numeri sotto
+          var dd=aperta.desc.concat(tDesc?[tDesc]:[]).join(' ');
+          nuovaRiga(aperta.codice||tCod,dd,um.join(' '),num,pag);
           aperta=null;continue;
         }
-        if(aperta){nuovaRiga(aperta.codice,aperta.desc.join(' '),'',{q:NaN,p:NaN,i:NaN,iva:''},pi+1);aperta=null;}
+        if(aperta){nuovaRiga(aperta.codice,aperta.desc.join(' '),'',vuoti,pag);aperta=null;}
         var d=tDesc;
         // Senza descrizione e senza riga "aperta": le righe di testo appena sopra erano la sua descrizione
         if(!d&&ultima&&ultima.dopo.length){d=ultima.dopo.join(' ');ultima.descrizione=ultima.descrizione.slice(0,ultima.descrizione.length-d.length).trim();ultima.dopo=[];}
-        nuovaRiga(tCod,d,um.join(' '),num,pi+1);
+        nuovaRiga(tCod,d,um.join(' '),num,pag);
         continue;
       }
       var testo=cod.concat(desc,um,q,p,imp,iva).join(' ').replace(/\s+/g,' ').trim();
       if(!testo)continue;
-      if(tCod&&!/^RIF\b/i.test(tDesc)){aperta={codice:tCod,desc:tDesc?[tDesc]:[]};continue;}
-      if(/^RIF\b/i.test(testo)){var dove=aperta?null:ultima;if(dove)dove.note.push(testo);else if(aperta)aperta.desc.push(testo);continue;}
+      if(tCod&&!/^RIF\b/i.test(tDesc)){
+        if(aperta)nuovaRiga(aperta.codice,aperta.desc.join(' '),'',vuoti,pag);
+        aperta={codice:tCod,desc:tDesc?[tDesc]:[]};continue;
+      }
+      if(/^RIF\b/i.test(testo)){if(aperta)aperta.desc.push(testo);else if(ultima)ultima.note.push(testo);continue;}
       // Descrizione che va a capo
       if(aperta)aperta.desc.push(testo);
       else if(ultima){ultima.descrizione+=' '+testo;ultima.dopo.push(testo);}
     }
   });
-  if(aperta)nuovaRiga(aperta.codice,aperta.desc.join(' '),'',{q:NaN,p:NaN,i:NaN,iva:''},pagine.length);
+  if(aperta)nuovaRiga(aperta.codice,aperta.desc.join(' '),'',vuoti,primaPagina+pagine.length-1);
   f.righe.forEach(function(r){delete r.dopo;});
   return f;
 }
@@ -8329,69 +8355,189 @@ function distanzaExtra(a,b){
 }
 function somiglianzaExtra(a,b){var n=Math.max(a.length,b.length);return n?1-distanzaExtra(a,b)/n:1;}
 function stessoNumExtra(a,b,dec){return Math.round(Number(a)*dec)===Math.round(Number(b)*dec);}
-// fattura: da parseFatturaExtra; lavori: righe di lavori_extra → resoconto (nessun salvataggio)
-function confrontaFatturaExtra(fattura,lavori){
-  lavori=lavori||[];
-  var cli=normTestoExtra(fattura.cliente);
+// Numeri nei messaggi: sempre col punto delle migliaia (1.281), anche dove il browser non lo mette
+function numFattExtra(n,minD,maxD){
+  n=Number(n)||0;var neg=n<0,s=Math.abs(n).toFixed(maxD);
+  if(maxD>minD)s=s.replace(new RegExp('0{1,'+(maxD-minD)+'}$'),'');
+  var p=s.split('.');
+  return (neg?'-':'')+p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(p[1]?','+p[1]:'');
+}
+function eurFattExtra(n){return numFattExtra(n,2,2)+' €';}
+function przFattExtra(n){return numFattExtra(n,2,4)+' €';}
+function qtaFattExtra(n){return numFattExtra(n,0,3);}
+function segnoFattExtra(n){return (n>0?'+':'')+eurFattExtra(n);}
+function dataFattExtra(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:String(iso||'');}
+// Listino ({codice,prezzo,cliente}) → {CODICE:{prezzo,cliente}}
+function mappaListinoFattExtra(lista){
+  var m={};
+  (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]={prezzo:Number(l.prezzo),cliente:l.cliente||''};});
+  return m;
+}
+// AZZURRA e BERGAMASCO hanno i DDT in ddt_uscita; tutti gli altri in lavori_extra
+function gruppoClienteFattExtra(cliente){
+  var c=normTestoExtra(cliente);
+  return c.indexOf('AZZURRA')>=0?'AZZURRA':c.indexOf('BERGAMASCO')>=0?'BERGAMASCO':'';
+}
+// Il cliente del listino (es. "FOPPA PEDRETTI") è quello della fattura (es. "Foppa Pedretti S.p.A.")?
+function stessoClienteFattExtra(cliListino,cliFattura){
+  var p=normTestoExtra(cliListino).split(' ')[0];
+  return !p||normTestoExtra(cliFattura).indexOf(p)>=0;
+}
+// fattura: da parseFatturaExtra; lavori: righe di lavori_extra; opz: {listino: mappaListinoFattExtra, uscita: righe ddt_uscita}
+// → resoconto (nessun salvataggio). Ogni esito ha stato verde/rosso/arancio e motivi [{t:'ok'|'warn', s:testo}]
+function confrontaFatturaExtra(fattura,lavori,opz){
+  lavori=lavori||[];opz=opz||{};
+  var listino=opz.listino||{},uscita=opz.uscita||[];
+  var cli=normTestoExtra(fattura.cliente),gruppo=gruppoClienteFattExtra(fattura.cliente);
   var perDdt={};
   lavori.forEach(function(l){var n=normTestoExtra(l.numero_ddt);if(n)(perDdt[n]=perDdt[n]||[]).push(l);});
+  // ddt_uscita (solo AZZURRA/BERGAMASCO): quantità sommate per DDT + codice
+  var usc={},uscDdt={};
+  if(gruppo)uscita.forEach(function(u){
+    var n=normTestoExtra(u.numero_ddt);if(!n)return;
+    uscDdt[n]=1;
+    var k=n+'|'+normCodiceExtra(u.codice_articolo);
+    if(!usc[k])usc[k]={qta:0,righe:[],codice:u.codice_articolo,descrizione:u.descrizione,numero_ddt:u.numero_ddt,data:u.data_ddt};
+    usc[k].qta+=Number(u.quantita_ddt)||0;usc[k].righe.push(u);
+  });
   var usate={};
   var esiti=fattura.righe.map(function(r){
-    var e={riga:r,chiave:chiaveDescFattExtra(r.descrizione+' '+r.note.join(' ')),app:null,incerto:false,qtaDiversa:false,storico:null};
+    var e={riga:r,chiave:chiaveDescFattExtra(r.descrizione+' '+r.note.join(' ')),app:null,incerto:false,qtaDiversa:false,storico:null,motivi:[],rosso:false,arancio:false,diff:0};
+    e.codiceVero=codiceVeroExtra(r.codice);
+    e.senzaPrezzo=!isNaN(r.quantita)&&(isNaN(r.prezzo)||isNaN(r.importo));
     e.calcoloOk=!isNaN(r.quantita)&&!isNaN(r.prezzo)&&!isNaN(r.importo)&&Math.abs(Math.round(r.quantita*r.prezzo*100)/100-r.importo)<=0.0101;
     e.ddtCaricato=!!(r.ddt&&perDdt[normTestoExtra(r.ddt)]);
+    e.usaUscita=e.codiceVero&&!!gruppo;
     return e;
   });
-  // Candidate: righe dello stesso DDT non ancora abbinate, ordinate dalla più simile
+  function rosso(e,s){e.rosso=true;e.motivi.push({t:'warn',s:s});}
+  function arancio(e,s){e.arancio=true;e.motivi.push({t:'warn',s:s});}
+  function bene(e,s){e.motivi.push({t:'ok',s:s});}
+
+  // ── Abbinamento con lavori_extra (righe "*" e righe con codice dei clienti che non sono AZZURRA/BERGAMASCO)
   function candidate(e,soloQta){
-    return (perDdt[normTestoExtra(e.riga.ddt)]||[]).filter(function(l){return !usate[l.id]&&(!soloQta||stessoNumExtra(l.quantita,e.riga.quantita,1000));})
-      .map(function(l){var k=chiaveDescFattExtra(l.descrizione);return{l:l,k:k,d:distanzaExtra(e.chiave,k),s:somiglianzaExtra(e.chiave,k)};})
-      .sort(function(a,b){return a.d-b.d;});
+    return (perDdt[normTestoExtra(e.riga.ddt)]||[]).filter(function(l){
+      if(usate[l.id]||(soloQta&&!stessoNumExtra(l.quantita,e.riga.quantita,1000)))return false;
+      // Righe con codice vero: solo righe dell'app con lo stesso codice (se l'app ha il codice)
+      if(e.codiceVero&&codiceVeroExtra(l.codice_articolo))return normCodiceExtra(l.codice_articolo)===normCodiceExtra(e.riga.codice);
+      return true;
+    }).map(function(l){
+      var k=chiaveDescFattExtra(l.descrizione);
+      var cod=e.codiceVero&&codiceVeroExtra(l.codice_articolo);
+      return{l:l,k:cod?'#'+normCodiceExtra(l.codice_articolo):k,d:cod?0:distanzaExtra(e.chiave,k),s:cod?1:somiglianzaExtra(e.chiave,k)};
+    }).sort(function(a,b){return a.d-b.d;});
   }
   function abbina(e,c,qtaDiversa){
     e.app=c[0].l;usate[c[0].l.id]=1;e.somiglianza=c[0].s;e.qtaDiversa=qtaDiversa;
     // Incerto: un'altra riga diversa è quasi uguale (al massimo 1 carattere in più di differenza) e la migliore non è identica
     e.incerto=c[0].d>0&&c.length>1&&c[1].k!==c[0].k&&c[1].d-c[0].d<=1;
   }
+  var perExtra=esiti.filter(function(e){return !e.usaUscita;});
   // 1) stessa quantità e descrizione identica  2) stessa quantità e descrizione simile  3) quantità diversa ma descrizione molto simile
-  esiti.forEach(function(e){if(!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].d===0)abbina(e,c,false);});
-  esiti.forEach(function(e){if(e.app||!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].s>=0.75)abbina(e,c,false);});
-  esiti.forEach(function(e){if(e.app||!e.ddtCaricato)return;var c=candidate(e,false);if(c.length&&c[0].s>=0.85)abbina(e,c,true);});
+  perExtra.forEach(function(e){if(!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].d===0)abbina(e,c,false);});
+  perExtra.forEach(function(e){if(e.app||!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].s>=0.75)abbina(e,c,false);});
+  perExtra.forEach(function(e){if(e.app||!e.ddtCaricato)return;var c=candidate(e,false);if(c.length&&c[0].s>=0.85)abbina(e,c,true);});
+
+  // ── Quantità in fattura per DDT + codice (righe con codice di AZZURRA/BERGAMASCO)
+  var qFatt={};
+  esiti.forEach(function(e){if(e.usaUscita&&e.riga.ddt&&!isNaN(e.riga.quantita)){var k=normTestoExtra(e.riga.ddt)+'|'+normCodiceExtra(e.riga.codice);qFatt[k]=(qFatt[k]||0)+e.riga.quantita;}});
+
   esiti.forEach(function(e){
     var r=e.riga;
+    if(e.senzaPrezzo)rosso(e,'riga senza prezzo, non fatturata ('+qtaFattExtra(r.quantita)+' '+(r.um||'pz')+')');
+    else if(!e.calcoloOk)rosso(e,'calcolo errato: '+qtaFattExtra(r.quantita)+' × '+przFattExtra(r.prezzo)+' non fa '+(isNaN(r.importo)?'-':eurFattExtra(r.importo)));
+    if(!r.ddt)arancio(e,'riga senza "Rif" DDT sopra, da verificare');
+    if(e.codiceVero){
+      // Prezzo: dal listino, arrotondato a 2 decimali come Nova
+      var c=normCodiceExtra(r.codice),li=listino.hasOwnProperty(c)?listino[c]:null;
+      if(!li)arancio(e,'codice non in listino');
+      else{
+        e.prezzoListino=arrot2Extra(li.prezzo);
+        if(!stessoClienteFattExtra(li.cliente,fattura.cliente))arancio(e,'codice di un altro cliente ('+li.cliente+'), da verificare');
+        if(!isNaN(r.prezzo)){
+          if(stessoNumExtra(e.prezzoListino,r.prezzo,10000))bene(e,'prezzo uguale al listino');
+          else{
+            e.diff=Math.round((r.importo-Math.round(r.quantita*e.prezzoListino*100)/100)*100)/100;
+            rosso(e,'in fattura '+przFattExtra(r.prezzo)+', listino '+przFattExtra(e.prezzoListino)+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''));
+          }
+        }
+      }
+    }
+    if(e.usaUscita){
+      // Quantità: confronto con ddt_uscita (somma per DDT + codice)
+      if(!r.ddt)return;
+      var nd=normTestoExtra(r.ddt),k=nd+'|'+normCodiceExtra(r.codice);
+      if(!uscDdt[nd])arancio(e,'DDT '+r.ddt+' non caricato nell\'app');
+      else if(!usc[k])arancio(e,'codice non presente nel DDT '+r.ddt+' dell\'app');
+      else{
+        e.qtaDdt=usc[k].qta;e.qtaFattTot=qFatt[k];
+        if(stessoNumExtra(e.qtaDdt,e.qtaFattTot,1000))bene(e,'quantità uguale al DDT');
+        else arancio(e,'quantità diversa: in fattura '+qtaFattExtra(e.qtaFattTot)+', nel DDT '+qtaFattExtra(e.qtaDdt)+(e.qtaFattTot!==r.quantita?' (somma delle righe con questo codice)':''));
+      }
+      return;
+    }
     if(e.app){
       e.prezzoApp=Number(e.app.prezzo_unitario);
-      e.prezzoOk=e.app.prezzo_unitario!=null&&stessoNumExtra(e.prezzoApp,r.prezzo,10000);
-      e.diff=Math.round(((r.importo||0)-(Number(e.app.importo)||0))*100)/100;
-    }else{
-      // Non trovata: confronto con lo storico (stesso cliente, descrizione uguale o molto simile, il più recente)
-      var best=null;
-      lavori.forEach(function(l){
-        if(l.prezzo_unitario==null||normTestoExtra(l.cliente)!==cli)return;
-        if(somiglianzaExtra(e.chiave,chiaveDescFattExtra(l.descrizione))<0.9)return;
-        var d=String(l.data||''),bd=best?String(best.data||''):'';
-        if(!best||d>bd||(d===bd&&l.id>best.id))best=l;
-      });
-      e.storico=best;
-      if(best)e.storicoOk=stessoNumExtra(best.prezzo_unitario,r.prezzo,10000);
+      // Righe "*": il prezzo si confronta con quello salvato nell'app (le righe con codice usano il listino)
+      if(!e.codiceVero){
+        e.prezzoOk=e.app.prezzo_unitario!=null&&stessoNumExtra(e.prezzoApp,r.prezzo,10000);
+        e.diff=Math.round(((isNaN(r.importo)?0:r.importo)-(Number(e.app.importo)||0))*100)/100;
+        if(e.prezzoOk)bene(e,'prezzo uguale all\'app');
+        else rosso(e,'in fattura '+(isNaN(r.prezzo)?'nessun prezzo':przFattExtra(r.prezzo))+', nell\'app '+(e.app.prezzo_unitario==null?'nessun prezzo':przFattExtra(e.prezzoApp))+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''));
+      }else bene(e,'quantità uguale all\'app');
+      if(e.qtaDiversa){e.motivi=e.motivi.filter(function(m){return m.s!=='quantità uguale all\'app';});arancio(e,'quantità diversa: in fattura '+qtaFattExtra(r.quantita)+', nell\'app '+qtaFattExtra(e.app.quantita));}
+      if(e.incerto)arancio(e,'abbinamento incerto: controlla la riga');
+      if(e.somiglianza<1)e.motivi.push({t:'',s:'nell\'app: '+String(e.app.descrizione).split(' — ')[0]});
+    }else if(r.ddt){
+      arancio(e,!e.ddtCaricato?'DDT non caricato nell\'app':'riga non trovata nel DDT dell\'app');
+      if(!e.codiceVero){
+        // Confronto con lo storico (stesso cliente, descrizione uguale o molto simile, il più recente)
+        var best=null;
+        lavori.forEach(function(l){
+          if(l.prezzo_unitario==null||normTestoExtra(l.cliente)!==cli)return;
+          if(somiglianzaExtra(e.chiave,chiaveDescFattExtra(l.descrizione))<0.9)return;
+          var d=String(l.data||''),bd=best?String(best.data||''):'';
+          if(!best||d>bd||(d===bd&&l.id>best.id))best=l;
+        });
+        e.storico=best;
+        if(best){
+          e.storicoOk=stessoNumExtra(best.prezzo_unitario,r.prezzo,10000);
+          e.motivi.push({t:e.storicoOk?'':'warn',s:e.storicoOk?'storico: stesso prezzo dell\'ultima volta ('+przFattExtra(best.prezzo_unitario)+' del '+dataFattExtra(best.data)+')'
+            :'storico: ultimo prezzo '+przFattExtra(best.prezzo_unitario)+' del '+dataFattExtra(best.data)});
+        }else e.motivi.push({t:'',s:'storico: nessun prezzo precedente per questo articolo'});
+      }
     }
-    e.stato=!e.calcoloOk||(e.app&&!e.prezzoOk)?'rosso':(e.app&&!e.incerto&&!e.qtaDiversa?'verde':'arancio');
   });
-  // Righe salvate nell'app per i DDT della fattura che non sono in fattura
+  esiti.forEach(function(e){e.stato=e.rosso?'rosso':e.arancio?'arancio':'verde';});
+
+  // ── Righe dell'app per i DDT della fattura che NON sono in fattura
   var mancanti=[],visti={};
   fattura.ddt.forEach(function(d){
     var n=normTestoExtra(d.numero);if(visti[n])return;visti[n]=1;
-    (perDdt[n]||[]).forEach(function(l){if(!usate[l.id])mancanti.push(l);});
+    (perDdt[n]||[]).forEach(function(l){
+      if(usate[l.id])return;
+      mancanti.push({fonte:'extra',numero_ddt:l.numero_ddt,data:l.data,codice:l.codice_articolo||'',descrizione:l.descrizione,quantita:l.quantita,prezzo:l.prezzo_unitario,importo:l.importo});
+    });
+    if(gruppo)Object.keys(usc).forEach(function(k){
+      if(k.split('|')[0]!==n||qFatt.hasOwnProperty(k))return;
+      var u=usc[k],li=listino[normCodiceExtra(u.codice)];
+      var pz=li?arrot2Extra(li.prezzo):null;
+      mancanti.push({fonte:'ddt',numero_ddt:u.numero_ddt,data:u.data,codice:u.codice||'',descrizione:u.descrizione||'',quantita:u.qta,prezzo:pz,importo:pz==null?null:Math.round(u.qta*pz*100)/100});
+    });
   });
   var somma=fattura.righe.reduce(function(s,r){return s+(isNaN(r.importo)?0:r.importo);},0);
   somma=Math.round(somma*100)/100;
   var conta={verde:0,rosso:0,arancio:0};
   esiti.forEach(function(e){conta[e.stato]++;});
-  var diffTot=Math.round(esiti.reduce(function(s,e){return s+(e.app?e.diff:0);},0)*100)/100;
+  var diffTot=Math.round(esiti.reduce(function(s,e){return s+(e.diff||0);},0)*100)/100;
   var ddtNonCaricati=[];
-  fattura.ddt.forEach(function(d){if(!perDdt[normTestoExtra(d.numero)]&&ddtNonCaricati.indexOf(d.numero)<0)ddtNonCaricati.push(d.numero);});
+  fattura.ddt.forEach(function(d){
+    var n=normTestoExtra(d.numero);
+    var caricato=perDdt[n]||(gruppo&&uscDdt[n]);
+    if(!caricato&&ddtNonCaricati.indexOf(d.numero)<0)ddtNonCaricati.push(d.numero);
+  });
   var letturaOk=!isNaN(fattura.totaleImponibile)&&Math.abs(somma-fattura.totaleImponibile)<=0.0101&&fattura.righe.length>0;
-  return{esiti:esiti,mancanti:mancanti,somma:somma,letturaOk:letturaOk,conta:conta,diffTot:diffTot,ddtNonCaricati:ddtNonCaricati,
+  return{esiti:esiti,mancanti:mancanti,somma:somma,letturaOk:letturaOk,conta:conta,diffTot:diffTot,ddtNonCaricati:ddtNonCaricati,gruppo:gruppo,
     ok:letturaOk&&conta.rosso===0&&conta.arancio===0&&mancanti.length===0};
 }
 // EXTRA-PARSER-END
@@ -8573,13 +8719,28 @@ async function salvaPdfExtra(i){
 }
 
 // ── EXTRA: controllo fattura PDF prima dell'invio allo SDI (sola lettura, non salva niente) ──
+// Lettura completa di una tabella senza il filtro cliente di apiGet (Supabase: max 1000 righe per richiesta). null = errore
+async function leggiTuttoFattExtra(tabella,params){
+  var c=getConfig(),tutte=[];
+  try{
+    while(true){
+      var r=await fetch(c.url+'/rest/v1/'+tabella+'?'+params+'&limit=1000&offset='+tutte.length,{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+      if(!r.ok)throw new Error(await r.text());
+      var b=await r.json();
+      if(!b.length)break;
+      tutte=tutte.concat(b);
+    }
+  }catch(e){console.error(e);return null;}
+  return tutte;
+}
+
 async function controllaFatturaExtra(input){
   var file=input.files&&input.files[0];
   input.value='';
   if(!file)return;
   var box=document.getElementById('ext-fatt-esito');
   box.innerHTML='<div class="empty">Lettura fattura...</div>';
-  var f;
+  var fatture;
   try{
     var pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
     var pagine=[];
@@ -8587,28 +8748,49 @@ async function controllaFatturaExtra(input){
       var tc=await (await pdf.getPage(i)).getTextContent();
       pagine.push(tc.items.map(function(it){return{str:it.str,x:it.transform[4],y:it.transform[5]};}));
     }
-    f=parseFatturaExtra(pagine);
+    fatture=parseFattureExtra(pagine).filter(function(f){return f.numero||f.righe.length;});
   }catch(e){
     console.error(e);box.innerHTML='';
     showMsg('msg-ext-fatt','Errore nella lettura del PDF: '+escAbb(e.message),'err');return;
   }
-  if(!f.numero&&!f.righe.length){box.innerHTML='';showMsg('msg-ext-fatt','Nessuna fattura trovata nel PDF','err');return;}
-  // Dati aggiornati dal database (anche righe appena caricate da un altro dispositivo)
-  var lavori=await apiGet('lavori_extra','select=*&order=data.desc,id.desc&limit=5000');
-  if(lavori===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
-  box.innerHTML=htmlFatturaExtra(f,confrontaFatturaExtra(f,lavori),file.name);
+  if(!fatture.length){box.innerHTML='';showMsg('msg-ext-fatt','Nessuna fattura trovata nel PDF','err');return;}
+  // Dati aggiornati dal database: lavori extra, listino e righe ddt_uscita dei DDT citati in fattura
+  var ddt=[];
+  fatture.forEach(function(f){f.ddt.forEach(function(d){if(d.numero&&ddt.indexOf(d.numero)<0)ddt.push(d.numero);});});
+  var res=await Promise.all([
+    apiGet('lavori_extra','select=*&order=data.desc,id.desc&limit=5000'),
+    leggiTuttoFattExtra('listino','select=codice,prezzo,cliente&order=codice.asc'),
+    ddt.length?leggiTuttoFattExtra('ddt_uscita','select=id,numero_ddt,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt&numero_ddt=in.('+ddt.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=id.asc'):Promise.resolve([])
+  ]);
+  if(res[0]===null||res[1]===null||res[2]===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
+  var opz={listino:mappaListinoFattExtra(res[1]),uscita:res[2]};
+  var esiti=fatture.map(function(f){return{f:f,c:confrontaFatturaExtra(f,res[0],opz)};});
+  box.innerHTML=htmlFattureExtra(esiti,file.name);
+}
+
+function htmlFattureExtra(lista,nomeFile){
+  var ok=lista.filter(function(x){return x.c.ok;}).length;
+  var h='';
+  if(lista.length>1){
+    h+='<div class="ext-fatt-msg '+(ok===lista.length?'ok':'ko')+'">'+lista.length+' fatture: '+ok+' OK, '+(lista.length-ok)+' da controllare</div>'
+      +'<div class="ext-fatt-ries">'+lista.map(function(x,i){
+        return '<div class="w"><a href="#ext-fatt-'+i+'" style="color:inherit;">'+(x.c.ok?'✅':'⚠')+' <b>'+escAbb(x.f.numero||'?')+'</b> · '+escAbb(x.f.cliente||'?')+' · '+fmtEuroExtra(x.f.totaleImponibile)+'</a></div>';
+      }).join('')+'<div class="w" style="color:#999;font-size:11px;">'+escAbb(nomeFile)+'</div></div>';
+  }
+  h+=lista.map(function(x,i){return '<div class="ext-ddt" id="ext-fatt-'+i+'">'+htmlFatturaExtra(x.f,x.c,lista.length>1?'':nomeFile)+'</div>';}).join('');
+  h+='<button class="btn btn-gray btn-sm" onclick="document.getElementById(\'ext-fatt-esito\').innerHTML=\'\'">CHIUDI</button>';
+  return h;
 }
 
 function htmlFatturaExtra(f,c,nomeFile){
-  var e2=function(n){return isNaN(n)?'-':fmtEuroExtra(n);};
-  var segno=function(n){return (n>0?'+':'')+fmtEuroExtra(n);};
+  var e2=function(n){return n==null||isNaN(n)?'-':fmtEuroExtra(n);};
   var h='<div class="ext-fatt-msg '+(c.ok?'ok':'ko')+'">'+(c.ok?'✅ FATTURA OK, puoi inviare':'⚠ CONTROLLA LE RIGHE EVIDENZIATE')+'</div>';
   h+='<div class="ext-fatt-ries">'
     +'<div>Fattura nr. <b>'+escAbb(f.numero||'?')+'</b></div><div>del <b>'+escAbb(f.data?fmtData(f.data):(f.dataTesto||'?'))+'</b></div>'
     +'<div class="w">Cliente: <b>'+escAbb(f.cliente||'non letto')+'</b></div>'
     +'<div>Totale imponibile PDF:<br><b>'+e2(f.totaleImponibile)+'</b></div><div>Somma righe lette:<br><b>'+e2(c.somma)+'</b></div>'
-    +'<div class="w">'+f.righe.length+' righe · '+f.ddt.length+' DDT: '+escAbb(f.ddt.map(function(d){return d.numero;}).join(', ')||'nessuno')+'</div>'
-    +'<div class="w" style="color:#999;font-size:11px;">'+escAbb(nomeFile)+'</div>'
+    +'<div class="w">'+f.righe.length+' righe · '+(f.pagine&&f.pagine.length>1?f.pagine.length+' pagine · ':'')+f.ddt.length+' DDT: '+escAbb(f.ddt.map(function(d){return d.numero;}).join(', ')||'nessuno')+'</div>'
+    +(nomeFile?'<div class="w" style="color:#999;font-size:11px;">'+escAbb(nomeFile)+'</div>':'')
     +'</div>';
   if(!c.letturaOk)h+='<div class="ext-avviso">⛔ '+(isNaN(f.totaleImponibile)?'Totale imponibile non letto':'La somma delle righe ('+fmtEuroExtra(c.somma)+') non coincide con il totale imponibile ('+fmtEuroExtra(f.totaleImponibile)+')')+': lettura incompleta, controlla la fattura a mano</div>';
   if(c.ddtNonCaricati.length)h+='<div class="ext-avviso">⛔ DDT non caricati nell\'app: '+escAbb(c.ddtNonCaricati.join(', '))+'</div>';
@@ -8618,7 +8800,7 @@ function htmlFatturaExtra(f,c,nomeFile){
     +'<span style="background:#FCE4D6;color:#C55A11;">'+c.conta.arancio+' arancioni</span>'
     +(c.mancanti.length?'<span style="background:#FCE4D6;color:#C55A11;">'+c.mancanti.length+' mancano in fattura</span>':'')
     +'</div>';
-  if(c.diffTot!==0)h+='<div class="ext-avviso">Differenza totale fattura − app: '+segno(c.diffTot)+'</div>';
+  if(c.diffTot!==0)h+='<div class="ext-avviso">Differenza totale fattura − app/listino: '+(c.diffTot>0?'+':'')+fmtEuroExtra(c.diffTot)+'</div>';
   var righe='',ddtPrec=null;
   c.esiti.forEach(function(e){
     var r=e.riga;
@@ -8627,23 +8809,9 @@ function htmlFatturaExtra(f,c,nomeFile){
       var d=f.ddt.find(function(x){return x.numero===r.ddt;});
       righe+='<tr class="ext-fatt-ddt"><td colspan="4">'+(r.ddt?'DDT '+escAbb(r.ddt)+(d&&d.data?' del '+escAbb(fmtData(d.data)):''):'Righe senza DDT di riferimento')+'</td></tr>';
     }
-    var info=[];
-    if(!e.calcoloOk)info.push('<span class="warn">calcolo errato: '+fmtNumExtra(r.quantita)+' × '+fmtPrezzoExtra(r.prezzo)+' non fa '+e2(r.importo)+'</span>');
-    if(e.app){
-      if(e.prezzoOk)info.push('<span class="ok">prezzo uguale all\'app</span>');
-      else info.push('<span class="warn">in fattura '+fmtPrezzoExtra(r.prezzo)+', nell\'app '+(e.app.prezzo_unitario==null?'nessun prezzo':fmtPrezzoExtra(e.prezzoApp))+'</span>');
-      if(e.diff!==0)info.push('<span class="warn">differenza '+segno(e.diff)+'</span>');
-      if(e.qtaDiversa)info.push('<span class="warn">quantità diversa: in fattura '+fmtNumExtra(r.quantita)+', nell\'app '+fmtNumExtra(e.app.quantita)+'</span>');
-      if(e.incerto)info.push('<span class="warn">abbinamento incerto: controlla la riga</span>');
-      if(e.somiglianza<1)info.push('nell\'app: '+escAbb(String(e.app.descrizione).split(' — ')[0]));
-    }else{
-      info.push('<span class="warn">'+(!r.ddt?'DDT non indicato':!e.ddtCaricato?'DDT non caricato nell\'app':'riga non trovata nel DDT dell\'app')+'</span>');
-      if(e.storico)info.push(e.storicoOk?'storico: stesso prezzo dell\'ultima volta ('+fmtPrezzoExtra(e.storico.prezzo_unitario)+' del '+escAbb(fmtData(e.storico.data))+')'
-        :'<span class="warn">storico: ultimo prezzo '+fmtPrezzoExtra(e.storico.prezzo_unitario)+' del '+escAbb(fmtData(e.storico.data))+'</span>');
-      else info.push('storico: nessun prezzo precedente per questo articolo');
-    }
+    var info=e.motivi.map(function(m){return m.t?'<span class="'+m.t+'">'+escAbb(m.s)+'</span>':escAbb(m.s);});
     righe+='<tr class="f-'+e.stato+'">'
-      +'<td class="desc">'+(codiceVeroExtra(r.codice)?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
+      +'<td class="desc">'+(e.codiceVero?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
       +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
       +'<div class="ext-info">'+info.join('<br>')+'</div></td>'
       +'<td class="num" data-l="Quantità">'+(isNaN(r.quantita)?'-':fmtNumExtra(r.quantita))+' '+escAbb(r.um)+'</td>'
@@ -8653,15 +8821,14 @@ function htmlFatturaExtra(f,c,nomeFile){
   if(c.mancanti.length){
     righe+='<tr class="ext-fatt-ddt"><td colspan="4">Nell\'app ma NON in fattura</td></tr>';
     c.mancanti.forEach(function(l){
-      righe+='<tr class="f-arancio"><td class="desc">'+escAbb(l.descrizione)
-        +'<div class="ext-info"><span class="warn">manca in fattura · DDT '+escAbb(l.numero_ddt)+' del '+escAbb(fmtData(l.data))+'</span></div></td>'
+      righe+='<tr class="f-arancio"><td class="desc">'+(codiceVeroExtra(l.codice)?'<b class="ext-cod">'+escAbb(l.codice)+'</b> ':'')+escAbb(l.descrizione)
+        +'<div class="ext-info"><span class="warn">manca in fattura · DDT '+escAbb(l.numero_ddt)+(l.data?' del '+escAbb(fmtData(l.data)):'')+'</span></div></td>'
         +'<td class="num" data-l="Quantità">'+(l.quantita==null?'-':fmtNumExtra(l.quantita))+'</td>'
-        +'<td class="num" data-l="Prezzo">'+(l.prezzo_unitario==null?'-':fmtPrezzoExtra(l.prezzo_unitario))+'</td>'
-        +'<td class="num" data-l="Importo">'+fmtEuroExtra(l.importo)+'</td></tr>';
+        +'<td class="num" data-l="Prezzo">'+(l.prezzo==null?'-':fmtPrezzoExtra(l.prezzo))+'</td>'
+        +'<td class="num" data-l="Importo">'+e2(l.importo)+'</td></tr>';
     });
   }
   h+='<table class="ext-tab"><thead><tr><th>Descrizione</th><th style="text-align:right;">Quantità</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Importo</th></tr></thead><tbody>'+righe+'</tbody></table>';
-  h+='<button class="btn btn-gray btn-sm" onclick="document.getElementById(\'ext-fatt-esito\').innerHTML=\'\'">CHIUDI</button>';
   return h;
 }
 

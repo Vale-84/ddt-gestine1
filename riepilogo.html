@@ -192,6 +192,8 @@ function etichettaBreve(tipo,d){
   return d.getDate()+'/'+(d.getMonth()+1);
 }
 
+// Prezzo a 2 decimali, metà per eccesso (calcolo su interi: 6,825 → 6,83)
+function prezzo2(p){return Math.round(Math.round(Number(p)*10000)/100)/100;}
 // Importo riga arrotondato ai centesimi (metà per eccesso), come in fattura.
 // Calcolo su interi (quantità in millesimi, prezzo in decimillesimi) per evitare gli errori dei decimali.
 function importoRiga(q,p){
@@ -224,7 +226,8 @@ async function carica(){
       caricaTutto('lavori_extra','id,data,cliente,descrizione,importo,numero_ddt,quantita,prezzo_unitario,codice_articolo','id.asc')
     ]);
     var listino={};
-    res[1].forEach(function(l){if(l.codice!=null&&l.prezzo!=null)listino[String(l.codice).toUpperCase().replace(/\s+/g,'')]=Number(l.prezzo);});
+    // Prezzo arrotondato a 2 decimali come fa Nova in fattura (6,825 → 6,83), così i totali coincidono con le fatture
+    res[1].forEach(function(l){if(l.codice!=null&&l.prezzo!=null)listino[String(l.codice).toUpperCase().replace(/\s+/g,'')]=prezzo2(l.prezzo);});
     var nuove=[];
     res[0].forEach(function(r){
       if(!r.data_ddt)return;
