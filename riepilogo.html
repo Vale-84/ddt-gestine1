@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1F4E79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fatturato ArtColor">
+<title>Fatturato ArtColor</title>
+<link rel="manifest" href="manifest-riepilogo.json">
+<link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --blu: #1F4E79; --blu-scuro: #163a5e; --giallo: #FFD966; --verde: #217346; --rosso: #C00000; --arancio: #C55A11;
+  --c-az: #2E75B6; --c-be: #5B2C8D; --c-al: #E8A000;
+}
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; background: #f0f2f5; color: #222; font-size: 17px; padding-bottom: env(safe-area-inset-bottom); }
+.header { background: var(--blu); color: white; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.header h1 { font-size: 19px; font-weight: bold; }
+.header p { font-size: 12px; opacity: .7; margin-top: 2px; }
+.hbtn { background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 8px 12px; font-size: 15px; cursor: pointer; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 14px 16px 24px; }
+.seg { display: flex; background: var(--blu-scuro); border-radius: 10px; padding: 4px; margin-bottom: 12px; }
+.seg button { flex: 1; border: none; background: none; color: #aac4e0; font-size: 16px; font-weight: bold; padding: 11px 0; border-radius: 8px; cursor: pointer; }
+.seg button.on { background: white; color: var(--blu); }
+.nav { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.nav button { width: 48px; height: 48px; flex-shrink: 0; border-radius: 10px; border: 1px solid #ccd6e2; background: white; color: var(--blu); font-size: 20px; cursor: pointer; }
+.nav button:disabled { opacity: .3; cursor: default; }
+.nav .lbl { flex: 1; text-align: center; font-weight: bold; color: var(--blu); font-size: 17px; line-height: 1.25; }
+.nav .lbl small { display: block; font-size: 12px; color: #888; font-weight: normal; }
+.card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.card h2 { font-size: 14px; color: var(--blu); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+.tot-lbl { font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: .5px; font-weight: bold; }
+.tot-val { font-size: 38px; font-weight: bold; color: var(--blu); margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
+.cmp { font-size: 15px; font-weight: bold; }
+.cmp.su { color: var(--verde); } .cmp.giu { color: var(--rosso); } .cmp.pari { color: #888; font-weight: normal; }
+.avviso { background: #FCE4D6; border: 2px solid var(--arancio); color: #7B2C2C; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 15px; }
+.avviso b { color: var(--arancio); display: block; margin-bottom: 6px; font-size: 16px; }
+.avviso .r { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px dashed #e7b89a; font-size: 14px; }
+.avviso .r span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.tile { display: flex; align-items: center; gap: 12px; background: white; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid; cursor: pointer; width: 100%; text-align: left; font: inherit; color: inherit; border-top: none; border-right: none; border-bottom: none; }
+.tile .nm { flex: 1; font-weight: bold; font-size: 17px; }
+.tile .nm small { display: block; font-weight: normal; color: #777; font-size: 14px; margin-top: 2px; }
+.tile .v { font-weight: bold; font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .ch { color: #bbb; font-size: 22px; }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #444; margin-bottom: 8px; }
+.legenda i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+#grafico svg { width: 100%; height: auto; display: block; }
+#grafico .bar { cursor: pointer; }
+.tab-scroll { overflow-x: auto; margin-top: 12px; }
+table.and { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.and th { background: var(--blu); color: white; padding: 7px 6px; text-align: right; white-space: nowrap; font-weight: bold; }
+table.and th:first-child, table.and td:first-child { text-align: left; }
+table.and td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap; }
+table.and tr.sel td { background: #FFF2CC; font-weight: bold; }
+table.and tbody tr { cursor: pointer; }
+.vuoto { text-align: center; color: #999; padding: 20px 0; font-size: 15px; }
+/* Dettaglio a tutto schermo */
+.sheet { position: fixed; inset: 0; background: #f0f2f5; z-index: 50; display: none; flex-direction: column; }
+.sheet.on { display: flex; }
+.sheet-head { background: var(--blu); color: white; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; display: flex; align-items: center; gap: 10px; }
+.sheet-head .t { flex: 1; min-width: 0; }
+.sheet-head .t b { font-size: 18px; display: block; }
+.sheet-head .t small { font-size: 13px; opacity: .8; }
+.sheet-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px calc(24px + env(safe-area-inset-bottom)); }
+.sheet-body > div { max-width: 640px; margin: 0 auto; }
+.riga { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #eee; }
+.riga:last-child { border-bottom: none; }
+.riga .i { flex: 1; min-width: 0; }
+.riga .d { font-size: 15px; overflow-wrap: anywhere; }
+.riga .s { font-size: 13px; color: #777; margin-top: 2px; overflow-wrap: anywhere; }
+.riga .v { font-weight: bold; font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.riga .v.np { color: var(--arancio); font-size: 13px; }
+.cli-head { display: flex; justify-content: space-between; gap: 10px; font-weight: bold; color: var(--blu); font-size: 17px; padding-bottom: 6px; border-bottom: 2px solid var(--blu); }
+.cli-head span:first-child { min-width: 0; overflow-wrap: anywhere; }
+/* PIN */
+#pin { position: fixed; inset: 0; background: var(--blu); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px; color: white; text-align: center; }
+#pin.on { display: flex; }
+#pin h1 { font-size: 24px; margin-bottom: 6px; }
+#pin p { opacity: .8; margin-bottom: 20px; }
+#pin input { width: 200px; font-size: 32px; letter-spacing: 16px; text-align: center; padding: 12px; border-radius: 12px; border: 2px solid var(--giallo); background: white; color: var(--blu); }
+#pin .err { color: var(--giallo); font-weight: bold; min-height: 24px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div id="pin">
+  <h1>Fatturato ArtColor</h1>
+  <p>Inserisci il PIN</p>
+  <input id="pin-in" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" oninput="provaPin()">
+  <div class="err" id="pin-err"></div>
+</div>
+
+<div class="header">
+  <div>
+    <h1>Fatturato ArtColor</h1>
+    <p id="agg">Caricamento...</p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="hbtn" onclick="carica()" title="Aggiorna">↻</button>
+    <button class="hbtn" onclick="esci()">Esci</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="seg">
+    <button id="seg-W" class="on" onclick="setTipo('W')">SETTIMANA</button>
+    <button id="seg-M" onclick="setTipo('M')">MESE</button>
+  </div>
+  <div class="nav">
+    <button id="prev" onclick="sposta(-1)" aria-label="Periodo precedente">◀</button>
+    <div class="lbl" id="periodo"></div>
+    <button id="next" onclick="sposta(1)" aria-label="Periodo successivo">▶</button>
+  </div>
+  <div id="contenuto"><div class="vuoto">Caricamento...</div></div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-head">
+    <div class="t"><b id="sheet-tit"></b><small id="sheet-sub"></small></div>
+    <button class="hbtn" onclick="chiudiDettaglio()">✕ Chiudi</button>
+  </div>
+  <div class="sheet-body"><div id="sheet-body"></div></div>
+</div>
+
+<script>
+// Pagina in SOLA LETTURA: solo richieste GET a Supabase.
+var CFG={url:'https://ddziwcyxjgzcmtlqltrc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkeml3Y3l4amd6Y210bHFsdHJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDE4NjUsImV4cCI6MjA5NTExNzg2NX0.xBu-nFP-7G1I4gj7vU0iaN4LWYmJ1kwUAbwr0UjN8l8'};
+var PIN='1234', PIN_KEY='fatturato_pin_ok';
+var GRUPPI=[
+  {k:'AZZURRA',nome:'AZZURRA',col:'#2E75B6'},
+  {k:'BERGAMASCO',nome:'BERGAMASCO',col:'#5B2C8D'},
+  {k:'ALTRI',nome:'ALTRI CLIENTI',col:'#E8A000'}
+];
+var MESI=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+var MESI_C=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+
+var righe=[];          // tutte le righe normalizzate (DDT uscita + lavori extra)
+var stato={tipo:'W',inizio:null};
+var ultimoCarico=0;
+
+// ── Formati ──
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function gruppiMigliaia(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
+// 12345.678 → "12.345,68 €" (sempre con il punto delle migliaia, anche sotto 10.000)
+function euro(n,dec){
+  if(dec==null)dec=2;n=Number(n)||0;
+  var p=Math.abs(n).toFixed(dec).split('.');
+  return (n<0&&Number(p.join(''))!==0?'-':'')+gruppiMigliaia(p[0])+(p[1]?','+p[1]:'')+' €';
+}
+function num(n){
+  n=Number(n)||0;
+  var p=(Math.round(n*100)/100).toString().split('.');
+  return gruppiMigliaia(p[0])+(p[1]?','+p[1]:'');
+}
+function prezzo(n){
+  var s=(Number(n)||0).toFixed(4).replace(/0{1,2}$/,'');
+  var p=s.split('.');return gruppiMigliaia(p[0])+','+p[1]+' €';
+}
+function dataIt(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso;}
+function norm(s){return String(s||'').replace(/\s+/g,' ').trim().toUpperCase();}
+
+// ── Date (sempre locali, formato YYYY-MM-DD) ──
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function daIso(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+function inizioPeriodo(tipo,d){
+  if(tipo==='M')return new Date(d.getFullYear(),d.getMonth(),1);
+  var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  x.setDate(x.getDate()-((x.getDay()+6)%7)); // lunedì
+  return x;
+}
+function spostaData(tipo,d,n){
+  if(tipo==='M')return new Date(d.getFullYear(),d.getMonth()+n,1);
+  return new Date(d.getFullYear(),d.getMonth(),d.getDate()+7*n);
+}
+function etichetta(tipo,d){
+  if(tipo==='M'){var m=MESI[d.getMonth()];return m.charAt(0).toUpperCase()+m.slice(1)+' '+d.getFullYear();}
+  var e=spostaData('W',d,1);e.setDate(e.getDate()-1);
+  var a=d.getDate()+' '+MESI_C[d.getMonth()],b=e.getDate()+' '+MESI_C[e.getMonth()]+' '+e.getFullYear();
+  if(d.getFullYear()!==e.getFullYear())a+=' '+d.getFullYear();
+  else if(d.getMonth()===e.getMonth())a=String(d.getDate());
+  return 'Settimana '+a+' – '+b;
+}
+function etichettaBreve(tipo,d){
+  if(tipo==='M')return MESI_C[d.getMonth()]+' '+String(d.getFullYear()).slice(2);
+  return d.getDate()+'/'+(d.getMonth()+1);
+}
+
+// Importo riga arrotondato ai centesimi (metà per eccesso), come in fattura.
+// Calcolo su interi (quantità in millesimi, prezzo in decimillesimi) per evitare gli errori dei decimali.
+function importoRiga(q,p){
+  var Q=Math.round(q*1000),P=Math.round(p*10000);
+  var cent=Math.round(Math.abs(Q*P)/100000)*(Q*P<0?-1:1);
+  return cent/100;
+}
+
+// ── Caricamento: Supabase restituisce max 1000 righe per richiesta → a blocchi finché finiscono ──
+async function caricaTutto(tabella,select,order){
+  var tutte=[],offset=0,BLOCCO=1000;
+  while(true){
+    var r=await fetch(CFG.url+'/rest/v1/'+tabella+'?select='+select+'&order='+order+'&limit='+BLOCCO+'&offset='+offset,
+      {headers:{apikey:CFG.key,Authorization:'Bearer '+CFG.key}});
+    if(!r.ok)throw new Error(tabella+': '+r.status+' '+(await r.text()));
+    var blocco=await r.json();
+    if(!blocco.length)break;
+    tutte=tutte.concat(blocco);
+    offset+=blocco.length; // avanza di quanto ricevuto: funziona anche se il server ne manda meno di 1000
+  }
+  return tutte;
+}
+
+async function carica(){
+  document.getElementById('agg').textContent='Caricamento...';
+  try{
+    var res=await Promise.all([
+      caricaTutto('ddt_uscita','id,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt','id.asc'),
+      caricaTutto('listino','codice,prezzo','codice.asc'),
+      caricaTutto('lavori_extra','id,data,cliente,descrizione,importo,numero_ddt,quantita,prezzo_unitario','id.asc')
+    ]);
+    var listino={};
+    res[1].forEach(function(l){if(l.codice!=null&&l.prezzo!=null)listino[String(l.codice).toUpperCase().replace(/\s+/g,'')]=Number(l.prezzo);});
+    var nuove=[];
+    res[0].forEach(function(r){
+      if(!r.data_ddt)return;
+      var cl=norm(r.cliente);
+      var g=cl.indexOf('AZZURRA')>=0?'AZZURRA':cl.indexOf('BERGAMASCO')>=0?'BERGAMASCO':'ALTRI';
+      var cod=String(r.codice_articolo||'').toUpperCase().replace(/\s+/g,'');
+      var q=Number(r.quantita_ddt)||0;
+      var pz=listino.hasOwnProperty(cod)?listino[cod]:null;
+      nuove.push({fonte:'ddt',data:String(r.data_ddt).slice(0,10),gruppo:g,cliente:r.cliente,codice:cod,descrizione:r.descrizione||'',
+        pezzi:q,prezzo:pz,importo:pz==null?0:importoRiga(q,pz),senzaPrezzo:pz==null});
+    });
+    res[2].forEach(function(r){
+      if(!r.data)return;
+      nuove.push({fonte:'extra',data:String(r.data).slice(0,10),gruppo:'ALTRI',cliente:r.cliente||'',descrizione:r.descrizione||'',
+        numero_ddt:r.numero_ddt,quantita:r.quantita,prezzo_unitario:r.prezzo_unitario,importo:Number(r.importo)||0});
+    });
+    righe=nuove;
+    ultimoCarico=Date.now();
+    var ora=new Date();
+    document.getElementById('agg').textContent='Aggiornato alle '+String(ora.getHours()).padStart(2,'0')+':'+String(ora.getMinutes()).padStart(2,'0');
+    disegna();
+  }catch(e){
+    console.error(e);
+    document.getElementById('agg').textContent='Errore di caricamento';
+    document.getElementById('contenuto').innerHTML='<div class="card vuoto">Impossibile caricare i dati.<br><br><button class="hbtn" style="background:var(--blu);" onclick="carica()">Riprova</button></div>';
+  }
+}
+
+// ── Calcoli ──
+function righePeriodo(tipo,inizio){
+  var a=iso(inizio),b=iso(spostaData(tipo,inizio,1));
+  return righe.filter(function(r){return r.data>=a&&r.data<b;});
+}
+function riepilogo(rr){
+  var o={totale:0,AZZURRA:{tot:0,n:0},BERGAMASCO:{tot:0,n:0},ALTRI:{tot:0,n:0}};
+  rr.forEach(function(r){
+    o.totale+=r.importo;o[r.gruppo].tot+=r.importo;
+    o[r.gruppo].n+=r.fonte==='ddt'?r.pezzi:1; // pezzi per i DDT, numero di lavori per gli extra
+  });
+  return o;
+}
+
+// ── Disegno ──
+function disegna(){
+  var t=stato.tipo,ini=stato.inizio,oggi=inizioPeriodo(t,new Date());
+  var inCorso=iso(ini)===iso(oggi);
+  document.getElementById('periodo').innerHTML=esc(etichetta(t,ini))+(inCorso?'<small>'+(t==='W'?'settimana':'mese')+' in corso</small>':'');
+  document.getElementById('next').disabled=iso(ini)>=iso(oggi);
+  document.getElementById('seg-W').className=t==='W'?'on':'';
+  document.getElementById('seg-M').className=t==='M'?'on':'';
+
+  var rr=righePeriodo(t,ini),cur=riepilogo(rr);
+  var prec=riepilogo(righePeriodo(t,spostaData(t,ini,-1))).totale;
+  var cmp='',cls='pari',chi=t==='W'?'alla settimana prima':'al mese prima';
+  if(inCorso&&cur.totale===0){cmp='ancora nessun dato '+(t==='W'?'questa settimana':'questo mese');}
+  else if(prec>0){
+    var pct=Math.round((cur.totale-prec)/prec*100);
+    cls=pct>0?'su':pct<0?'giu':'pari';
+    cmp=(pct>0?'+':'')+pct+'% rispetto '+chi+' <span style="font-weight:normal;color:#888;">('+euro(prec)+')</span>';
+  }else if(cur.totale>0){cmp='nessun fatturato '+(t==='W'?'la settimana prima':'il mese prima');}
+
+  var h='<div class="card"><div class="tot-lbl">Fatturato totale</div>'
+    +'<div class="tot-val">'+euro(cur.totale)+'</div>'
+    +(cmp?'<div class="cmp '+cls+'">'+cmp+'</div>':'')+'</div>';
+
+  // Righe DDT senza prezzo nel listino
+  var np=rr.filter(function(r){return r.senzaPrezzo;});
+  if(np.length){
+    var perCod={},ord=[];
+    np.forEach(function(r){var k=r.gruppo+'|'+r.codice;if(!perCod[k]){perCod[k]={codice:r.codice||'(senza codice)',gruppo:r.gruppo,desc:r.descrizione,pezzi:0};ord.push(k);}perCod[k].pezzi+=r.pezzi;});
+    h+='<div class="avviso"><b>⚠ '+np.length+' righe senza prezzo — fatturato incompleto</b>'
+      +ord.map(function(k){var c=perCod[k];return '<div class="r"><span><b style="display:inline;color:inherit;margin:0;font-size:inherit;">'+esc(c.codice)+'</b> · '+esc(c.gruppo)+'<br><span style="font-size:12px;">'+esc(c.desc)+'</span></span><span style="white-space:nowrap;">'+num(c.pezzi)+' pz</span></div>';}).join('')
+      +'</div>';
+  }
+
+  GRUPPI.forEach(function(g){
+    var c=cur[g.k];
+    h+='<button class="tile" style="border-left-color:'+g.col+';" onclick="apriDettaglio(\''+g.k+'\')">'
+      +'<span class="nm">'+g.nome+'<small>'+num(c.n)+(g.k==='ALTRI'?(c.n===1?' lavoro':' lavori'):' pezzi')+'</small></span>'
+      +'<span class="v">'+euro(c.tot)+'</span><span class="ch">›</span></button>';
+  });
+
+  h+='<div class="card"><h2>Andamento</h2>'+andamento()+'</div>';
+  document.getElementById('contenuto').innerHTML=h;
+}
+
+// 12 periodi: finiscono col periodo in corso; se si guarda un periodo più vecchio, finiscono con quello
+function finestra(){
+  var t=stato.tipo,fine=inizioPeriodo(t,new Date());
+  if(iso(stato.inizio)<iso(spostaData(t,fine,-11)))fine=stato.inizio;
+  var p=[];
+  for(var i=11;i>=0;i--){var d=spostaData(t,fine,-i);var r=riepilogo(righePeriodo(t,d));p.push({d:d,r:r});}
+  while(p.length&&p[0].r.totale===0)p.shift(); // via i periodi vuoti prima dei primi dati
+  if(t==='M')p=p.filter(function(x){return x.r.totale>0;}); // mesi: solo quelli con dati
+  return p;
+}
+
+function andamento(){
+  var t=stato.tipo,p=finestra(),sel=iso(stato.inizio);
+  if(!p.length)return '<div class="vuoto">Nessun dato</div>';
+  var leg='<div class="legenda">'+GRUPPI.map(function(g){return '<span><i style="background:'+g.col+'"></i>'+(g.k==='ALTRI'?'Altri clienti':g.nome.charAt(0)+g.nome.slice(1).toLowerCase())+'</span>';}).join('')+'</div>';
+
+  // Grafico a barre impilate in SVG (nessuna libreria)
+  var W=360,H=210,L=40,R=6,T=8,B=24,pw=W-L-R,ph=H-T-B;
+  var max=Math.max.apply(null,p.map(function(x){return x.r.totale;}));
+  var passo=passoAsse(max/4),top=Math.max(passo*4,passo*Math.ceil(max/passo));
+  var y=function(v){return T+ph-(v/top)*ph;};
+  var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Andamento fatturato">';
+  for(var v=0;v<=top+1e-9;v+=passo){
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#e3e7ec" stroke-width="1"/>'
+      +'<text x="'+(L-4)+'" y="'+(y(v)+3.5)+'" font-size="10" text-anchor="end" fill="#888">'+compatto(v)+'</text>';
+  }
+  var band=pw/p.length,bw=Math.min(28,band*.68);
+  p.forEach(function(x,i){
+    var k=iso(x.d),cx=L+band*i+band/2,isSel=k===sel;
+    s+='<g class="bar" onclick="vaiA(\''+k+'\')">';
+    s+='<rect x="'+(L+band*i)+'" y="'+T+'" width="'+band+'" height="'+(ph+B)+'" fill="'+(isSel?'#FFF2CC':'transparent')+'" rx="4"/>';
+    var base=0;
+    GRUPPI.forEach(function(g){
+      var val=x.r[g.k].tot;if(val<=0)return;
+      s+='<rect x="'+(cx-bw/2)+'" y="'+y(base+val)+'" width="'+bw+'" height="'+Math.max(0.5,y(base)-y(base+val))+'" fill="'+g.col+'"/>';
+      base+=val;
+    });
+    s+='<text x="'+cx+'" y="'+(H-8)+'" font-size="10" text-anchor="middle" fill="'+(isSel?'#1F4E79':'#666')+'" font-weight="'+(isSel?'bold':'normal')+'">'+etichettaBreve(t,x.d)+'</text>';
+    s+='</g>';
+  });
+  s+='</svg>';
+
+  // Tabella con gli stessi numeri (dal più recente)
+  var tb='<div class="tab-scroll"><table class="and"><thead><tr><th>'+(t==='W'?'Settimana':'Mese')+'</th><th>Azzurra</th><th>Bergam.</th><th>Altri</th><th>Totale</th></tr></thead><tbody>'
+    +p.slice().reverse().map(function(x){
+      var k=iso(x.d);
+      return '<tr class="'+(k===sel?'sel':'')+'" onclick="vaiA(\''+k+'\')"><td>'+(t==='W'?etichettaBreve('W',x.d):MESI_C[x.d.getMonth()]+' '+x.d.getFullYear())+'</td>'
+        +'<td>'+euro(x.r.AZZURRA.tot,0)+'</td><td>'+euro(x.r.BERGAMASCO.tot,0)+'</td><td>'+euro(x.r.ALTRI.tot,0)+'</td><td><b>'+euro(x.r.totale,0)+'</b></td></tr>';
+    }).join('')+'</tbody></table></div>';
+  return leg+'<div id="grafico">'+s+'</div>'+tb;
+}
+function passoAsse(x){
+  if(x<=0)return 100;
+  var e=Math.pow(10,Math.floor(Math.log10(x))),f=x/e;
+  return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*e;
+}
+function compatto(v){
+  if(v>=1000){var k=v/1000;return (Math.round(k*10)/10).toString().replace('.',',')+'k';}
+  return String(Math.round(v));
+}
+
+// ── Dettaglio ──
+function apriDettaglio(k){
+  var g=GRUPPI.filter(function(x){return x.k===k;})[0];
+  var rr=righePeriodo(stato.tipo,stato.inizio).filter(function(r){return r.gruppo===k;});
+  document.getElementById('sheet-tit').textContent=g.nome+' · '+euro(riepilogo(rr)[k].tot);
+  document.getElementById('sheet-sub').textContent=etichetta(stato.tipo,stato.inizio);
+  document.getElementById('sheet-body').innerHTML=k==='ALTRI'?dettaglioAltri(rr):dettaglioArticoli(rr);
+  document.getElementById('sheet').classList.add('on');
+  document.body.style.overflow='hidden';
+}
+function chiudiDettaglio(){document.getElementById('sheet').classList.remove('on');document.body.style.overflow='';}
+
+// Azzurra / Bergamasco: articoli del periodo, dal più alto al più basso
+function dettaglioArticoli(rr){
+  if(!rr.length)return '<div class="card vuoto">Nessuna riga nel periodo</div>';
+  var art={},ord=[];
+  rr.forEach(function(r){
+    var k=r.codice||'?';
+    if(!art[k]){art[k]={codice:r.codice,desc:r.descrizione,pezzi:0,importo:0,senzaPrezzo:r.senzaPrezzo,prezzo:r.prezzo};ord.push(k);}
+    art[k].pezzi+=r.pezzi;art[k].importo+=r.importo;
+  });
+  var lista=ord.map(function(k){return art[k];}).sort(function(a,b){
+    if(a.senzaPrezzo!==b.senzaPrezzo)return a.senzaPrezzo?1:-1;
+    return b.importo-a.importo||b.pezzi-a.pezzi;
+  });
+  return '<div class="card">'+lista.map(function(a){
+    return '<div class="riga"><div class="i"><div class="d">'+esc(a.desc)+'</div>'
+      +'<div class="s"><b>'+esc(a.codice)+'</b> · '+num(a.pezzi)+' pz'+(a.senzaPrezzo?'':' × '+prezzo(a.prezzo))+'</div></div>'
+      +(a.senzaPrezzo?'<div class="v np">⚠ senza prezzo</div>':'<div class="v">'+euro(a.importo)+'</div>')+'</div>';
+  }).join('')+'</div>';
+}
+
+// Altri clienti: raggruppati per cliente con il totale, sotto le righe
+function dettaglioAltri(rr){
+  if(!rr.length)return '<div class="card vuoto">Nessun lavoro nel periodo</div>';
+  var cli={},ord=[];
+  rr.forEach(function(r){
+    var k=norm(r.cliente);
+    if(!cli[k]){cli[k]={nome:r.cliente,tot:0,righe:[]};ord.push(k);}
+    cli[k].tot+=r.importo;cli[k].righe.push(r);
+  });
+  return ord.map(function(k){return cli[k];}).sort(function(a,b){return b.tot-a.tot;}).map(function(c){
+    c.righe.sort(function(a,b){return a.data<b.data?1:a.data>b.data?-1:0;});
+    return '<div class="card"><div class="cli-head"><span>'+esc(c.nome)+'</span><span>'+euro(c.tot)+'</span></div>'
+      +c.righe.map(function(r){
+        var sub=[dataIt(r.data)];
+        if(r.numero_ddt)sub.push('DDT '+esc(r.numero_ddt));
+        if(r.quantita!=null&&r.prezzo_unitario!=null)sub.push(num(r.quantita)+' × '+prezzo(r.prezzo_unitario));
+        else if(r.quantita!=null)sub.push(num(r.quantita)+' pz');
+        return '<div class="riga"><div class="i"><div class="d">'+esc(r.descrizione)+'</div><div class="s">'+sub.join(' · ')+'</div></div>'
+          +'<div class="v">'+euro(r.importo)+'</div></div>';
+      }).join('')+'</div>';
+  }).join('');
+}
+
+// ── Navigazione ──
+function setTipo(t){
+  if(t===stato.tipo)return;
+  // Dal periodo in corso si va al periodo in corso; altrimenti a quello che contiene il primo giorno guardato
+  var oggi=new Date();
+  var rif=iso(stato.inizio)===iso(inizioPeriodo(stato.tipo,oggi))?oggi:stato.inizio;
+  stato.inizio=inizioPeriodo(t,rif);
+  stato.tipo=t;disegna();
+}
+function sposta(n){
+  var d=spostaData(stato.tipo,stato.inizio,n);
+  if(iso(d)>iso(inizioPeriodo(stato.tipo,new Date())))return;
+  stato.inizio=d;disegna();
+}
+function vaiA(k){stato.inizio=daIso(k);disegna();window.scrollTo({top:0,behavior:'smooth'});}
+
+// ── PIN (ricordato su questo telefono) ──
+function leggiPin(){try{return localStorage.getItem(PIN_KEY)==='1';}catch(e){return false;}}
+function provaPin(){
+  var el=document.getElementById('pin-in');
+  el.value=el.value.replace(/\D/g,'').slice(0,4);
+  if(el.value.length<4){document.getElementById('pin-err').textContent='';return;}
+  if(el.value===PIN){
+    try{localStorage.setItem(PIN_KEY,'1');}catch(e){}
+    el.blur();document.getElementById('pin').classList.remove('on');avvia();
+  }else{
+    document.getElementById('pin-err').textContent='PIN errato';el.value='';
+  }
+}
+function esci(){
+  try{localStorage.removeItem(PIN_KEY);}catch(e){}
+  location.reload();
+}
+
+var avviato=false;
+function avvia(){
+  if(avviato)return;avviato=true;
+  stato.inizio=inizioPeriodo('W',new Date());
+  carica();
+  // Riaprendo l'app dopo un po' i dati si aggiornano da soli
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'&&Date.now()-ultimoCarico>5*60*1000)carica();
+  });
+}
+
+if(leggiPin())avvia();
+else{document.getElementById('pin').classList.add('on');setTimeout(function(){document.getElementById('pin-in').focus();},300);}
+</script>
+</body>
+</html>
