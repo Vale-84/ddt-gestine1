@@ -8472,12 +8472,13 @@ async function stampaModuloVerniciato(){
     +'.top{display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;border-bottom:2px solid #000;padding-bottom:3mm;margin-bottom:4mm;}'
     +'h1{font-size:18pt;letter-spacing:.5px;line-height:1.2;}'
     +'.campi{white-space:nowrap;text-align:right;}'
-    +'.campi .data{font-size:20pt;font-weight:bold;}'
+    +'.campi .data{font-size:14pt;font-weight:bold;}'
+    +'.campi .data span{display:inline-block;width:55mm;border-bottom:1px solid #000;margin-left:2mm;}'
     +'.campi .op{font-size:12pt;margin-top:3mm;}'
     +'.campi .op span{display:inline-block;width:48mm;border-bottom:1px solid #000;margin-left:2mm;}'
     +'table{width:100%;border-collapse:collapse;}'
     +'th{background:#d9d9d9;border:1px solid #000;font-size:10pt;padding:1.5mm 2mm;text-align:left;}'
-    +'th.tv,th.ti{text-align:center;}'
+    +'th.ti{text-align:center;}'
     +'td{border:1px solid #000;vertical-align:middle;}'
     +'tr{break-inside:avoid;page-break-inside:avoid;}'
     +'.g td{background:#eee;font-weight:bold;font-size:10.5pt;padding:1mm 2mm;}'
@@ -8485,8 +8486,8 @@ async function stampaModuloVerniciato(){
     +'.d{padding:1mm 2.5mm;}'
     +'.d b{display:block;font-size:13pt;line-height:1.15;}'
     +'.d small{display:block;font-size:8pt;color:#444;margin-top:.5mm;}'
-    +'.v{width:32mm;text-align:center;font-size:20pt;font-weight:bold;}'
-    +'.i{width:55mm;}'
+    +'.d .vq{font-size:9pt;font-weight:normal;color:#333;white-space:nowrap;}'
+    +'.i{width:70mm;}'
     +'.alt{display:flex;align-items:flex-end;}'
     +'.alt b{font-size:13pt;}'
     +'.linea{flex:1;border-bottom:1px solid #000;margin-left:2mm;height:6mm;}'
@@ -8496,8 +8497,8 @@ async function stampaModuloVerniciato(){
     +'<button id="btn-stampa" onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
     +'<div class="avviso" id="avviso" style="display:none;"></div>'
     +'<div class="foglio" id="foglio">'
-    +'<div class="top"><h1>IMBALLO VERNICIATO<br>AZZURRA</h1><div class="campi"><div class="data">Data: <span id="data-stampa"></span></div><div class="op">Operatrice:<span></span></div></div></div>'
-    +'<table><thead><tr><th>ARTICOLO</th><th class="tv">VERNICIATI</th><th class="ti">IMBALLATI</th></tr></thead><tbody id="corpo"></tbody></table>'
+    +'<div class="top"><h1>IMBALLO VERNICIATO<br>AZZURRA</h1><div class="campi"><div class="data">Data:<span></span></div><div class="op">Operatrice:<span></span></div></div></div>'
+    +'<table><thead><tr><th>ARTICOLO</th><th class="ti">IMBALLO</th></tr></thead><tbody id="corpo"></tbody></table>'
     +'</div>'
     // La pagina di stampa ridisegna il foglio da sola quando cambia la data
     +'<scr'+'ipt>('+moduloImballoPagina.toString()+')('+JSON.stringify(D).replace(/</g,'\\u003c')+');</scr'+'ipt>'
@@ -8527,22 +8528,21 @@ function moduloImballoPagina(D){
       avv.style.display='';fog.style.display='none';btn.disabled=true;return;
     }
     avv.style.display='none';fog.style.display='';btn.disabled=false;
-    document.getElementById('data-stampa').textContent=gg(data);
     var gruppi={};
     codici.forEach(function(c){
       var t=tipo(c),nome=D.tipi[t]||(t?String(art[c].d).split(' ')[0]:'ALTRI');
       (gruppi[nome]=gruppi[nome]||[]).push(art[c]);
     });
     var h=Object.keys(gruppi).sort(function(a,b){return a.localeCompare(b,'it');}).map(function(g){
-      return '<tr class="g"><td colspan="3">'+esc(g)+'</td></tr>'+gruppi[g].sort(function(a,b){
+      return '<tr class="g"><td colspan="2">'+esc(g)+'</td></tr>'+gruppi[g].sort(function(a,b){
         return String(a.d).localeCompare(String(b.d),'it')||a.c.localeCompare(b.c);
       }).map(function(a){
-        return '<tr class="r"><td class="d"><b>'+esc(a.d)+'</b><small>'+esc(a.c)+'</small></td><td class="v">'+num(a.q)+'</td><td class="i"></td></tr>';
+        return '<tr class="r"><td class="d"><b>'+esc(a.d)+' <span class="vq">· vern. '+num(a.q)+'</span></b><small>'+esc(a.c)+'</small></td><td class="i"></td></tr>';
       }).join('');
     }).join('');
     // Righe vuote per i residui dei giorni prima
-    h+='<tr class="g"><td colspan="3">ALTRO (residui dei giorni prima)</td></tr>';
-    for(var i=0;i<6;i++)h+='<tr class="r"><td class="d"><div class="alt"><b>Altro:</b><span class="linea"></span></div></td><td class="v"></td><td class="i"></td></tr>';
+    h+='<tr class="g"><td colspan="2">ALTRO (residui dei giorni prima)</td></tr>';
+    for(var i=0;i<6;i++)h+='<tr class="r"><td class="d"><div class="alt"><b>Altro:</b><span class="linea"></span></div></td><td class="i"></td></tr>';
     document.getElementById('corpo').innerHTML=h;
   }
   inData.addEventListener('input',disegna);
