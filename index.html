@@ -97,6 +97,30 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .ext-imp { font-size: 15px; font-weight: bold; color: #217346; white-space: nowrap; }
 .ext-tot { background: #E2EFDA; border-radius: 8px; padding: 12px 14px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; color: #375623; font-size: 14px; font-weight: bold; }
 .ext-tot span:last-child { font-size: 18px; }
+.ext-ddt { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 12px; background: #f7f8fa; }
+.ext-ddt-head { font-size: 13px; color: #333; margin-bottom: 8px; line-height: 1.5; }
+.ext-ddt-head b { color: #1F4E79; }
+.ext-avviso { background: #FCE4D6; color: #C00000; border-radius: 8px; padding: 8px 12px; font-weight: bold; font-size: 13px; margin-bottom: 8px; }
+.ext-tab { width: 100%; border-collapse: collapse; font-size: 13px; background: white; margin-bottom: 8px; }
+.ext-tab th { background: #1F4E79; color: white; padding: 8px 6px; text-align: left; white-space: nowrap; }
+.ext-tab td { padding: 8px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+.ext-tab td.num { text-align: right; white-space: nowrap; }
+.ext-tab tr.nuovo td { background: #FFF2CC; }
+.ext-tab tr.cambiato td { background: #F8CBAD; }
+.ext-tab input.ext-prezzo { width: 100px; margin-bottom: 0; padding: 8px; text-align: right; }
+.ext-info { font-size: 12px; color: #555; margin-top: 4px; }
+.ext-info .warn { color: #7B2C2C; font-weight: bold; }
+.ext-info label { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #7B2C2C; margin: 6px 0 0; cursor: pointer; }
+.ext-info input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
+.ext-ddt-tot { text-align: right; font-weight: bold; color: #217346; font-size: 15px; margin-bottom: 8px; }
+@media (max-width: 600px) {
+  .ext-tab thead { display: none; }
+  .ext-tab tr { display: block; border-bottom: 2px solid #1F4E79; }
+  .ext-tab td { display: flex; justify-content: space-between; align-items: center; border-bottom: none; padding: 4px 8px; }
+  .ext-tab td::before { content: attr(data-l); font-weight: bold; color: #666; font-size: 12px; margin-right: 8px; }
+  .ext-tab td.desc { display: block; padding-top: 8px; }
+  .ext-tab td.desc::before { display: none; }
+}
 @media (max-width: 500px) {
   #page-extra .row-item { flex-wrap: wrap; }
   #page-extra .row-info { flex-basis: calc(100% - 90px); }
@@ -1052,6 +1076,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <div><label>Data</label><input type="date" id="ext-data"></div>
       <div><label>Importo (€)</label><input type="text" id="ext-importo" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
     </div>
+    <!-- Solo in modifica di righe con quantità e prezzo unitario (da DDT): importo = quantità × prezzo -->
+    <div class="ext-grid" id="ext-qp" style="display:none;">
+      <div><label>Quantità</label><input type="text" id="ext-qta" inputmode="decimal" autocomplete="off" oninput="ricalcolaImportoExtra()"></div>
+      <div><label>Prezzo unitario (€)</label><input type="text" id="ext-prezzo-u" inputmode="decimal" autocomplete="off" oninput="ricalcolaImportoExtra()"></div>
+    </div>
     <label>Cliente</label>
     <input type="text" id="ext-cliente" list="ext-clienti-list" placeholder="Nome cliente" autocomplete="off">
     <datalist id="ext-clienti-list"></datalist>
@@ -1059,6 +1088,14 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="text" id="ext-desc" placeholder="Descrizione del lavoro" autocomplete="off">
     <button class="btn btn-green" id="ext-salva" onclick="salvaExtra()">SALVA</button>
     <button class="btn btn-gray" id="ext-annulla" onclick="resetFormExtra()" style="display:none;">ANNULLA MODIFICA</button>
+  </div>
+  <div class="card">
+    <h2>Carica DDT PDF</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">DDT dei piccoli clienti stampati da Nova: controlli i prezzi e salvi una riga per ogni articolo.</p>
+    <input type="file" id="ext-pdf" class="pdf-input" accept="application/pdf,.pdf" multiple onchange="leggiPdfExtra(this)">
+    <button class="btn btn-orange" onclick="document.getElementById('ext-pdf').click()">CARICA DDT PDF</button>
+    <div id="msg-ext-pdf"></div>
+    <div id="ext-pdf-anteprima"></div>
   </div>
   <div class="card">
     <h2>Lavori inseriti</h2>
@@ -7983,6 +8020,7 @@ function resetFormExtra(){
   document.getElementById('ext-id').value='';
   document.getElementById('ext-data').value=oggiLocaleExtra();
   ['ext-cliente','ext-desc','ext-importo'].forEach(function(id){document.getElementById(id).value='';});
+  mostraQtaPrezzoExtra(false);
   document.getElementById('ext-titolo').textContent='Nuovo lavoro extra';
   document.getElementById('ext-salva').textContent='SALVA';
   document.getElementById('ext-annulla').style.display='none';
@@ -8003,7 +8041,7 @@ function renderExtra(){
     return '<div class="row-item verde">'
       +'<div class="row-info"><div class="rdesc"><b>'+escAbb(r.cliente)+'</b></div>'
       +'<div class="rdesc">'+escAbb(r.descrizione)+'</div>'
-      +'<div class="rsub">'+escAbb(fmtData(r.data))+'</div></div>'
+      +'<div class="rsub">'+escAbb(fmtData(r.data))+dettaglioRigaExtra(r)+'</div></div>'
       +'<div class="ext-imp">'+fmtEuroExtra(r.importo)+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="modificaExtra('+r.id+')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaExtra('+r.id+')">🗑</button>'
@@ -8024,6 +8062,286 @@ function renderExtra(){
   document.getElementById('ext-clienti-list').innerHTML=opts.map(function(c){return '<option value="'+escAbb(c)+'">';}).join('');
 }
 
+// Dettagli da DDT (numero, quantità × prezzo) per l'elenco, se presenti
+function dettaglioRigaExtra(r){
+  var d=[];
+  if(r.numero_ddt)d.push('DDT '+escAbb(r.numero_ddt));
+  if(r.quantita!=null)d.push(fmtNumExtra(r.quantita)+(r.prezzo_unitario!=null?' × '+fmtPrezzoExtra(r.prezzo_unitario):''));
+  else if(r.prezzo_unitario!=null)d.push('prezzo '+fmtPrezzoExtra(r.prezzo_unitario));
+  return d.length?' · '+d.join(' · '):'';
+}
+function fmtNumExtra(n){return (Number(n)||0).toLocaleString('it-IT',{maximumFractionDigits:3});}
+function fmtPrezzoExtra(n){return (Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:4})+' €';}
+
+// ── EXTRA: lettura DDT PDF di Nova (WinNOVA) ──
+// Funzioni pure (nessun accesso al DOM): provate anche fuori dal browser.
+// EXTRA-PARSER-START
+var MESI_EXTRA={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+function pad2Extra(n){return String(n).padStart(2,'0');}
+// "28 set 2026" o "28/09/2026" → "2026-09-28"
+function dataDdtExtraISO(s){
+  s=String(s||'').trim().toLowerCase();
+  var m=s.match(/^(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s+(\d{4})$/);
+  if(m&&MESI_EXTRA[m[2]])return m[3]+'-'+pad2Extra(MESI_EXTRA[m[2]])+'-'+pad2Extra(m[1]);
+  m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+  if(m)return (m[3].length===2?'20'+m[3]:m[3])+'-'+pad2Extra(m[2])+'-'+pad2Extra(m[1]);
+  return '';
+}
+// Maiuscole e spazi doppi ignorati
+function normTestoExtra(s){return String(s||'').replace(/\s+/g,' ').trim().toUpperCase();}
+// Quantità in formato italiano: "360,00", "1.200,00", "12"
+function qtaItExtra(s){
+  s=String(s||'').trim();
+  if(!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(s))return NaN;
+  return parseFloat(s.replace(/\./g,'').replace(',','.'));
+}
+// Elementi di testo di una pagina ({str,x,y}) → righe dall'alto in basso, ognuna ordinata per x
+function righePaginaExtra(items){
+  var el=items.filter(function(it){return String(it.str).trim();})
+    .map(function(it){return{s:String(it.str).trim(),x:it.x,y:it.y};})
+    .sort(function(a,b){return b.y-a.y||a.x-b.x;});
+  var righe=[];
+  el.forEach(function(e){
+    var r=righe[righe.length-1];
+    if(r&&Math.abs(r.y-e.y)<=2)r.items.push(e);else righe.push({y:e.y,items:[e]});
+  });
+  righe.forEach(function(r){r.items.sort(function(a,b){return a.x-b.x;});});
+  return righe;
+}
+function trovaExtra(righe,re){
+  for(var i=0;i<righe.length;i++)for(var j=0;j<righe[i].items.length;j++)
+    if(re.test(righe[i].items[j].s))return{r:i,it:righe[i].items[j]};
+  return null;
+}
+// Primo valore sotto la riga r nella stessa colonna x che passa il test
+function sottoExtra(righe,r,x,test){
+  for(var i=r+1;i<righe.length&&i<=r+4;i++){
+    var it=righe[i].items.find(function(e){return Math.abs(e.x-x)<=15;});
+    if(it&&(!test||test(it.s)))return it.s;
+  }
+  return '';
+}
+// pagine: array (una per pagina) di array {str,x,y} → array di DDT
+function parseDdtExtra(pagine){
+  var ddts=[],cur=null;
+  pagine.forEach(function(items,pi){
+    var righe=righePaginaExtra(items);
+    if(trovaExtra(righe,/DOCUMENTO DI TRASPORTO/i)){
+      var cliente='',numero='',dataTxt='';
+      var sp=trovaExtra(righe,/^Spettabile/i);
+      if(sp&&righe[sp.r+1])cliente=righe[sp.r+1].items.filter(function(e){return e.x>=sp.it.x-15;}).map(function(e){return e.s;}).join(' ');
+      var nr=trovaExtra(righe,/^DDT NR\.?$/i);
+      if(nr){
+        var hData=righe[nr.r].items.find(function(e){return /^DATA$/i.test(e.s);});
+        numero=sottoExtra(righe,nr.r,nr.it.x,function(s){return /\d/.test(s);});
+        if(hData)dataTxt=sottoExtra(righe,nr.r,hData.x,function(s){return /\d/.test(s);});
+      }
+      // Stesso numero della pagina prima = il DDT continua su questa pagina
+      if(!(cur&&numero&&normTestoExtra(cur.numero)===normTestoExtra(numero))){
+        cur={cliente:cliente.replace(/\s+/g,' ').trim(),numero:numero,dataTesto:dataTxt,data:dataDdtExtraISO(dataTxt),righe:[],pagine:[]};
+        ddts.push(cur);
+      }
+    }
+    if(!cur)return;
+    cur.pagine.push(pi+1);
+    // Righe articolo tra l'intestazione ARTICOLO ... QUANTITA' e ASPETTO ESTERIORE
+    var hd=trovaExtra(righe,/^ARTICOLO$/i);
+    if(!hd)return;
+    var hr=righe[hd.r].items;
+    var col=function(re,def){var e=hr.find(function(e){return re.test(e.s);});return e?e.x:def;};
+    var xDesc=col(/^DESCRIZIONE/i,80),xUm=col(/^UM/i,460),xQta=col(/^QUANTIT/i,490);
+    for(var i=hd.r+1;i<righe.length;i++){
+      var it=righe[i].items;
+      if(it.some(function(e){return /ASPETTO ESTERIORE/i.test(e.s);}))break;
+      if(it.some(function(e){return /^(article code|description|units|quantity)$/i.test(e.s);}))continue;
+      var cod=[],desc=[],um=[],qta=[];
+      it.forEach(function(e){
+        if(e.x<xDesc-5)cod.push(e.s);else if(e.x<xUm-5)desc.push(e.s);else if(e.x<xQta-5)um.push(e.s);else qta.push(e.s);
+      });
+      var q=qtaItExtra(qta.join(''));
+      if(!isNaN(q)){
+        cur.righe.push({codice:cod.join(' '),descrizione:desc.join(' ').replace(/\s+/g,' ').trim(),um:um.join(' '),quantita:q,note:[]});
+      }else{
+        // Riga senza quantità (es. "RIF. VS DDT 3195 DEL 04/09/26"): nota della riga precedente
+        var testo=cod.concat(desc,um,qta).join(' ').replace(/\s+/g,' ').trim();
+        if(testo&&cur.righe.length&&!/^(SEGUE|A RIPORTARE|RIPORTO)\b/i.test(testo))cur.righe[cur.righe.length-1].note.push(testo);
+      }
+    }
+  });
+  return ddts;
+}
+// Descrizione salvata: "DESCRIZIONE — note". Lo storico prezzi confronta solo la parte prima di " — "
+function descCompletaExtra(r){return r.descrizione+(r.note&&r.note.length?' — '+r.note.join(' '):'');}
+function baseDescExtra(d){return normTestoExtra(String(d||'').split(' — ')[0]);}
+// Ultimo prezzo_unitario salvato per stesso cliente e stessa descrizione
+function ultimoPrezzoExtra(lista,cliente,desc){
+  var c=normTestoExtra(cliente),b=baseDescExtra(desc),best=null;
+  (lista||[]).forEach(function(r){
+    if(r.prezzo_unitario==null||normTestoExtra(r.cliente)!==c||baseDescExtra(r.descrizione)!==b)return;
+    var d=String(r.data||''),bd=best?String(best.data||''):'';
+    if(!best||d>bd||(d===bd&&r.id>best.id))best=r;
+  });
+  return best;
+}
+// EXTRA-PARSER-END
+
+var extraPdfDdts=[];
+
+async function leggiPdfExtra(input){
+  var files=Array.prototype.slice.call(input.files||[]);
+  if(!files.length)return;
+  var ant=document.getElementById('ext-pdf-anteprima');
+  ant.innerHTML='<div class="empty">Lettura PDF...</div>';
+  await caricaExtra(); // storico prezzi e DDT già caricati aggiornati
+  var trovati=[];
+  try{
+    for(var f=0;f<files.length;f++){
+      var pdf=await pdfjsLib.getDocument({data:await files[f].arrayBuffer()}).promise;
+      var pagine=[];
+      for(var i=1;i<=pdf.numPages;i++){
+        var tc=await (await pdf.getPage(i)).getTextContent();
+        pagine.push(tc.items.map(function(it){return{str:it.str,x:it.transform[4],y:it.transform[5]};}));
+      }
+      parseDdtExtra(pagine).forEach(function(d){d.file=files[f].name;trovati.push(d);});
+    }
+  }catch(e){
+    console.error(e);ant.innerHTML='';input.value='';
+    showMsg('msg-ext-pdf','Errore nella lettura del PDF: '+escAbb(e.message),'err');return;
+  }
+  input.value='';
+  if(!trovati.length){ant.innerHTML='';showMsg('msg-ext-pdf','Nessun DDT trovato nel PDF','err');return;}
+  var giaCaricati={},visti={};
+  extraCache.forEach(function(r){if(r.numero_ddt)giaCaricati[normTestoExtra(r.numero_ddt)]=1;});
+  trovati.forEach(function(d){
+    var n=normTestoExtra(d.numero);
+    d.escluso=/AZZURRA|BERGAMASCO/i.test(d.cliente);
+    d.duplicato=!!(n&&(giaCaricati[n]||visti[n]));
+    if(n)visti[n]=1;
+    d.salvato=false;
+    d.righe.forEach(function(r){
+      r.ultimo=ultimoPrezzoExtra(extraCache,d.cliente,r.descrizione);
+      r.prezzo=r.ultimo?Number(r.ultimo.prezzo_unitario):NaN;
+      r.conferma=false;
+    });
+  });
+  extraPdfDdts=trovati;
+  renderPdfExtra();
+}
+
+function statoRigaPdfExtra(r){
+  if(!r.ultimo)return 'nuovo';
+  if(!isNaN(r.prezzo)&&Math.round(r.prezzo*10000)!==Math.round(Number(r.ultimo.prezzo_unitario)*10000))return 'cambiato';
+  return '';
+}
+
+function infoRigaPdfExtra(i,j){
+  var r=extraPdfDdts[i].righe[j],st=statoRigaPdfExtra(r);
+  if(!r.ultimo)return '<span class="warn">articolo nuovo, inserisci prezzo</span>';
+  var h='ultimo prezzo: '+fmtPrezzoExtra(r.ultimo.prezzo_unitario)+' del '+escAbb(fmtData(r.ultimo.data));
+  if(st==='cambiato'){
+    h+='<br><span class="warn">attenzione: prima era '+fmtPrezzoExtra(r.ultimo.prezzo_unitario)+'</span>'
+      +'<label><input type="checkbox" '+(r.conferma?'checked ':'')+'onchange="extraPdfDdts['+i+'].righe['+j+'].conferma=this.checked"> Confermo il nuovo prezzo</label>';
+  }
+  return h;
+}
+
+function importoRigaExtra(r){return isNaN(r.prezzo)?NaN:Math.round(r.quantita*r.prezzo*100)/100;}
+
+function totaleDdtPdfExtra(d){
+  return d.righe.reduce(function(s,r){var v=importoRigaExtra(r);return isNaN(v)?s:s+v;},0);
+}
+
+function renderPdfExtra(){
+  var ant=document.getElementById('ext-pdf-anteprima');
+  ant.innerHTML=extraPdfDdts.map(function(d,i){
+    var head='<div class="ext-ddt-head"><b>'+escAbb(d.cliente||'Cliente non letto')+'</b><br>'
+      +'DDT n. <b>'+escAbb(d.numero||'?')+'</b> del <b>'+escAbb(d.data?fmtData(d.data):(d.dataTesto||'?'))+'</b>'
+      +'<br><span style="color:#999;font-size:11px;">'+escAbb(d.file)+'</span></div>';
+    if(d.salvato)return '<div class="ext-ddt"><div class="ok-box" style="margin-top:0;">✅ DDT '+escAbb(d.numero)+' di '+escAbb(d.cliente)+' salvato ('+d.righe.length+' righe, '+fmtEuroExtra(totaleDdtPdfExtra(d))+')</div></div>';
+    var avvisi=[];
+    if(d.escluso)avvisi.push('Cliente gestito nei DDT uscita: non viene salvato qui (altrimenti si conta due volte)');
+    if(d.duplicato)avvisi.push('DDT già caricato');
+    if(!d.cliente||!d.numero||!d.data)avvisi.push('Cliente, numero o data del DDT non letti');
+    if(!d.righe.length)avvisi.push('Nessuna riga articolo trovata');
+    var bloccato=avvisi.length>0;
+    var righe=d.righe.map(function(r,j){
+      return '<tr id="ext-pr-'+i+'-'+j+'" class="'+statoRigaPdfExtra(r)+'">'
+        +'<td class="desc">'+escAbb(r.descrizione)
+        +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
+        +'<div class="ext-info" id="ext-pi-'+i+'-'+j+'">'+infoRigaPdfExtra(i,j)+'</div></td>'
+        +'<td class="num" data-l="Quantità">'+fmtNumExtra(r.quantita)+' '+escAbb(r.um)+'</td>'
+        +'<td class="num" data-l="Prezzo unit. €"><input type="text" class="ext-prezzo" inputmode="decimal" placeholder="0,00" autocomplete="off"'
+        +' value="'+(isNaN(r.prezzo)?'':String(r.prezzo).replace('.',','))+'"'+(bloccato?' disabled':'')
+        +' oninput="prezzoPdfExtra('+i+','+j+',this.value)"></td>'
+        +'<td class="num" data-l="Importo" id="ext-pimp-'+i+'-'+j+'">'+(isNaN(importoRigaExtra(r))?'-':fmtEuroExtra(importoRigaExtra(r)))+'</td>'
+        +'</tr>';
+    }).join('');
+    return '<div class="ext-ddt">'+head
+      +avvisi.map(function(a){return '<div class="ext-avviso">⛔ '+escAbb(a)+'</div>';}).join('')
+      +(d.righe.length?'<table class="ext-tab"><thead><tr><th>Descrizione</th><th style="text-align:right;">Quantità</th><th style="text-align:right;">Prezzo unit. €</th><th style="text-align:right;">Importo</th></tr></thead><tbody>'+righe+'</tbody></table>'
+        +'<div class="ext-ddt-tot">Totale DDT: <span id="ext-ptot-'+i+'">'+fmtEuroExtra(totaleDdtPdfExtra(d))+'</span></div>':'')
+      +'<div id="msg-ext-pdf-'+i+'"></div>'
+      +(bloccato?'':'<button class="btn btn-green" onclick="salvaPdfExtra('+i+')">SALVA DDT '+escAbb(d.numero)+'</button>')
+      +'<button class="btn btn-gray btn-sm" onclick="scartaPdfExtra('+i+')">'+(bloccato?'CHIUDI':'SCARTA')+'</button>'
+      +'</div>';
+  }).join('');
+}
+
+// Aggiorna solo la riga modificata (senza ridisegnare: il campo prezzo non perde il focus)
+function prezzoPdfExtra(i,j,val){
+  var d=extraPdfDdts[i],r=d.righe[j];
+  r.prezzo=parseImportoExtra(val);
+  r.conferma=false;
+  document.getElementById('ext-pr-'+i+'-'+j).className=statoRigaPdfExtra(r);
+  document.getElementById('ext-pi-'+i+'-'+j).innerHTML=infoRigaPdfExtra(i,j);
+  var imp=importoRigaExtra(r);
+  document.getElementById('ext-pimp-'+i+'-'+j).textContent=isNaN(imp)?'-':fmtEuroExtra(imp);
+  document.getElementById('ext-ptot-'+i).textContent=fmtEuroExtra(totaleDdtPdfExtra(d));
+}
+
+function scartaPdfExtra(i){
+  extraPdfDdts.splice(i,1);
+  renderPdfExtra();
+}
+
+async function salvaPdfExtra(i){
+  var d=extraPdfDdts[i];if(!d||d.salvato||d.escluso||d.duplicato)return;
+  var msgId='msg-ext-pdf-'+i;
+  for(var j=0;j<d.righe.length;j++){
+    var r=d.righe[j];
+    if(isNaN(r.prezzo)||r.prezzo<0){showMsg(msgId,'Inserisci il prezzo per: '+escAbb(r.descrizione),'err');return;}
+    if(statoRigaPdfExtra(r)==='cambiato'&&!r.conferma){showMsg(msgId,'Spunta la conferma del nuovo prezzo per: '+escAbb(r.descrizione),'err');return;}
+  }
+  // Controllo sul database: il DDT potrebbe essere stato caricato nel frattempo
+  var esist=await apiGet('lavori_extra','select=id&numero_ddt=eq.'+encodeURIComponent(d.numero)+'&limit=1');
+  if(esist===null){showMsg(msgId,'Errore di collegamento, riprova','err');return;}
+  if(esist.length){d.duplicato=true;renderPdfExtra();return;}
+  var righe=d.righe.map(function(r){
+    return{data:d.data,cliente:d.cliente,descrizione:descCompletaExtra(r),numero_ddt:d.numero,
+      quantita:r.quantita,prezzo_unitario:Math.round(r.prezzo*10000)/10000,importo:importoRigaExtra(r)};
+  });
+  var ok=await apiPost('lavori_extra',righe);
+  if(!ok)return;
+  d.salvato=true;
+  renderPdfExtra();
+  showMsg('msg-ext-pdf','DDT '+escAbb(d.numero)+' salvato!','ok');
+  caricaExtra();
+}
+
+// Campi QUANTITÀ e PREZZO UNITARIO: visibili solo in modifica di righe che li hanno
+function mostraQtaPrezzoExtra(on){
+  document.getElementById('ext-qp').style.display=on?'':'none';
+  var imp=document.getElementById('ext-importo');
+  imp.readOnly=on;imp.style.background=on?'#f0f2f5':'';
+  if(!on){document.getElementById('ext-qta').value='';document.getElementById('ext-prezzo-u').value='';}
+}
+function qpAttiviExtra(){return document.getElementById('ext-qp').style.display!=='none';}
+function ricalcolaImportoExtra(){
+  var q=parseImportoExtra(document.getElementById('ext-qta').value);
+  var p=parseImportoExtra(document.getElementById('ext-prezzo-u').value);
+  document.getElementById('ext-importo').value=(isNaN(q)||isNaN(p))?'':String(Math.round(q*p*100)/100).replace('.',',');
+}
+
 async function salvaExtra(){
   var id=document.getElementById('ext-id').value;
   var data=document.getElementById('ext-data').value;
@@ -8031,8 +8349,15 @@ async function salvaExtra(){
   var descrizione=document.getElementById('ext-desc').value.trim();
   var importo=parseImportoExtra(document.getElementById('ext-importo').value);
   if(!data||!cliente||!descrizione){showMsg('msg-extra','Compila data, cliente e descrizione!','err');return;}
+  var b={data:data,cliente:cliente,descrizione:descrizione};
+  if(id&&qpAttiviExtra()){
+    var q=parseImportoExtra(document.getElementById('ext-qta').value);
+    var pu=parseImportoExtra(document.getElementById('ext-prezzo-u').value);
+    if(isNaN(q)||isNaN(pu)){showMsg('msg-extra','Quantità o prezzo unitario non validi (es. 360 e 1,35)','err');return;}
+    b.quantita=q;b.prezzo_unitario=Math.round(pu*10000)/10000;importo=q*pu;
+  }
   if(isNaN(importo)){showMsg('msg-extra','Importo non valido (es. 25,50)','err');return;}
-  var b={data:data,cliente:cliente,descrizione:descrizione,importo:Math.round(importo*100)/100};
+  b.importo=Math.round(importo*100)/100;
   var btn=document.getElementById('ext-salva');btn.disabled=true;
   try{
     if(id){
@@ -8056,6 +8381,13 @@ function modificaExtra(id){
   document.getElementById('ext-cliente').value=r.cliente||'';
   document.getElementById('ext-desc').value=r.descrizione||'';
   document.getElementById('ext-importo').value=r.importo==null?'':String(r.importo).replace('.',',');
+  var qp=r.quantita!=null&&r.prezzo_unitario!=null;
+  mostraQtaPrezzoExtra(qp);
+  if(qp){
+    document.getElementById('ext-qta').value=String(r.quantita).replace('.',',');
+    document.getElementById('ext-prezzo-u').value=String(r.prezzo_unitario).replace('.',',');
+    ricalcolaImportoExtra();
+  }
   document.getElementById('ext-titolo').textContent='Modifica lavoro extra';
   document.getElementById('ext-salva').textContent='SALVA MODIFICA';
   document.getElementById('ext-annulla').style.display='';
