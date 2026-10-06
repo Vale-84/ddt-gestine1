@@ -107,6 +107,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .ext-tab td.num { text-align: right; white-space: nowrap; }
 .ext-tab tr.nuovo td { background: #FFF2CC; }
 .ext-tab tr.cambiato td { background: #F8CBAD; }
+.ext-tab tr.listino td { background: #E2EFDA; }
+.ext-tab .ext-cod { color: #1F4E79; }
+.ext-info .ok { color: #375623; font-weight: bold; }
 .ext-tab input.ext-prezzo { width: 100px; margin-bottom: 0; padding: 8px; text-align: right; }
 .ext-info { font-size: 12px; color: #555; margin-top: 4px; }
 .ext-info .warn { color: #7B2C2C; font-weight: bold; }
@@ -8184,9 +8187,30 @@ function ultimoPrezzoExtra(lista,cliente,desc){
   });
   return best;
 }
+// Codice articolo: maiuscolo e senza spazi. "" e "*" = nessun codice vero (prezzo dallo storico)
+function normCodiceExtra(s){return String(s||'').toUpperCase().replace(/\s+/g,'');}
+function codiceVeroExtra(s){var c=normCodiceExtra(s);return c!==''&&c!=='*';}
+// Righe del listino ({codice,prezzo}) → {CODICE: prezzo}
+function mappaListinoExtra(lista){
+  var m={};
+  (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]=Number(l.prezzo);});
+  return m;
+}
 // EXTRA-PARSER-END
 
 var extraPdfDdts=[];
+
+// Listino completo: Supabase dà max 1000 righe per richiesta → a blocchi. null = errore
+async function caricaListinoExtra(){
+  var tutte=[];
+  while(true){
+    var b=await apiGet('listino','select=codice,prezzo&order=codice.asc&limit=1000&offset='+tutte.length);
+    if(b===null)return null;
+    if(!b.length)break;
+    tutte=tutte.concat(b);
+  }
+  return mappaListinoExtra(tutte);
+}
 
 async function leggiPdfExtra(input){
   var files=Array.prototype.slice.call(input.files||[]);
@@ -8194,6 +8218,8 @@ async function leggiPdfExtra(input){
   var ant=document.getElementById('ext-pdf-anteprima');
   ant.innerHTML='<div class="empty">Lettura PDF...</div>';
   await caricaExtra(); // storico prezzi e DDT già caricati aggiornati
+  var listino=await caricaListinoExtra();
+  if(listino===null){ant.innerHTML='';input.value='';showMsg('msg-ext-pdf','Errore nel caricamento del listino, riprova','err');return;}
   var trovati=[];
   try{
     for(var f=0;f<files.length;f++){
@@ -8220,23 +8246,42 @@ async function leggiPdfExtra(input){
     if(n)visti[n]=1;
     d.salvato=false;
     d.righe.forEach(function(r){
-      r.ultimo=ultimoPrezzoExtra(extraCache,d.cliente,r.descrizione);
-      r.prezzo=r.ultimo?Number(r.ultimo.prezzo_unitario):NaN;
       r.conferma=false;
+      r.ultimo=null;r.listino=null;
+      if(codiceVeroExtra(r.codice)){
+        // Codice vero: prezzo dal listino (se c'è), lo storico non conta
+        var c=normCodiceExtra(r.codice);
+        r.daListino=true;
+        if(listino.hasOwnProperty(c))r.listino=listino[c];
+        r.prezzo=r.listino!=null?r.listino:NaN;
+      }else{
+        r.daListino=false;
+        r.ultimo=ultimoPrezzoExtra(extraCache,d.cliente,r.descrizione);
+        r.prezzo=r.ultimo?Number(r.ultimo.prezzo_unitario):NaN;
+      }
     });
   });
   extraPdfDdts=trovati;
   renderPdfExtra();
 }
 
+// Righe con codice vero: 'listino' (verde), 'cambiato' (arancione, diverso dal listino), 'nuovo' (giallo, non in listino)
+// Righe con "*": 'nuovo' se mai fatto, 'cambiato' se diverso dall'ultimo prezzo
 function statoRigaPdfExtra(r){
-  if(!r.ultimo)return 'nuovo';
-  if(!isNaN(r.prezzo)&&Math.round(r.prezzo*10000)!==Math.round(Number(r.ultimo.prezzo_unitario)*10000))return 'cambiato';
-  return '';
+  var rif=r.daListino?r.listino:(r.ultimo?Number(r.ultimo.prezzo_unitario):null);
+  if(rif==null)return 'nuovo';
+  if(!isNaN(r.prezzo)&&Math.round(r.prezzo*10000)!==Math.round(rif*10000))return 'cambiato';
+  return r.daListino?'listino':'';
 }
 
 function infoRigaPdfExtra(i,j){
   var r=extraPdfDdts[i].righe[j],st=statoRigaPdfExtra(r);
+  var spunta='<label><input type="checkbox" '+(r.conferma?'checked ':'')+'onchange="extraPdfDdts['+i+'].righe['+j+'].conferma=this.checked"> Confermo il nuovo prezzo</label>';
+  if(r.daListino){
+    if(r.listino==null)return '<span class="warn">codice non in listino, inserisci prezzo</span>';
+    if(st==='cambiato')return '<span class="warn">diverso dal listino ('+fmtPrezzoExtra(r.listino)+')</span>'+spunta;
+    return '<span class="ok">prezzo da listino</span>';
+  }
   if(!r.ultimo)return '<span class="warn">articolo nuovo, inserisci prezzo</span>';
   var h='ultimo prezzo: '+fmtPrezzoExtra(r.ultimo.prezzo_unitario)+' del '+escAbb(fmtData(r.ultimo.data));
   if(st==='cambiato'){
@@ -8267,7 +8312,7 @@ function renderPdfExtra(){
     var bloccato=avvisi.length>0;
     var righe=d.righe.map(function(r,j){
       return '<tr id="ext-pr-'+i+'-'+j+'" class="'+statoRigaPdfExtra(r)+'">'
-        +'<td class="desc">'+escAbb(r.descrizione)
+        +'<td class="desc">'+(codiceVeroExtra(r.codice)?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
         +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
         +'<div class="ext-info" id="ext-pi-'+i+'-'+j+'">'+infoRigaPdfExtra(i,j)+'</div></td>'
         +'<td class="num" data-l="Quantità">'+fmtNumExtra(r.quantita)+' '+escAbb(r.um)+'</td>'
@@ -8318,7 +8363,7 @@ async function salvaPdfExtra(i){
   if(esist===null){showMsg(msgId,'Errore di collegamento, riprova','err');return;}
   if(esist.length){d.duplicato=true;renderPdfExtra();return;}
   var righe=d.righe.map(function(r){
-    return{data:d.data,cliente:d.cliente,descrizione:descCompletaExtra(r),numero_ddt:d.numero,
+    return{data:d.data,cliente:d.cliente,descrizione:descCompletaExtra(r),numero_ddt:d.numero,codice_articolo:normCodiceExtra(r.codice)||null,
       quantita:r.quantita,prezzo_unitario:Math.round(r.prezzo*10000)/10000,importo:importoRigaExtra(r)};
   });
   var ok=await apiPost('lavori_extra',righe);

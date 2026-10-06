@@ -16,7 +16,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {
   --blu: #1F4E79; --blu-scuro: #163a5e; --giallo: #FFD966; --verde: #217346; --rosso: #C00000; --arancio: #C55A11;
-  --c-az: #2E75B6; --c-be: #5B2C8D; --c-al: #E8A000;
+  --c-az: #2E75B6; --c-be: #5B2C8D; --c-fo: #1E9E8A; --c-al: #E8A000;
 }
 html { -webkit-text-size-adjust: 100%; }
 body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; background: #f0f2f5; color: #222; font-size: 17px; padding-bottom: env(safe-area-inset-bottom); }
@@ -133,9 +133,10 @@ table.and tbody tr { cursor: pointer; }
 var CFG={url:'https://ddziwcyxjgzcmtlqltrc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkeml3Y3l4amd6Y210bHFsdHJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDE4NjUsImV4cCI6MjA5NTExNzg2NX0.xBu-nFP-7G1I4gj7vU0iaN4LWYmJ1kwUAbwr0UjN8l8'};
 var PIN='1234', PIN_KEY='fatturato_pin_ok';
 var GRUPPI=[
-  {k:'AZZURRA',nome:'AZZURRA',col:'#2E75B6'},
-  {k:'BERGAMASCO',nome:'BERGAMASCO',col:'#5B2C8D'},
-  {k:'ALTRI',nome:'ALTRI CLIENTI',col:'#E8A000'}
+  {k:'AZZURRA',nome:'AZZURRA',col:'#2E75B6',leg:'Azzurra',th:'Azzurra'},
+  {k:'BERGAMASCO',nome:'BERGAMASCO',col:'#5B2C8D',leg:'Bergamasco',th:'Bergam.'},
+  {k:'FOPPA',nome:'FOPPA PEDRETTI',col:'#1E9E8A',leg:'Foppa Pedretti',th:'Foppa'},
+  {k:'ALTRI',nome:'ALTRI CLIENTI',col:'#E8A000',leg:'Altri clienti',th:'Altri'}
 ];
 var MESI=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 var MESI_C=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
@@ -220,7 +221,7 @@ async function carica(){
     var res=await Promise.all([
       caricaTutto('ddt_uscita','id,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt','id.asc'),
       caricaTutto('listino','codice,prezzo','codice.asc'),
-      caricaTutto('lavori_extra','id,data,cliente,descrizione,importo,numero_ddt,quantita,prezzo_unitario','id.asc')
+      caricaTutto('lavori_extra','id,data,cliente,descrizione,importo,numero_ddt,quantita,prezzo_unitario,codice_articolo','id.asc')
     ]);
     var listino={};
     res[1].forEach(function(l){if(l.codice!=null&&l.prezzo!=null)listino[String(l.codice).toUpperCase().replace(/\s+/g,'')]=Number(l.prezzo);});
@@ -237,7 +238,10 @@ async function carica(){
     });
     res[2].forEach(function(r){
       if(!r.data)return;
-      nuove.push({fonte:'extra',data:String(r.data).slice(0,10),gruppo:'ALTRI',cliente:r.cliente||'',descrizione:r.descrizione||'',
+      // Foppa Pedretti ha il suo riquadro (righe da lavori_extra), tutti gli altri finiscono in ALTRI
+      var g=norm(r.cliente).indexOf('FOPPA')>=0?'FOPPA':'ALTRI';
+      nuove.push({fonte:'extra',data:String(r.data).slice(0,10),gruppo:g,cliente:r.cliente||'',descrizione:r.descrizione||'',
+        codice:String(r.codice_articolo||'').toUpperCase().replace(/\s+/g,''),
         numero_ddt:r.numero_ddt,quantita:r.quantita,prezzo_unitario:r.prezzo_unitario,importo:Number(r.importo)||0});
     });
     righe=nuove;
@@ -258,10 +262,11 @@ function righePeriodo(tipo,inizio){
   return righe.filter(function(r){return r.data>=a&&r.data<b;});
 }
 function riepilogo(rr){
-  var o={totale:0,AZZURRA:{tot:0,n:0},BERGAMASCO:{tot:0,n:0},ALTRI:{tot:0,n:0}};
+  var o={totale:0,AZZURRA:{tot:0,n:0},BERGAMASCO:{tot:0,n:0},FOPPA:{tot:0,n:0},ALTRI:{tot:0,n:0}};
   rr.forEach(function(r){
     o.totale+=r.importo;o[r.gruppo].tot+=r.importo;
-    o[r.gruppo].n+=r.fonte==='ddt'?r.pezzi:1; // pezzi per i DDT, numero di lavori per gli extra
+    // pezzi per DDT e Foppa, numero di lavori per gli altri clienti
+    o[r.gruppo].n+=r.fonte==='ddt'?r.pezzi:r.gruppo==='FOPPA'?(Number(r.quantita)||0):1;
   });
   return o;
 }
@@ -324,7 +329,7 @@ function finestra(){
 function andamento(){
   var t=stato.tipo,p=finestra(),sel=iso(stato.inizio);
   if(!p.length)return '<div class="vuoto">Nessun dato</div>';
-  var leg='<div class="legenda">'+GRUPPI.map(function(g){return '<span><i style="background:'+g.col+'"></i>'+(g.k==='ALTRI'?'Altri clienti':g.nome.charAt(0)+g.nome.slice(1).toLowerCase())+'</span>';}).join('')+'</div>';
+  var leg='<div class="legenda">'+GRUPPI.map(function(g){return '<span><i style="background:'+g.col+'"></i>'+g.leg+'</span>';}).join('')+'</div>';
 
   // Grafico a barre impilate in SVG (nessuna libreria)
   var W=360,H=210,L=40,R=6,T=8,B=24,pw=W-L-R,ph=H-T-B;
@@ -353,11 +358,11 @@ function andamento(){
   s+='</svg>';
 
   // Tabella con gli stessi numeri (dal più recente)
-  var tb='<div class="tab-scroll"><table class="and"><thead><tr><th>'+(t==='W'?'Settimana':'Mese')+'</th><th>Azzurra</th><th>Bergam.</th><th>Altri</th><th>Totale</th></tr></thead><tbody>'
+  var tb='<div class="tab-scroll"><table class="and"><thead><tr><th>'+(t==='W'?'Settimana':'Mese')+'</th>'+GRUPPI.map(function(g){return '<th>'+g.th+'</th>';}).join('')+'<th>Totale</th></tr></thead><tbody>'
     +p.slice().reverse().map(function(x){
       var k=iso(x.d);
       return '<tr class="'+(k===sel?'sel':'')+'" onclick="vaiA(\''+k+'\')"><td>'+(t==='W'?etichettaBreve('W',x.d):MESI_C[x.d.getMonth()]+' '+x.d.getFullYear())+'</td>'
-        +'<td>'+euro(x.r.AZZURRA.tot,0)+'</td><td>'+euro(x.r.BERGAMASCO.tot,0)+'</td><td>'+euro(x.r.ALTRI.tot,0)+'</td><td><b>'+euro(x.r.totale,0)+'</b></td></tr>';
+        +GRUPPI.map(function(g){return '<td>'+euro(x.r[g.k].tot,0)+'</td>';}).join('')+'<td><b>'+euro(x.r.totale,0)+'</b></td></tr>';
     }).join('')+'</tbody></table></div>';
   return leg+'<div id="grafico">'+s+'</div>'+tb;
 }
@@ -377,20 +382,21 @@ function apriDettaglio(k){
   var rr=righePeriodo(stato.tipo,stato.inizio).filter(function(r){return r.gruppo===k;});
   document.getElementById('sheet-tit').textContent=g.nome+' · '+euro(riepilogo(rr)[k].tot);
   document.getElementById('sheet-sub').textContent=etichetta(stato.tipo,stato.inizio);
-  document.getElementById('sheet-body').innerHTML=k==='ALTRI'?dettaglioAltri(rr):dettaglioArticoli(rr);
+  document.getElementById('sheet-body').innerHTML=k==='ALTRI'?dettaglioAltri(rr):k==='FOPPA'?dettaglioArticoli(rr.map(articoloFoppa)):dettaglioArticoli(rr);
   document.getElementById('sheet').classList.add('on');
   document.body.style.overflow='hidden';
 }
 function chiudiDettaglio(){document.getElementById('sheet').classList.remove('on');document.body.style.overflow='';}
 
-// Azzurra / Bergamasco: articoli del periodo, dal più alto al più basso
+// Azzurra / Bergamasco / Foppa: articoli del periodo, dal più alto al più basso
 function dettaglioArticoli(rr){
   if(!rr.length)return '<div class="card vuoto">Nessuna riga nel periodo</div>';
   var art={},ord=[];
   rr.forEach(function(r){
-    var k=r.codice||'?';
+    var k=r.chiave||r.codice||'?';
     if(!art[k]){art[k]={codice:r.codice,desc:r.descrizione,pezzi:0,importo:0,senzaPrezzo:r.senzaPrezzo,prezzo:r.prezzo};ord.push(k);}
     art[k].pezzi+=r.pezzi;art[k].importo+=r.importo;
+    if(art[k].prezzo==null||r.prezzo==null||Math.round(art[k].prezzo*10000)!==Math.round(r.prezzo*10000))art[k].prezzo=null; // prezzi diversi nel periodo: non si mostra
   });
   var lista=ord.map(function(k){return art[k];}).sort(function(a,b){
     if(a.senzaPrezzo!==b.senzaPrezzo)return a.senzaPrezzo?1:-1;
@@ -398,9 +404,17 @@ function dettaglioArticoli(rr){
   });
   return '<div class="card">'+lista.map(function(a){
     return '<div class="riga"><div class="i"><div class="d">'+esc(a.desc)+'</div>'
-      +'<div class="s"><b>'+esc(a.codice)+'</b> · '+num(a.pezzi)+' pz'+(a.senzaPrezzo?'':' × '+prezzo(a.prezzo))+'</div></div>'
+      +'<div class="s"><b>'+esc(a.codice)+'</b> · '+num(a.pezzi)+' pz'+(a.senzaPrezzo||a.prezzo==null?'':' × '+prezzo(a.prezzo))+'</div></div>'
       +(a.senzaPrezzo?'<div class="v np">⚠ senza prezzo</div>':'<div class="v">'+euro(a.importo)+'</div>')+'</div>';
   }).join('')+'</div>';
+}
+
+// Riga lavori_extra di Foppa → stessa forma delle righe DDT. Senza codice vero ("*" o vuoto) si raggruppa per descrizione.
+function articoloFoppa(r){
+  var desc=String(r.descrizione||'').split(' — ')[0];
+  var vero=r.codice&&r.codice!=='*';
+  return {codice:vero?r.codice:'*',chiave:vero?r.codice:'*|'+norm(desc),descrizione:desc,
+    pezzi:Number(r.quantita)||0,importo:r.importo,prezzo:r.prezzo_unitario,senzaPrezzo:false};
 }
 
 // Altri clienti: raggruppati per cliente con il totale, sotto le righe
