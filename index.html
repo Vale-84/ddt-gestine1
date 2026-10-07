@@ -719,8 +719,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="hidden" id="du-cod"><input type="hidden" id="du-dsc">
     <label>Q.ta Verniciato</label><input type="number" id="du-qvern" placeholder="0">
     <label>Q.ta Imballato</label><input type="number" id="du-qimb" placeholder="0">
-    <label>Q.ta DDT Uscita</label><input type="number" id="du-qddt" placeholder="0" oninput="aggiornaMagForm('du')">
+    <label>Q.ta DDT Uscita</label><input type="number" id="du-qddt" placeholder="0" oninput="aggiornaMagForm('du');aggiornaProposteDU()">
     <div class="mag-form" id="du-mag"></div>
+    <div id="du-proposte"></div>
     <label>Note</label><input type="text" id="du-note">
     <button class="btn btn-blue" onclick="salvaDDTUscita()">SALVA DDT USCITA</button>
   </div>
@@ -1289,6 +1290,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div class="modal-desc" id="modal-desc"></div>
     <input type="hidden" id="modal-id">
     <input type="hidden" id="modal-table">
+    <div id="mod-nddt-box" style="display:none;">
+      <label>N. DDT</label>
+      <input type="text" id="mod-nddt" style="margin-bottom:10px;">
+    </div>
     <label>Cerca articolo corretto</label>
     <div class="cerca-box">
       <input class="cerca-input" id="mod-cerca" placeholder="Scrivi codice o descrizione..." oninput="cerca('mod')" autocomplete="off">
@@ -1733,6 +1738,7 @@ function selArt(p,cod,desc){
   document.getElementById(p+'-ris').style.display='none';
   var s=document.getElementById(p+'-sel');s.textContent='✅ '+cod+' — '+desc;s.style.display='block';
   if(p==='du'||p==='imb2')aggiornaMagForm(p);
+  if(p==='du')aggiornaProposteDU();
 }
 
 document.addEventListener('click',function(e){document.querySelectorAll('.cerca-risultati').forEach(function(el){if(!el.contains(e.target))el.style.display='none';});});
@@ -2253,8 +2259,12 @@ async function salvaRigheFotoOverlay(){
   }
 }
 
-function apriModale(id,desc,table){
+// nddt: numero DDT attuale (solo DDT Uscita, l'unico in cui si può cambiare)
+function apriModale(id,desc,table,nddt){
   document.getElementById('modal-id').value=id;
+  document.getElementById('mod-nddt-box').style.display=table==='ddt_uscita'?'':'none';
+  document.getElementById('mod-nddt').value=nddt||'';
+  document.getElementById('mod-nddt').dataset.orig=nddt||'';
   document.getElementById('modal-table').value=table||'whatsapp_righe';
   document.getElementById('modal-desc').textContent=desc;
   document.getElementById('mod-cerca').value='';
@@ -2279,10 +2289,15 @@ async function salvaModifica(){
   var cod=manualCod||document.getElementById('mod-cod').value;
   var dsc=manualDsc||document.getElementById('mod-dsc').value;
   var qty=document.getElementById('mod-qty').value;
-  if(!cod){alert('Inserisci o seleziona un articolo!');return;}
-  var payload={codice_articolo:cod};
+  // DDT Uscita: si può cambiare anche solo il numero DDT (l'articolo resta quello di prima)
+  var nddtEl=document.getElementById('mod-nddt');
+  var nddt=table==='ddt_uscita'?normNumeroDdt(nddtEl.value):'';
+  var nddtCambiato=table==='ddt_uscita'&&nddt&&nddt!==nddtEl.dataset.orig;
+  if(!cod&&!nddtCambiato){alert('Inserisci o seleziona un articolo!');return;}
+  var payload=cod?{codice_articolo:cod}:{};
+  if(nddtCambiato)payload.numero_ddt=nddt;
   if(table==='ddt_entrata' || table==='ddt_uscita'){
-    payload.descrizione=dsc;
+    if(cod)payload.descrizione=dsc;
     if(qty){payload.quantita_ddt=parseFloat(qty);}
   } else if(table==='whatsapp_righe' || table==='whatsapp_uscita'){
     payload.descrizione_articolo=dsc;
@@ -5282,9 +5297,56 @@ async function importaExcelUscita(){
 }
 
 // ── DDT USCITA ────────────────────────────────────────────────────────
+// Numero DDT come lo scrive Nova (maiuscolo, senza spazi): il Controlla fattura lo cerca uguale
+function normNumeroDdt(s){return String(s||'').replace(/\s+/g,'').toUpperCase();}
+
+// BERGAMASCO: in fattura Nova con l'imballo lettino (B0IMBLETTI) ci sono quasi sempre, con la
+// stessa quantità, i cassetti C0BI e il materiale di consumo (riga "*" in Nova, qui CONSUMO).
+// Si propongono già spuntati; non si propongono se il DDT li ha già.
+var RIGHE_CON_IMBLETTI=[{cod:'C0BI',desc:'CASSETTI ASSEMBLATI BIANCHI CER'},{cod:'CONSUMO',desc:'MATERIALE DI CONSUMO COLLA/REGGIA'}];
+// righe: [{cod,qty}] di un DDT → [{cod,desc,qty,attiva}]
+function proposteImbLetti(righe,cliente){
+  if(String(cliente||'').toUpperCase().indexOf('BERGAMASCO')<0)return [];
+  var q=0,presenti={};
+  (righe||[]).forEach(function(r){
+    var c=String(r.cod||'').trim().toUpperCase();presenti[c]=1;
+    if(c==='B0IMBLETTI')q+=Number(r.qty)||0;
+  });
+  if(!q)return [];
+  return RIGHE_CON_IMBLETTI.filter(function(p){return !presenti[p.cod];}).map(function(p){return{cod:p.cod,desc:p.desc,qty:q,attiva:true};});
+}
+function htmlProposteImbLetti(proposte,onchange){
+  if(!proposte.length)return '';
+  return '<div style="margin:6px 0 10px;padding:8px 10px;background:#FFF8E5;border-left:3px solid #C55A11;font-size:13px;">'
+    +'<div style="color:#666;margin-bottom:4px;">Con l\'imballo lettino aggiungi anche:</div>'
+    +proposte.map(function(p,k){
+      return '<label style="display:flex;align-items:center;gap:8px;margin:4px 0;"><input type="checkbox" '+(p.attiva?'checked ':'')
+        +'onchange="'+onchange(k)+'" style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;">'
+        +'<span><strong>'+p.cod+'</strong> '+p.desc+' — '+p.qty+' pz</span></label>';
+    }).join('')+'</div>';
+}
+
+// Form "Nuovo DDT Uscita": proposte ricalcolate quando cambiano articolo o quantità (le spunte tolte restano tolte)
+var duProposte=[];
+function aggiornaProposteDU(){
+  var cod=document.getElementById('du-cod').value;
+  var qta=parseInt(document.getElementById('du-qddt').value)||0;
+  var prima={};duProposte.forEach(function(p){prima[p.cod]=p.attiva;});
+  duProposte=proposteImbLetti([{cod:cod,qty:qta}],document.getElementById('du-cliente').value||getCliente());
+  duProposte.forEach(function(p){if(prima.hasOwnProperty(p.cod))p.attiva=prima[p.cod];});
+  document.getElementById('du-proposte').innerHTML=htmlProposteImbLetti(duProposte,function(k){return 'duProposte['+k+'].attiva=this.checked';});
+}
+
 async function salvaDDTUscita(){
-  var b={numero_ddt:document.getElementById('du-nddt').value,data_ddt:document.getElementById('du-data').value||null,cliente:document.getElementById('du-cliente').value,codice_articolo:document.getElementById('du-cod').value,descrizione:document.getElementById('du-dsc').value,quantita_verniciato:parseInt(document.getElementById('du-qvern').value)||0,quantita_imballato:parseInt(document.getElementById('du-qimb').value)||0,quantita_ddt:parseInt(document.getElementById('du-qddt').value)||0,note:document.getElementById('du-note').value};
-  var r=await apiPost('ddt_uscita',b);if(r){showMsg('msg-ddt-u','Salvato!','ok');caricaDDTU();}
+  var b={numero_ddt:normNumeroDdt(document.getElementById('du-nddt').value),data_ddt:document.getElementById('du-data').value||null,cliente:document.getElementById('du-cliente').value,codice_articolo:document.getElementById('du-cod').value,descrizione:document.getElementById('du-dsc').value,quantita_verniciato:parseInt(document.getElementById('du-qvern').value)||0,quantita_imballato:parseInt(document.getElementById('du-qimb').value)||0,quantita_ddt:parseInt(document.getElementById('du-qddt').value)||0,note:document.getElementById('du-note').value};
+  var r=await apiPost('ddt_uscita',b);if(!r)return;
+  var extra=duProposte.filter(function(p){return p.attiva;});
+  for(var i=0;i<extra.length;i++){
+    var p=extra[i];
+    await apiPost('ddt_uscita',{numero_ddt:b.numero_ddt,data_ddt:b.data_ddt,cliente:b.cliente,codice_articolo:p.cod,descrizione:p.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:p.qty,note:'Con B0IMBLETTI'});
+  }
+  duProposte=[];document.getElementById('du-proposte').innerHTML='';
+  showMsg('msg-ddt-u','Salvato!'+(extra.length?' (con '+extra.map(function(p){return p.cod;}).join(' e ')+')':''),'ok');caricaDDTU();
 }
 
 async function caricaDDTU(){
@@ -5299,7 +5361,7 @@ async function caricaDDTU(){
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
   var ctx=await caricaCtxMag(d);
-  l.innerHTML=d.map(function(r){var mag=htmlMag(giacenzaRigaMag(ctx,{cod:r.codice_articolo,data:dataRigaMag(r),id:r.id,creata:r.created_at||'',tipo:'ddt'}),r.quantita_ddt);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+'</div></div>'+mag+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+  l.innerHTML=d.map(function(r){var mag=htmlMag(giacenzaRigaMag(ctx,{cod:r.codice_articolo,data:dataRigaMag(r),id:r.id,creata:r.created_at||'',tipo:'ddt'}),r.quantita_ddt);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+'</div></div>'+mag+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\',\''+String(r.numero_ddt||'').replace(/\'/g,"\\'")+'\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
 }
 
 function toggleSelAllDDTU(checked){
@@ -5460,9 +5522,10 @@ async function leggiPDFUscita(input){
         if(m2)articoli.push({cod:'',desc:m2[1].trim().replace(/\s+/g,' '),qty:parseQty(m2[2])});
       });
     }
-    pdfUscDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
+    pdfUscDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli,proposte:proposteImbLetti(articoli,cliente||getCliente())};
     var html='<div class="pdf-preview" style="border-left-color:#217346;"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info"><strong>Cliente:</strong> '+(cliente||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Articoli ('+articoli.length+'):</strong></div>';
-    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
+    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});
+    html+=htmlProposteImbLetti(pdfUscDati.proposte,function(k){return 'pdfUscDati.proposte['+k+'].attiva=this.checked';})+'</div>';
     prev.innerHTML=html;
     if(articoli.length){document.getElementById('btn-importa-usc').style.display='block';showMsg('msg-ddt-u',articoli.length+' articoli trovati!','ok');}
     if(nddt)document.getElementById('du-nddt').value=nddt;
@@ -5480,6 +5543,11 @@ async function importaPDFUscita(){
     var a=pdfUscDati.articoli[i];
     var r=await apiPost('ddt_uscita',{numero_ddt:pdfUscDati.nddt,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente||getCliente(),codice_articolo:a.cod||'',descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF'});
     if(r)n++;
+  }
+  var extra=(pdfUscDati.proposte||[]).filter(function(p){return p.attiva;});
+  for(var k=0;k<extra.length;k++){
+    var rx=await apiPost('ddt_uscita',{numero_ddt:pdfUscDati.nddt,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente||getCliente(),codice_articolo:extra[k].cod,descrizione:extra[k].desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:extra[k].qty,note:'Con B0IMBLETTI'});
+    if(rx)n++;
   }
   showMsg('msg-ddt-u',n+' articoli importati!','ok');
   document.getElementById('pdf-usc-prev').style.display='none';
@@ -5564,6 +5632,7 @@ function renderPdfMultiPreview(){
     var dettagli=d.righe.map(function(a){
       return '<div class="pdf-item"><div class="pdesc"><strong>'+a.cod+'</strong> '+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';
     }).join('');
+    dettagli+=htmlProposteImbLetti(d.proposte||[],function(k){return 'pdfMultiUscDati['+idx+'].proposte['+k+'].attiva=this.checked';});
     var dupeBadge=d.dupe?'<span class="badge badge-warn" style="margin-left:8px;">Già presente — verrà saltato</span>':'';
     return '<div class="row-item" style="display:block;'+(d.dupe?'opacity:0.6;':'')+'">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
@@ -5608,6 +5677,11 @@ async function importaPDFMultiUscita(){
         var a=d.righe[j];
         var r=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:a.cod,descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF multi-DDT'});
         if(r)righeOk++;
+      }
+      var extra=(d.proposte||[]).filter(function(p){return p.attiva;});
+      for(var k=0;k<extra.length;k++){
+        var rx=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:extra[k].cod,descrizione:extra[k].desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:extra[k].qty,note:'Con B0IMBLETTI'});
+        if(rx)righeOk++;
       }
     }
     document.getElementById('modal-pdf-multi').style.display='none';
@@ -6222,7 +6296,12 @@ async function leggiPDFMultiBergamasco(input){
     var esistentiNum={};
     var esistenti=await apiGet('ddt_uscita','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
     if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
-    ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
+    ddts.forEach(function(d){
+      d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;
+      // Con B0IMBLETTI: C0BI e CONSUMO proposti (dettagli aperti così si vedono le spunte)
+      d.proposte=d.dupe?[]:proposteImbLetti(d.righe,'BERGAMASCO');
+      d.aperto=d.proposte.length>0;
+    });
     pdfMultiUscDati=ddts;
     status.innerHTML='';
     apriModalePdfMulti();
@@ -6827,6 +6906,7 @@ function calcolaFifoBer(ent,usc,abb){
 // righe {cod,cod_b0s,desc,ric,spe,gia}. Usata anche dalle etichette MAG di DDT Uscita e Imballo.
 function calcolaGiacenzeMag(ent,usc,abb,cliente){
   var map={};
+  usc=(usc||[]).filter(function(r){return !fuoriMag(r.codice_articolo);});
   if(cliente!=='AZZURRA'){
     // BERGAMASCO: Ricevuto = DDT Entrata per codice; Spedito di un BER = uscite dei suoi
     // B0 assegnate in FIFO (vedi calcolaFifoBer). Uscite di codici non abbinati restano
@@ -6879,6 +6959,10 @@ function calcolaGiacenzeMag(ent,usc,abb,cliente){
   }
   return Object.values(map).map(function(a){a.gia=a.ric-a.spe;a.daNova=false;return a;});
 }
+// Codici che non sono merce (es. CONSUMO, materiale di consumo Bergamasco):
+// non contano nel Magazzino e non hanno l'etichetta MAG
+var CODICI_FUORI_MAG=['CONSUMO'];
+function fuoriMag(cod){return CODICI_FUORI_MAG.indexOf(String(cod||'').trim().toUpperCase())>=0;}
 // Abbinamenti BER (uscite di AZZURRA): B0 -> BER, l'ultimo abbinamento vince
 function b0ToBerMag(abb){
   var m={};
@@ -6920,7 +7004,7 @@ function chiaviMag(ctx,cod){
 // → {gia, nova} oppure null (nessuna etichetta)
 function giacenzaRigaMag(ctx,riga){
   var cod=String(riga.cod||'').trim().toUpperCase();
-  if(!ctx||!cod)return null;
+  if(!ctx||!cod||fuoriMag(cod))return null;
   var chiavi=chiaviMag(ctx,cod);
   if(ctx.cliente==='AZZURRA'&&ctx.nova.hasOwnProperty(chiavi[0])){
     if(riga.creata!==undefined&&!(ctx.novaImport&&String(riga.creata||'')>ctx.novaImport))return null;
@@ -8617,6 +8701,9 @@ function confrontaFatturaExtra(fattura,lavori,opz){
   var esiti=fattura.righe.map(function(r){
     var e={riga:r,chiave:chiaveDescFattExtra(r.descrizione+' '+r.note.join(' ')),app:null,incerto:false,qtaDiversa:false,storico:null,motivi:[],rosso:false,arancio:false,diff:0};
     e.codiceVero=codiceVeroExtra(r.codice);
+    e.codice=e.codiceVero?normCodiceExtra(r.codice):'';
+    // BERGAMASCO: la riga "*" MATERIALE DI CONSUMO di Nova è la riga CONSUMO del DDT dell'app
+    if(!e.codiceVero&&gruppo==='BERGAMASCO'&&/MATERIALE DI CONSUMO/i.test(r.descrizione)){e.codice='CONSUMO';e.codiceVero=true;}
     e.senzaPrezzo=!isNaN(r.quantita)&&(isNaN(r.prezzo)||isNaN(r.importo));
     e.calcoloOk=!isNaN(r.quantita)&&!isNaN(r.prezzo)&&!isNaN(r.importo)&&Math.abs(Math.round(r.quantita*r.prezzo*100)/100-r.importo)<=0.0101;
     e.ddtCaricato=!!(r.ddt&&perDdt[normTestoExtra(r.ddt)]);
@@ -8653,7 +8740,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
 
   // ── Quantità in fattura per DDT + codice (righe con codice di AZZURRA/BERGAMASCO)
   var qFatt={};
-  esiti.forEach(function(e){if(e.usaUscita&&e.riga.ddt&&!isNaN(e.riga.quantita)){var k=normTestoExtra(e.riga.ddt)+'|'+normCodiceExtra(e.riga.codice);qFatt[k]=(qFatt[k]||0)+e.riga.quantita;}});
+  esiti.forEach(function(e){if(e.usaUscita&&e.riga.ddt&&!isNaN(e.riga.quantita)){var k=normTestoExtra(e.riga.ddt)+'|'+e.codice;qFatt[k]=(qFatt[k]||0)+e.riga.quantita;}});
 
   esiti.forEach(function(e){
     var r=e.riga;
@@ -8662,7 +8749,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
     if(!r.ddt)arancio(e,'riga senza "Rif" DDT sopra, da verificare');
     if(e.codiceVero){
       // Prezzo: dal listino, arrotondato a 2 decimali come Nova
-      var c=normCodiceExtra(r.codice),li=listino.hasOwnProperty(c)?listino[c]:null;
+      var c=e.codice,li=listino.hasOwnProperty(c)?listino[c]:null;
       if(!li){e.nonInListino=true;arancio(e,'codice non in listino');}
       else{
         e.prezzoListino=arrot2Extra(li.prezzo);
@@ -8681,7 +8768,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
     if(e.usaUscita){
       // Quantità: confronto con ddt_uscita (somma per DDT + codice)
       if(!r.ddt)return;
-      var nd=normTestoExtra(r.ddt),k=nd+'|'+normCodiceExtra(r.codice);
+      var nd=normTestoExtra(r.ddt),k=nd+'|'+e.codice;
       if(!uscDdt[nd])arancio(e,'DDT '+r.ddt+' non caricato nell\'app');
       else if(!usc[k])arancio(e,'codice non presente nel DDT '+r.ddt+' dell\'app');
       else{
@@ -9000,7 +9087,7 @@ function nomeListinoFattExtra(cl){return cl.toLowerCase().replace(/\b\w/g,functi
 function rigaListinoFattExtra(f,e){
   var cl=clienteListinoFattExtra(f.cliente),r=e.riga;
   if(!e.nonInListino||!cl)return null;
-  return{codice:normCodiceExtra(r.codice),cliente:cl,descrizione:r.descrizione,prezzo:isNaN(r.prezzo)?NaN:Math.round(r.prezzo*10000)/10000};
+  return{codice:e.codice,cliente:cl,descrizione:r.descrizione,prezzo:isNaN(r.prezzo)?NaN:Math.round(r.prezzo*10000)/10000};
 }
 // Codici mancanti della fattura, una volta sola ciascuno (meglio la riga che ha il prezzo)
 function mancantiListinoFattExtra(f,c){
@@ -9133,7 +9220,7 @@ function htmlFatturaExtra(f,c,nomeFile,fi){
     }
     var info=e.motivi.map(function(m){return m.t?'<span class="'+m.t+'">'+escAbb(m.s)+'</span>':escAbb(m.s);});
     righe+='<tr class="f-'+e.stato+'">'
-      +'<td class="desc">'+(e.codiceVero?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
+      +'<td class="desc">'+(e.codiceVero?'<b class="ext-cod">'+escAbb(e.codice)+'</b> ':'')+escAbb(r.descrizione)
       +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
       +'<div class="ext-info">'+info.join('<br>')+'</div>'
       +(!rigaListinoFattExtra(f,e)?'':fattExtraPrezzo&&fattExtraPrezzo.i===fi&&fattExtraPrezzo.k===k?htmlPrezzoListinoFattExtra(fi,k)
