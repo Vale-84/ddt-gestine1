@@ -167,6 +167,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .mag-ok { background: #E2EFDA; color: #375623; white-space: nowrap; }
 .mag-poco { background: #FCE4D6; color: #C55A11; white-space: nowrap; }
 .mag-no { background: #FFC7CE; color: #C00000; white-space: nowrap; }
+.mag-ignota { background: #E7E6E6; color: #595959; white-space: nowrap; }
 .mag-form { margin: -4px 0 10px; min-height: 0; }
 .mag-form .badge { font-size: 13px; padding: 4px 10px; }
 .stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
@@ -6925,6 +6926,9 @@ function giacenzaRigaMag(ctx,riga){
     if(riga.creata!==undefined&&!(ctx.novaImport&&String(riga.creata||'')>ctx.novaImport))return null;
     return{gia:ctx.nova[chiavi[0]],nova:true};
   }
+  // Codice senza nessuna entrata (a qualsiasi data) e senza abbinamento: giacenza sconosciuta, non "zero"
+  var abbinato=ctx.cliente!=='AZZURRA'?!!ctx.fifo[cod]:!!ctx.b0ToBer[cod];
+  if(!abbinato&&!ctx.ent.some(function(e){return chiavi.indexOf((e.codice_articolo||'').trim().toUpperCase())>=0;}))return{gia:0,nova:false,nessunaEntrata:true};
   var d=riga.data||'9999-12-31';
   var ent=ctx.ent.filter(function(e){return dataRigaMag(e)<=d;});
   var usc=ctx.usc.filter(function(u){
@@ -6943,6 +6947,7 @@ function giacenzaRigaMag(ctx,riga){
 }
 function htmlMag(g,qta){
   if(!g)return '';
+  if(g.nessunaEntrata)return '<span class="badge mag-ignota" title="Nessuna DDT Entrata e nessun abbinamento per questo codice">MAG ? nessuna entrata</span>';
   var tit=g.nova?'Aperto da Nova (ultimo import)':'Giacenza alla data della riga: ricevuto − spedito prima, come nella scheda Magazzino';
   qta=Number(qta)||0;
   if(g.gia<=0)return '<span class="badge mag-no" title="'+tit+'">NON IN MAGAZZINO</span>';
