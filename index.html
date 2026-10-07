@@ -1225,6 +1225,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-blue" onclick="salvaConfig()">SALVA</button>
   </div>
   <div class="card">
+    <h2>Backup dati</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Scarica un file Excel con tutte le tabelle Supabase dell'app (un foglio per tabella, tutti i clienti). Solo lettura: non modifica niente.</p>
+    <button class="btn btn-green" id="btn-backup" onclick="scaricaBackup()">SCARICA BACKUP</button>
+    <div id="msg-backup"></div>
+  </div>
+  <div class="card">
     <h2>Aggiungi nuovo articolo</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Inserisci il codice articolo e la descrizione, poi salva su Supabase.</p>
     <label>Codice articolo</label><input type="text" id="new-art-code" placeholder="es. ABC123">
@@ -1480,6 +1486,65 @@ function salvaConfig(){
   document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Configurato</span>';
   document.getElementById('conn-status').textContent='Connesso: '+url.replace('https://','').split('.')[0];
   caricaArticoli();
+}
+
+// BACKUP: tutte le tabelle dell'app in un Excel, un foglio per tabella. Solo GET, tutti i clienti
+// (fetch diretto: apiGet filtrerebbe alcune tabelle sul cliente attivo)
+var TABELLE_BACKUP=['articoli','ddt_entrata','ddt_uscita','sostituzioni','abbinamenti_ber','abbinamenti_azzurra','sostituzioni_ber','sostituzioni_azzurra',
+  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria'];
+// Ordine stabile per i blocchi da 1000 (le tabelle senza id hanno un'altra chiave)
+var ORDINE_BACKUP={listino:'codice.asc,cliente.asc',impostazioni_azzurra:'chiave.asc'};
+async function leggiTabellaBackup(t){
+  var c=getConfig(),tutte=[],ordine=ORDINE_BACKUP[t]||'id.asc';
+  while(true){
+    var r=await fetch(c.url+'/rest/v1/'+t+'?select=*'+(ordine?'&order='+ordine:''),{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key,'Range':tutte.length+'-'+(tutte.length+999)}});
+    // Tabella senza colonna id (es. vuota con altra chiave): riprova senza ordine
+    if(!r.ok&&ordine&&!tutte.length){ordine='';continue;}
+    if(!r.ok)throw new Error(t+': '+await r.text());
+    var b=await r.json();
+    tutte=tutte.concat(b);
+    if(b.length<1000)return tutte;
+  }
+}
+async function scaricaBackup(){
+  var btn=document.getElementById('btn-backup'),msg=document.getElementById('msg-backup');
+  btn.disabled=true;
+  var wb=XLSX.utils.book_new(),riep=[],errori=[],tagliate=0;
+  try{
+    for(var i=0;i<TABELLE_BACKUP.length;i++){
+      var t=TABELLE_BACKUP[i];
+      msg.innerHTML='<div class="msg msg-ok">Lettura '+t+' ('+(i+1)+'/'+TABELLE_BACKUP.length+')...</div>';
+      var righe;
+      try{righe=await leggiTabellaBackup(t);}catch(e){console.error(e);errori.push(t);riep.push({tabella:t,righe:'ERRORE: '+e.message});continue;}
+      // Excel: max 32.767 caratteri per cella (es. foto in base64) → testo troncato e segnalato
+      righe=righe.map(function(r){
+        var o={};
+        Object.keys(r).forEach(function(k){
+          var v=r[k];
+          if(v!==null&&typeof v==='object')v=JSON.stringify(v);
+          if(typeof v==='string'&&v.length>32000){v=v.slice(0,32000)+' …[TRONCATO: '+v.length+' caratteri]';tagliate++;}
+          o[k]=v;
+        });
+        return o;
+      });
+      var ws=righe.length?XLSX.utils.json_to_sheet(righe):XLSX.utils.aoa_to_sheet([['(tabella vuota)']]);
+      XLSX.utils.book_append_sheet(wb,ws,t.slice(0,31));
+      riep.push({tabella:t,righe:righe.length});
+    }
+    var oggi=new Date(),pad=function(n){return(n<10?'0':'')+n;};
+    var data=oggi.getFullYear()+'-'+pad(oggi.getMonth()+1)+'-'+pad(oggi.getDate());
+    riep.push({},{tabella:'Backup del',righe:data+' '+pad(oggi.getHours())+':'+pad(oggi.getMinutes())});
+    if(tagliate)riep.push({tabella:'Celle troncate',righe:tagliate+' (testi oltre il limite Excel, es. foto)'});
+    var wsR=XLSX.utils.json_to_sheet(riep);wsR['!cols']=[{wch:24},{wch:40}];
+    XLSX.utils.book_append_sheet(wb,wsR,'Riepilogo');
+    // Riepilogo come primo foglio
+    wb.SheetNames.unshift(wb.SheetNames.pop());
+    XLSX.writeFile(wb,'backup_DDT_'+data+'.xlsx');
+    msg.innerHTML=errori.length?'<div class="msg msg-err">Backup scaricato, ma non lette: '+escAbb(errori.join(', '))+'</div>'
+      :'<div class="msg msg-ok">✅ Backup scaricato: '+(riep.filter(function(x){return typeof x.righe==='number';}).length)+' tabelle</div>';
+  }catch(e){
+    console.error(e);msg.innerHTML='<div class="msg msg-err">Errore nel backup: '+escAbb(e.message)+'</div>';
+  }finally{btn.disabled=false;}
 }
 
 function showMsg(id,txt,type){
