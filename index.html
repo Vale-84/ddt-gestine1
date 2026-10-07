@@ -1521,6 +1521,8 @@ async function scaricaBackup(){
         var o={};
         Object.keys(r).forEach(function(k){
           var v=r[k];
+          // Foto: non servono nel backup, solo se c'è
+          if(t==='foto_promemoria'&&k==='foto_base64')v=v?'[foto presente]':'';
           if(v!==null&&typeof v==='object')v=JSON.stringify(v);
           if(typeof v==='string'&&v.length>32000){v=v.slice(0,32000)+' …[TRONCATO: '+v.length+' caratteri]';tagliate++;}
           o[k]=v;
