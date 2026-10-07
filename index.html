@@ -43,6 +43,13 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .btn-gray { background: #aaa; color: white; }
 .btn-sm { padding: 10px; font-size: 13px; }
 .btn-listino { width: auto; padding: 6px 10px; margin: 6px 0 0; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.ext-listino-box { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 8px; margin: 6px 0 8px; font-size: 13px; }
+.ext-listino-box input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; margin: 4px 0 6px; }
+.ext-listino-riga { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 6px 0; border-bottom: 1px solid #eee; }
+.ext-listino-riga input { width: 150px; margin: 0; }
+.ext-listino-btn { display: flex; gap: 6px; margin-top: 6px; }
+.ext-listino-btn .btn { margin-bottom: 0; }
 .metodo-btns { display: flex; gap: 10px; margin-bottom: 0; }
 .metodo-btns .btn { flex: 1; margin-bottom: 0; }
 .cerca-box { position: relative; margin-bottom: 10px; }
@@ -8495,6 +8502,8 @@ function confrontaFatturaExtra(fattura,lavori,opz){
       else{
         e.prezzoListino=arrot2Extra(li.prezzo);
         if(!stessoClienteFattExtra(li.cliente,fattura.cliente))arancio(e,'codice di un altro cliente ('+li.cliente+'), da verificare');
+        // Riga senza prezzo (resta rossa): cosa scrivere in Nova
+        if(e.senzaPrezzo)e.motivi.push({t:'',s:'prezzo da listino: '+przFattExtra(e.prezzoListino)+' → importo da fatturare '+eurFattExtra(Math.round(r.quantita*e.prezzoListino*100)/100)});
         if(!isNaN(r.prezzo)){
           if(stessoNumExtra(e.prezzoListino,r.prezzo,10000))bene(e,'prezzo uguale al listino');
           else{
@@ -8805,6 +8814,7 @@ async function controllaFatturaExtra(input){
   ]);
   if(res[0]===null||res[1]===null||res[2]===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
   fattExtraStato={fatture:fatture,lavori:res[0],listino:res[1],uscita:res[2],nomeFile:file.name,esiti:null};
+  fattExtraPrezzo=null;fattExtraTutti=null;
   rifaiFattureExtra();
 }
 
@@ -8821,39 +8831,95 @@ function clienteListinoFattExtra(cliente){
   return c.indexOf('AZZURRA')>=0?'AZZURRA':c.indexOf('BERGAMASCO')>=0?'BERGAMASCO':c.indexOf('FOPPA')>=0?'FOPPA PEDRETTI':'';
 }
 function nomeListinoFattExtra(cl){return cl.toLowerCase().replace(/\b\w/g,function(x){return x.toUpperCase();});}
-// Riga da aggiungere al listino (null = non si può: cliente senza listino o prezzo non letto)
+// Riga da aggiungere al listino (null = non si può: cliente senza listino). prezzo NaN = da scrivere a mano
 function rigaListinoFattExtra(f,e){
   var cl=clienteListinoFattExtra(f.cliente),r=e.riga;
-  if(!e.nonInListino||!cl||isNaN(r.prezzo))return null;
-  return{codice:normCodiceExtra(r.codice),cliente:cl,descrizione:r.descrizione,prezzo:Math.round(r.prezzo*10000)/10000};
+  if(!e.nonInListino||!cl)return null;
+  return{codice:normCodiceExtra(r.codice),cliente:cl,descrizione:r.descrizione,prezzo:isNaN(r.prezzo)?NaN:Math.round(r.prezzo*10000)/10000};
 }
-// Codici mancanti della fattura, una volta sola ciascuno
+// Codici mancanti della fattura, una volta sola ciascuno (meglio la riga che ha il prezzo)
 function mancantiListinoFattExtra(f,c){
   var visti={},out=[];
-  c.esiti.forEach(function(e){var l=rigaListinoFattExtra(f,e);if(l&&!visti[l.codice]){visti[l.codice]=1;out.push(l);}});
+  c.esiti.forEach(function(e){
+    var l=rigaListinoFattExtra(f,e);if(!l)return;
+    if(!visti.hasOwnProperty(l.codice)){visti[l.codice]=out.length;out.push(l);}
+    else if(isNaN(out[visti[l.codice]].prezzo)&&!isNaN(l.prezzo))out[visti[l.codice]]=l;
+  });
   return out;
 }
+// Prezzo scritto a mano (formato italiano, es. 1,25): NaN se vuoto o non valido
+function prezzoManoFattExtra(v){var p=parseImportoExtra(v);return isNaN(p)||p<=0?NaN:Math.round(p*10000)/10000;}
 async function salvaListinoFattExtra(righe,domanda){
   if(fattExtraSalva||!righe.length||!confirm(domanda))return;
   fattExtraSalva=true;
   try{
-    var ok=await apiPost('listino',righe);
+    var ok=await apiPost('listino',righe.map(function(l){return{codice:l.codice,cliente:l.cliente,descrizione:l.descrizione,prezzo:l.prezzo};}));
     if(!ok)return;
     righe.forEach(function(l){fattExtraStato.listino.push(l);});
+    fattExtraPrezzo=null;fattExtraTutti=null;
     rifaiFattureExtra();
     showMsg('msg-ext-fatt',righe.length===1?'Codice '+escAbb(righe[0].codice)+' aggiunto al listino':righe.length+' codici aggiunti al listino','ok');
   }finally{fattExtraSalva=false;}
 }
+function domandaListinoFattExtra(l){return 'Aggiungo '+l.codice+' a '+przFattExtra(l.prezzo)+' al listino '+nomeListinoFattExtra(l.cliente)+'?';}
+// Campo prezzo aperto: {i,k} riga della fattura i; pannello "aggiungi tutti" aperto: indice fattura
+var fattExtraPrezzo=null,fattExtraTutti=null;
 function aggiungiListinoFattExtra(i,k){
   var x=fattExtraStato.esiti[i],l=rigaListinoFattExtra(x.f,x.c.esiti[k]);
   if(!l)return;
-  salvaListinoFattExtra([l],'Aggiungo '+l.codice+' a '+przFattExtra(l.prezzo)+' al listino '+nomeListinoFattExtra(l.cliente)+'?');
+  if(isNaN(l.prezzo)){fattExtraPrezzo={i:i,k:k};rifaiFattureExtra();var inp=document.getElementById('ext-fatt-lp');if(inp)inp.focus();return;}
+  salvaListinoFattExtra([l],domandaListinoFattExtra(l));
+}
+function salvaPrezzoListinoFattExtra(i,k){
+  var x=fattExtraStato.esiti[i],l=rigaListinoFattExtra(x.f,x.c.esiti[k]);
+  var p=prezzoManoFattExtra(document.getElementById('ext-fatt-lp').value);
+  if(!l||isNaN(p))return;
+  l.prezzo=p;
+  salvaListinoFattExtra([l],domandaListinoFattExtra(l));
+}
+function annullaListinoFattExtra(){fattExtraPrezzo=null;fattExtraTutti=null;rifaiFattureExtra();}
+// SALVA attivo solo con tutti i prezzi validi
+function controllaPrezziFattExtra(idBtn,cls){
+  var inp=document.querySelectorAll('.'+cls),ok=inp.length>0;
+  inp.forEach(function(el){var v=!isNaN(prezzoManoFattExtra(el.value));el.style.borderColor=v||!el.value?'':'#C00000';if(!v)ok=false;});
+  document.getElementById(idBtn).disabled=!ok;
 }
 function aggiungiTuttiListinoFattExtra(i){
   var x=fattExtraStato.esiti[i],righe=mancantiListinoFattExtra(x.f,x.c);
   if(!righe.length)return;
+  // Codici senza prezzo in fattura: prima si scrivono i prezzi nel pannello
+  if(righe.some(function(l){return isNaN(l.prezzo);})){fattExtraTutti=i;fattExtraPrezzo=null;rifaiFattureExtra();return;}
+  salvaTuttiListinoFattExtra(righe);
+}
+function salvaTuttiListinoFattExtra(righe){
   salvaListinoFattExtra(righe,'Aggiungo questi '+righe.length+' codici al listino '+nomeListinoFattExtra(righe[0].cliente)+'?\n\n'
     +righe.map(function(l){return l.codice+'  '+przFattExtra(l.prezzo)+'  '+l.descrizione;}).join('\n'));
+}
+function salvaPannelloListinoFattExtra(i){
+  var x=fattExtraStato.esiti[i],righe=mancantiListinoFattExtra(x.f,x.c),manca=false;
+  righe.forEach(function(l,j){
+    if(!isNaN(l.prezzo))return;
+    var el=document.getElementById('ext-fatt-tp-'+j);
+    l.prezzo=el?prezzoManoFattExtra(el.value):NaN;
+    if(isNaN(l.prezzo))manca=true;
+  });
+  if(!manca)salvaTuttiListinoFattExtra(righe);
+}
+function htmlPannelloListinoFattExtra(i,righe){
+  return '<div class="ext-listino-box"><b>Aggiungi al listino '+escAbb(nomeListinoFattExtra(righe[0].cliente))+'</b>'
+    +righe.map(function(l,j){
+      return '<div class="ext-listino-riga"><span><b class="ext-cod">'+escAbb(l.codice)+'</b> '+escAbb(l.descrizione)+'</span>'
+        +(isNaN(l.prezzo)?'<input type="text" inputmode="decimal" id="ext-fatt-tp-'+j+'" class="ext-fatt-tp" placeholder="Prezzo unitario €" oninput="controllaPrezziFattExtra(\'ext-fatt-tsalva\',\'ext-fatt-tp\')">'
+          :'<b>'+escAbb(przFattExtra(l.prezzo))+'</b>')+'</div>';
+    }).join('')
+    +'<div class="ext-listino-btn"><button id="ext-fatt-tsalva" class="btn btn-green btn-sm" disabled onclick="salvaPannelloListinoFattExtra('+i+')">SALVA</button>'
+    +'<button class="btn btn-gray btn-sm" onclick="annullaListinoFattExtra()">ANNULLA</button></div></div>';
+}
+function htmlPrezzoListinoFattExtra(i,k){
+  return '<div class="ext-listino-box"><input type="text" inputmode="decimal" id="ext-fatt-lp" class="ext-fatt-lp" placeholder="Prezzo unitario €"'
+    +' oninput="controllaPrezziFattExtra(\'ext-fatt-lsalva\',\'ext-fatt-lp\')" onkeydown="if(event.key===\'Enter\'&&!document.getElementById(\'ext-fatt-lsalva\').disabled)salvaPrezzoListinoFattExtra('+i+','+k+')">'
+    +'<div class="ext-listino-btn"><button id="ext-fatt-lsalva" class="btn btn-green btn-sm" disabled onclick="salvaPrezzoListinoFattExtra('+i+','+k+')">SALVA</button>'
+    +'<button class="btn btn-gray btn-sm" onclick="annullaListinoFattExtra()">ANNULLA</button></div></div>';
 }
 
 function htmlFattureExtra(lista,nomeFile){
@@ -8890,7 +8956,8 @@ function htmlFatturaExtra(f,c,nomeFile,fi){
     +'</div>';
   if(c.diffTot!==0)h+='<div class="ext-avviso">Differenza totale fattura − app/listino: '+(c.diffTot>0?'+':'')+fmtEuroExtra(c.diffTot)+'</div>';
   var nuoviListino=mancantiListinoFattExtra(f,c);
-  if(nuoviListino.length>1)h+='<button class="btn btn-green btn-sm" onclick="aggiungiTuttiListinoFattExtra('+fi+')">+ AGGIUNGI TUTTI AL LISTINO ('+nuoviListino.length+' codici)</button>';
+  if(nuoviListino.length>1)h+=fattExtraTutti===fi?htmlPannelloListinoFattExtra(fi,nuoviListino)
+    :'<button class="btn btn-green btn-sm" onclick="aggiungiTuttiListinoFattExtra('+fi+')">+ AGGIUNGI TUTTI AL LISTINO ('+nuoviListino.length+' codici)</button>';
   var righe='',ddtPrec=null;
   c.esiti.forEach(function(e,k){
     var r=e.riga;
@@ -8904,7 +8971,8 @@ function htmlFatturaExtra(f,c,nomeFile,fi){
       +'<td class="desc">'+(e.codiceVero?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
       +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
       +'<div class="ext-info">'+info.join('<br>')+'</div>'
-      +(rigaListinoFattExtra(f,e)?'<button class="btn btn-green btn-listino" onclick="aggiungiListinoFattExtra('+fi+','+k+')">+ LISTINO</button>':'')+'</td>'
+      +(!rigaListinoFattExtra(f,e)?'':fattExtraPrezzo&&fattExtraPrezzo.i===fi&&fattExtraPrezzo.k===k?htmlPrezzoListinoFattExtra(fi,k)
+        :'<button class="btn btn-green btn-listino" onclick="aggiungiListinoFattExtra('+fi+','+k+')">+ LISTINO</button>')+'</td>'
       +'<td class="num" data-l="Quantità">'+(isNaN(r.quantita)?'-':fmtNumExtra(r.quantita))+' '+escAbb(r.um)+'</td>'
       +'<td class="num" data-l="Prezzo">'+(isNaN(r.prezzo)?'-':fmtPrezzoExtra(r.prezzo))+'</td>'
       +'<td class="num" data-l="Importo">'+e2(r.importo)+'</td></tr>';
