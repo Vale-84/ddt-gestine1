@@ -6893,8 +6893,8 @@ function b0ToBerMag(abb){
 // ── ETICHETTE MAG (DDT Uscita e Imballo) ─────────────────────────────
 // Giacenza dell'articolo ALLA DATA DELLA RIGA: entrate fino a quel giorno − uscite precedenti,
 // con lo stesso calcolo della scheda Magazzino. La riga non toglie mai se stessa.
-// AZZURRA con codice abbinato a Nova: numero Nova così com'è per righe nuove o registrate
-// dopo l'ultimo import Nova; le righe precedenti usano il calcolo dell'app alla loro data.
+// AZZURRA con codice abbinato a Nova: numero Nova così com'è, solo per righe nuove o
+// registrate dopo l'ultimo import Nova (prima non si sa cosa Nova ha già scalato).
 var magCtx=null;
 async function caricaCtxMag(usc){
   var cl=getCliente();
@@ -6922,9 +6922,10 @@ function giacenzaRigaMag(ctx,riga){
   var cod=String(riga.cod||'').trim().toUpperCase();
   if(!ctx||!cod)return null;
   var chiavi=chiaviMag(ctx,cod);
-  // Righe registrate prima dell'ultimo import Nova: calcolo dell'app alla data della riga (sotto)
-  var primaImport=riga.creata!==undefined&&!(ctx.novaImport&&String(riga.creata||'')>ctx.novaImport);
-  if(ctx.cliente==='AZZURRA'&&ctx.nova.hasOwnProperty(chiavi[0])&&!primaImport)return{gia:ctx.nova[chiavi[0]],nova:true};
+  if(ctx.cliente==='AZZURRA'&&ctx.nova.hasOwnProperty(chiavi[0])){
+    if(riga.creata!==undefined&&!(ctx.novaImport&&String(riga.creata||'')>ctx.novaImport))return null;
+    return{gia:ctx.nova[chiavi[0]],nova:true};
+  }
   // Codice senza nessuna entrata (a qualsiasi data) e senza abbinamento: giacenza sconosciuta, non "zero"
   var abbinato=ctx.cliente!=='AZZURRA'?!!ctx.fifo[cod]:!!ctx.b0ToBer[cod];
   if(!abbinato&&!ctx.ent.some(function(e){return chiavi.indexOf((e.codice_articolo||'').trim().toUpperCase())>=0;}))return{gia:0,nova:false,nessunaEntrata:true};
