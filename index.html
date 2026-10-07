@@ -73,6 +73,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .row-item.viola { border-left-color: #5B2C8D; }
 .row-item.teal { border-left-color: #1F6B75; }
 .row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
+.seq-box { display:flex; flex-wrap:wrap; align-items:center; gap:3px; margin-top:4px; font-size:13px; }
+.seq-n { background:#EEF2F7; color:#333; border-radius:10px; padding:2px 8px; cursor:pointer; }
+.seq-n.seq-ult { background:#FFE0B2; color:#C55A11; font-weight:bold; }
+.seq-op { color:#999; }
 .row-info { flex: 1; }
 .row-info .rdesc { font-size: 13px; color: #222; }
 .row-info .rsub { font-size: 11px; color: #999; margin-top: 2px; }
@@ -1721,6 +1725,42 @@ function trovaArt(desc,tbl){
   return max>=2?best:null;
 }
 
+// ── SEQUENZA INSERIMENTI (es. 50 + 50 + 50 = 150) ─────────────────────
+// Quando lo stesso articolo viene inserito piu' volte nello stesso giorno,
+// la riga tiene la sequenza in testo_seq: la mostriamo scomposta, con
+// l'ultimo inserimento evidenziato; toccando un numero lo si puo' togliere.
+function _seqBase(dup){
+  var b=dup.testo_seq||(dup.quantita!=null?String(dup.quantita):'');
+  return b?b+'+':'';
+}
+function _seqParti(seq){
+  return String(seq||'').split('+').map(function(x){return x.trim();}).filter(function(x){return x!=='';});
+}
+function htmlSeq(r,table){
+  var parti=_seqParti(r.testo_seq);
+  if(parti.length<2)return '';
+  var somma=parti.reduce(function(a,b){return a+(parseFloat(b)||0);},0);
+  if(Math.abs(somma-(Number(r.quantita)||0))>0.001)return '<div class="rsub">Seq: '+r.testo_seq+'</div>';
+  return '<div class="seq-box">'+parti.map(function(n,i){
+    var ult=(i===parti.length-1);
+    return '<span class="seq-n'+(ult?' seq-ult':'')+'" title="Tocca per togliere" onclick="togliPezzoSeq(\''+table+'\','+r.id+','+i+')">'+(ult?'● ':'')+n+'</span>';
+  }).join('<span class="seq-op">+</span>')+'<span class="seq-op">=</span><strong>'+somma+'</strong></div>';
+}
+async function togliPezzoSeq(table,id,idx){
+  var rows=await apiGet(table,'id=eq.'+id);
+  if(!rows||!rows.length){alert('Riga non trovata, ricarica la pagina.');return;}
+  var r=rows[0],parti=_seqParti(r.testo_seq);
+  if(idx<0||idx>=parti.length||parti.length<2)return;
+  if(!confirm('Eliminare questo inserimento da '+parti[idx]+'?'))return;
+  var origParti=r.testo_originale?String(r.testo_originale).split(' + '):null;
+  parti.splice(idx,1);
+  var nuovaQty=parti.reduce(function(a,b){return a+(parseFloat(b)||0);},0);
+  var payload={quantita:nuovaQty,testo_seq:parti.join('+'),testo_riga:nuovaQty+' '+(r.descrizione_articolo||r.descrizione||'')};
+  if(origParti&&origParti.length===parti.length+1){origParti.splice(idx,1);payload.testo_originale=origParti.join(' + ');}
+  var ok=await apiPatch(table,'id=eq.'+id,payload);
+  if(table==='whatsapp_uscita'){caricaUscite();if(typeof mostraConfronto==='function')mostraConfronto();}else caricaEntrate();
+}
+
 // ── WA ENTRATA ────────────────────────────────────────────────────────
 async function salvaEntrataMerce(){
   var cod=document.getElementById('e-cod').value;
@@ -1741,7 +1781,7 @@ async function salvaEntrataMerce(){
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+qty;
-      var nuovaSeq=(dup.testo_seq?dup.testo_seq+'+':'')+seq;
+      var nuovaSeq=_seqBase(dup)+seq;
       await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:nuovaSeq,testo_riga:nuovaQty+' '+dsc});
       showMsg('msg-entrata','✅ Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
       resetForm('e');caricaEntrate();return;
@@ -1771,11 +1811,11 @@ async function aggiungiWAEntrata(){
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
         var nuovoTestoOriginale=(dup.testo_originale||dup.testo_riga||'')+' + '+r;
-        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
+        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:_seqBase(dup)+String(qty),testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
         n++;continue;
       }
     }
-    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel,modalita:'whatsapp'});
+    var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,testo_seq:qty?String(qty):null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel,modalita:'whatsapp'});
     if(res)n++;
   }
   if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
@@ -1797,7 +1837,7 @@ async function caricaEntrate(){
     return '<div class="row-item'+(isLibE?' libero':'')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="e" value="'+r.id+'" onchange="aggiornaStatoElimina(\'e\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">✕</button></div>';
@@ -2162,7 +2202,7 @@ async function salvaModifica(){
     if(qty){payload.quantita_ddt=parseFloat(qty);}
   } else if(table==='whatsapp_righe' || table==='whatsapp_uscita'){
     payload.descrizione_articolo=dsc;
-    if(qty){payload.quantita=parseFloat(qty);}
+    if(qty){payload.quantita=parseFloat(qty);payload.testo_seq=String(parseFloat(qty));}
   } else {
     payload.descrizione_articolo=dsc;
   }
@@ -2190,12 +2230,12 @@ async function salvaUscitaMerce(){
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+tot;
-      await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_riga:nuovaQty+' '+dsc});
+      await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:_seqBase(dup)+seq,testo_riga:nuovaQty+' '+dsc});
       showMsg('msg-uscita','✅ Aggiunto a esistente: tot '+nuovaQty+' x '+cod,'ok');
       resetForm('u');caricaUscite();mostraConfronto();return;
     }
   }
-  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel,modalita:'manuale'});
+  var r2=await apiPost('whatsapp_uscita',{testo_riga:tot+' '+dsc,testo_seq:seq,quantita:tot,descrizione:dsc,codice_articolo:cod,descrizione_articolo:dsc,data_inserimento:dataSel,modalita:'manuale'});
   if(r2){showMsg('msg-uscita','✅ '+tot+' pz aggiunto!','ok');resetForm('u');caricaUscite();mostraConfronto();}
 }
 
@@ -2217,7 +2257,7 @@ async function aggiungiWAUscita(){
       });
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
-        var nuovaSeq=(dup.testo_seq?dup.testo_seq+'+':'')+String(qty);
+        var nuovaSeq=_seqBase(dup)+String(qty);
         var nuovoTestoOriginale=(dup.testo_originale||dup.testo_riga||'')+' + '+r;
         await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:nuovaSeq,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
         n++;continue;
@@ -2246,7 +2286,7 @@ async function caricaUscite(){
     return '<div class="row-item'+(isLibU?' libero':' teal')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="u" value="'+r.id+'" onchange="aggiornaStatoElimina(\'u\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+(r.testo_seq?'<div class="rsub">Seq: '+r.testo_seq+'</div>':'')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +imbBtnU
