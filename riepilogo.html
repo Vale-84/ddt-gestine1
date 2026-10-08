@@ -268,8 +268,9 @@ function riepilogo(rr){
   var o={totale:0,AZZURRA:{tot:0,n:0},BERGAMASCO:{tot:0,n:0},FOPPA:{tot:0,n:0},ALTRI:{tot:0,n:0}};
   rr.forEach(function(r){
     o.totale+=r.importo;o[r.gruppo].tot+=r.importo;
-    // pezzi per DDT e Foppa, numero di lavori per gli altri clienti
-    o[r.gruppo].n+=r.fonte==='ddt'?r.pezzi:r.gruppo==='FOPPA'?(Number(r.quantita)||0):1;
+    // pezzi per DDT e Foppa, numero di lavori per gli altri clienti.
+    // CONSUMO (materiale di consumo Bergamasco) si fattura ma non è un pezzo
+    o[r.gruppo].n+=r.fonte==='ddt'?(r.codice==='CONSUMO'?0:r.pezzi):r.gruppo==='FOPPA'?(Number(r.quantita)||0):1;
   });
   return o;
 }

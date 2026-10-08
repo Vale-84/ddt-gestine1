@@ -5302,18 +5302,27 @@ function normNumeroDdt(s){return String(s||'').replace(/\s+/g,'').toUpperCase();
 
 // BERGAMASCO: in fattura Nova con l'imballo lettino (B0IMBLETTI) ci sono quasi sempre, con la
 // stessa quantità, i cassetti C0BI e il materiale di consumo (riga "*" in Nova, qui CONSUMO).
+// CONSUMO va su tutti gli imballi; C0BI no sui lettini GIOIA e PIKKOLETTO (non hanno cassetti).
 // Si propongono già spuntati; non si propongono se il DDT li ha già.
-var RIGHE_CON_IMBLETTI=[{cod:'C0BI',desc:'CASSETTI ASSEMBLATI BIANCHI CER'},{cod:'CONSUMO',desc:'MATERIALE DI CONSUMO COLLA/REGGIA'}];
-// righe: [{cod,qty}] di un DDT → [{cod,desc,qty,attiva}]
+var IMBLETTI_SENZA_C0BI=/GIOIA|PIKKOLETTO/i;
+// righe: [{cod,qty,desc}] di un DDT → [{cod,desc,qty,attiva}]
 function proposteImbLetti(righe,cliente){
   if(String(cliente||'').toUpperCase().indexOf('BERGAMASCO')<0)return [];
-  var q=0,presenti={};
+  var qTutti=0,qCassetti=0,presenti={};
   (righe||[]).forEach(function(r){
     var c=String(r.cod||'').trim().toUpperCase();presenti[c]=1;
-    if(c==='B0IMBLETTI')q+=Number(r.qty)||0;
+    if(c!=='B0IMBLETTI')return;
+    var q=Number(r.qty)||0;
+    qTutti+=q;
+    if(!IMBLETTI_SENZA_C0BI.test(r.desc||''))qCassetti+=q;
   });
-  if(!q)return [];
-  return RIGHE_CON_IMBLETTI.filter(function(p){return !presenti[p.cod];}).map(function(p){return{cod:p.cod,desc:p.desc,qty:q,attiva:true};});
+  if(!qTutti)return [];
+  var out=[];
+  // Solo GIOIA/PIKKOLETTO: C0BI resta in elenco ma senza spunta, se servisse lo si rimette
+  if(!presenti.C0BI)out.push(qCassetti?{cod:'C0BI',desc:'CASSETTI ASSEMBLATI BIANCHI CER',qty:qCassetti,attiva:true}
+    :{cod:'C0BI',desc:'CASSETTI ASSEMBLATI BIANCHI CER',qty:qTutti,attiva:false});
+  if(!presenti.CONSUMO)out.push({cod:'CONSUMO',desc:'MATERIALE DI CONSUMO COLLA/REGGIA',qty:qTutti,attiva:true});
+  return out;
 }
 function htmlProposteImbLetti(proposte,onchange){
   if(!proposte.length)return '';
@@ -5327,12 +5336,14 @@ function htmlProposteImbLetti(proposte,onchange){
 }
 
 // Form "Nuovo DDT Uscita": proposte ricalcolate quando cambiano articolo o quantità (le spunte tolte restano tolte)
-var duProposte=[];
+var duProposte=[],duPropArt='';
 function aggiornaProposteDU(){
-  var cod=document.getElementById('du-cod').value;
+  var cod=document.getElementById('du-cod').value,desc=document.getElementById('du-dsc').value;
   var qta=parseInt(document.getElementById('du-qddt').value)||0;
-  var prima={};duProposte.forEach(function(p){prima[p.cod]=p.attiva;});
-  duProposte=proposteImbLetti([{cod:cod,qty:qta}],document.getElementById('du-cliente').value||getCliente());
+  // Le spunte scelte a mano restano solo finché l'articolo è lo stesso
+  var prima={};if(duPropArt===cod+'|'+desc)duProposte.forEach(function(p){prima[p.cod]=p.attiva;});
+  duPropArt=cod+'|'+desc;
+  duProposte=proposteImbLetti([{cod:cod,qty:qta,desc:desc}],document.getElementById('du-cliente').value||getCliente());
   duProposte.forEach(function(p){if(prima.hasOwnProperty(p.cod))p.attiva=prima[p.cod];});
   document.getElementById('du-proposte').innerHTML=htmlProposteImbLetti(duProposte,function(k){return 'duProposte['+k+'].attiva=this.checked';});
 }
