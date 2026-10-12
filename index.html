@@ -4871,6 +4871,9 @@ async function leggiPDF(input){
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
     // BERGAMASCO: prima il formato PDF Bergamasco; se non lo riconosce, il lettore di sempre
     var ddtBer=getCliente()==='BERGAMASCO'?parsePdfEntrataBergamasco(testo):[];
+    // DEBUG TEMPORANEO (da togliere): verifica lettura PDF Bergamasco dalla console (F12)
+    console.log('[DEBUG PDF Entrata] lettore Bergamasco v1 | cliente:',JSON.stringify(getCliente()),'| file:',file.name);
+    if(getCliente()==='BERGAMASCO'){console.log('[DEBUG PDF Entrata] testo estratto:\n'+testo);console.log('[DEBUG PDF Entrata] DDT Bergamasco trovati:',JSON.parse(JSON.stringify(ddtBer)));}
     var parsed=ddtBer.length?{nddt:ddtBer[0].nddt,data:ddtBer[0].data,cliente:'BERGAMASCO',articoli:ddtBer[0].righe}:parsePdfEntrataSingolo(testo,file.name);
     var giaBer=ddtBer.length?(await ddtEntrataBerPresenti([ddtBer[0]]))[0]:false;
     var nddt=parsed.nddt,data=parsed.data,cliente=parsed.cliente,articoli=parsed.articoli;
@@ -6479,6 +6482,9 @@ async function leggiPDFMultiEntrata(input){
     }
     // BERGAMASCO: prima il formato PDF Bergamasco; se non lo riconosce, il lettore di sempre
     var ddtBer=getCliente()==='BERGAMASCO'?parsePdfEntrataBergamasco(testo):[];
+    // DEBUG TEMPORANEO (da togliere): verifica lettura PDF Bergamasco dalla console (F12)
+    console.log('[DEBUG PDF Entrata multi] lettore Bergamasco v1 | cliente:',JSON.stringify(getCliente()));
+    if(getCliente()==='BERGAMASCO'){console.log('[DEBUG PDF Entrata multi] testo estratto:\n'+testo);console.log('[DEBUG PDF Entrata multi] DDT Bergamasco trovati:',JSON.parse(JSON.stringify(ddtBer)));}
     var ddts=ddtBer.length?ddtBer:parsePdfMultiEntrata(testo);
     if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nei PDF.</div>';input.value='';return;}
     if(ddtBer.length){
