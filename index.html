@@ -4821,6 +4821,46 @@ function parsePdfEntrataSingolo(testo,fileName){
   return {nddt:nddt,data:data,cliente:cliente,articoli:articoli};
 }
 
+// DDT Entrata BERGAMASCO (PDF del gestionale Bergamasco & Vosca), formato diverso da AZZURRA:
+//   "Documento di Trasporto   307   06-10-2026"
+//   "BER00468   EL.TESTATA LETT.PIKKOLETTO NAT   n   350 FSC MIX 98%"
+// Numero DDT = numero dopo "Documento di Trasporto" (salvato cosi' com'e', es. "307"), data =
+// quella subito dopo (NON "Data/ora trasp."). Righe nell'ordine del PDF, codice BER invariato.
+// Un DDT su piu' pagine ripete l'intestazione: le righe finiscono sullo stesso DDT.
+function parsePdfEntrataBergamasco(testo){
+  var re=/Documento\s+di\s+Trasporto\s+(\d{1,6})\s+(\d{1,2})-(\d{1,2})-(\d{4})/gi;
+  var inizi=[],m;
+  while((m=re.exec(testo)))inizi.push({nddt:m[1],data:m[4]+'-'+('0'+m[3]).slice(-2)+'-'+('0'+m[2]).slice(-2),index:m.index});
+  var mappa={},ordine=[];
+  inizi.forEach(function(x,i){
+    var k=x.nddt+'|'+x.data;
+    if(!mappa[k]){mappa[k]={nddt:x.nddt,data:x.data,righe:[]};ordine.push(k);}
+    var blocco=testo.slice(x.index,i+1<inizi.length?inizi[i+1].index:testo.length);
+    blocco.split('\n').forEach(function(riga){
+      var mR=riga.trim().match(/^(BER\d{4,6})\s+(.+?)\s+n\s+([\d.,]+)(?:\s|$)/i);
+      if(!mR)return;
+      var qty=parseQty(mR[3]);
+      if(qty>0)mappa[k].righe.push({cod:mR[1].toUpperCase(),desc:mR[2].replace(/\s+/g,' ').trim(),qty:qty});
+    });
+  });
+  return ordine.map(function(k){return mappa[k];}).filter(function(d){return d.righe.length>0;});
+}
+
+// BERGAMASCO ricomincia la numerazione DDT ogni anno: un DDT e' "gia' presente" solo se
+// in ddt_entrata c'e' lo stesso numero NELLO STESSO ANNO (se una delle due date manca,
+// basta il numero, per prudenza). Restituisce un booleano per ogni DDT, nello stesso ordine.
+async function ddtEntrataBerPresenti(ddts){
+  var numeri=ddts.map(function(d){return d.nddt;}).filter(function(n,i,a){return a.indexOf(n)===i;});
+  var es=await apiGet('ddt_entrata','numero_ddt=in.('+numeri.map(encodeURIComponent).join(',')+')&select=numero_ddt,data_ddt&limit=5000')||[];
+  return ddts.map(function(d){
+    var anno=String(d.data||'').slice(0,4);
+    return es.some(function(r){
+      var annoR=String(r.data_ddt||'').slice(0,4);
+      return String(r.numero_ddt)===String(d.nddt)&&(!anno||!annoR||anno===annoR);
+    });
+  });
+}
+
 async function leggiPDF(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('pdf-prev');
@@ -4829,13 +4869,19 @@ async function leggiPDF(input){
     var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
     var testo='';
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
-    var parsed=parsePdfEntrataSingolo(testo,file.name);
+    // BERGAMASCO: prima il formato PDF Bergamasco; se non lo riconosce, il lettore di sempre
+    var ddtBer=getCliente()==='BERGAMASCO'?parsePdfEntrataBergamasco(testo):[];
+    var parsed=ddtBer.length?{nddt:ddtBer[0].nddt,data:ddtBer[0].data,cliente:'BERGAMASCO',articoli:ddtBer[0].righe}:parsePdfEntrataSingolo(testo,file.name);
+    var giaBer=ddtBer.length?(await ddtEntrataBerPresenti([ddtBer[0]]))[0]:false;
     var nddt=parsed.nddt,data=parsed.data,cliente=parsed.cliente,articoli=parsed.articoli;
     pdfDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
     var html='<div class="pdf-preview"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info"><strong>Cliente:</strong> '+(cliente||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Articoli ('+articoli.length+'):</strong></div>';
     articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
+    if(ddtBer.length>1)html+='<div class="warn-box">Il PDF contiene '+ddtBer.length+' DDT: qui si importa solo il primo ('+nddt+'). Per importarli tutti usa "Carica PDF DDT Entrata (multi-DDT)".</div>';
+    if(giaBer)html+='<div class="warn-box">DDT '+nddt+' del '+data.slice(0,4)+' già presente in DDT Entrata: non viene importato di nuovo.</div>';
     prev.innerHTML=html;
-    if(articoli.length){document.getElementById('btn-importa').style.display='block';showMsg('msg-ddt-e',articoli.length+' articoli trovati!','ok');document.getElementById('btn-associa-ddt').style.display='none';}
+    if(giaBer){document.getElementById('btn-importa').style.display='none';pdfDati=null;}
+    else if(articoli.length){document.getElementById('btn-importa').style.display='block';showMsg('msg-ddt-e',articoli.length+' articoli trovati!','ok');document.getElementById('btn-associa-ddt').style.display='none';}
     if(nddt)document.getElementById('de-nddt').value=nddt;
     if(data)document.getElementById('de-data').value=data;
     if(cliente)document.getElementById('de-cliente').value=cliente;
@@ -4918,6 +4964,7 @@ async function caricaDDTE(){
   // (stessa cache/pattern di artCache), non una query per riga. Solo per AZZURRA: per BERGAMASCO
   // il concetto codice_a0/codice_ia non esiste (usa la sua logica BER->B0 separata).
   var isAz=getCliente()==='AZZURRA';
+  var isBer=getCliente()==='BERGAMASCO';
   var mIA=isAz?await getMappaA0IA():{};
   // "Copia per Nova": un solo pulsante per DDT (non uno per riga articolo) — mostrato
   // sulla prima riga di ogni numero_ddt incontrato scorrendo la lista.
@@ -4938,6 +4985,13 @@ async function caricaDDTE(){
       ddtGiaMostrati[r.numero_ddt]=true;
       var ddtEsc=String(r.numero_ddt).replace(/'/g,"\\'");
       btnCopiaNova='<button class="btn btn-sm btn-blue" style="width:auto;padding:4px 8px;font-size:11px;white-space:nowrap;" title="Copia le righe di questo DDT per incollarle in Nova" onclick="copiaPerNova(\''+ddtEsc+'\')">📋 Copia per Nova</button>';
+    }
+    // BERGAMASCO: la numerazione ricomincia ogni anno, quindi un pulsante per numero + anno
+    var annoBer=String(r.data_ddt||'').slice(0,4);
+    if(isBer&&r.numero_ddt&&!ddtGiaMostrati[r.numero_ddt+'|'+annoBer]){
+      ddtGiaMostrati[r.numero_ddt+'|'+annoBer]=true;
+      var ddtEscB=String(r.numero_ddt).replace(/'/g,"\\'");
+      btnCopiaNova='<button class="btn btn-sm btn-blue" style="width:auto;padding:4px 8px;font-size:11px;white-space:nowrap;" title="Copia le righe di questo DDT per incollarle in Nova" onclick="copiaPerNovaBer(\''+ddtEscB+'\',\''+annoBer+'\')">📋 Copia per Nova</button>';
     }
     return '<div class="row-item">'
       +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
@@ -5027,6 +5081,35 @@ async function copiaPerNova(numeroDdt){
   var ok=await copiaTestoClipboard(testo);
   if(!ok){showMsg('msg-ddt-e','Copia non riuscita, riprova.','err');return;}
   if(nonRiconosciuti.length)avvisi.push('codice non riconosciuto (né IA né A0), copiato invariato: '+nonRiconosciuti.join(', '));
+  var msg=avvisi.length
+    ?'✅ Copiato! In Nova clicca \'incolla\'. Controlla: '+avvisi.join(' | ')
+    :'✅ Copiato! In Nova clicca \'incolla\'.';
+  showMsg('msg-ddt-e',msg,'ok');
+}
+
+// COPIA PER NOVA BERGAMASCO: stesso formato di copiaPerNova() (AZZURRA), ma codici BER cosi'
+// come sono salvati (nessuna conversione A0->IA, nessun "Codici bloccati in Nova") e NESSUNA
+// somma per codice: una riga per ogni riga del DDT, nell'ordine di import (= ordine del PDF).
+async function copiaPerNovaBer(numeroDdt,anno){
+  var righeDDT=(_deUltimaLista||[]).filter(function(r){
+    return String(r.numero_ddt)===String(numeroDdt)&&String(r.data_ddt||'').slice(0,4)===anno;
+  }).sort(function(a,b){return (a.id||0)-(b.id||0);});
+  if(!righeDDT.length){alert('Nessuna riga trovata per questo DDT.');return;}
+  var dataDDT=formattaDataGGMMAAAA(righeDDT[0].data_ddt);
+  var righeTsv=[],senzaCodice=[],nonBer=[];
+  righeDDT.forEach(function(r){
+    var cod=(r.codice_articolo||'').trim().toUpperCase();
+    if(!cod){senzaCodice.push(r.descrizione||'?');return;}
+    if(!/^BER\d/.test(cod)&&nonBer.indexOf(cod)<0)nonBer.push(cod);
+    righeTsv.push(dataDDT+'\t'+cod+'\t'+'\t'+'\t'+(Number(r.quantita_ddt)||0));
+  });
+  var testo='DATAREG\tCODART\tDESART\tUMART\tQUANT1\n'+righeTsv.join('\n');
+
+  var ok=await copiaTestoClipboard(testo);
+  if(!ok){showMsg('msg-ddt-e','Copia non riuscita, riprova.','err');return;}
+  var avvisi=[];
+  if(nonBer.length)avvisi.push('codice non BER, copiato invariato: '+nonBer.join(', '));
+  if(senzaCodice.length)avvisi.push('righe senza codice NON copiate: '+senzaCodice.join(', '));
   var msg=avvisi.length
     ?'✅ Copiato! In Nova clicca \'incolla\'. Controlla: '+avvisi.join(' | ')
     :'✅ Copiato! In Nova clicca \'incolla\'.';
@@ -6394,13 +6477,20 @@ async function leggiPDFMultiEntrata(input){
       for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
       testo+='\n';
     }
-    var ddts=parsePdfMultiEntrata(testo);
+    // BERGAMASCO: prima il formato PDF Bergamasco; se non lo riconosce, il lettore di sempre
+    var ddtBer=getCliente()==='BERGAMASCO'?parsePdfEntrataBergamasco(testo):[];
+    var ddts=ddtBer.length?ddtBer:parsePdfMultiEntrata(testo);
     if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nei PDF.</div>';input.value='';return;}
+    if(ddtBer.length){
+      var presBer=await ddtEntrataBerPresenti(ddts);
+      ddts.forEach(function(d,i){d.ber=true;d.dupe=presBer[i];d.selected=!d.dupe;d.aperto=false;});
+    } else {
     var numeri=ddts.map(function(d){return d.nddt;});
     var esistentiNum={};
     var esistenti=await apiGet('ddt_entrata','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
     if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
     ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
+    }
     pdfMultiEntDati=ddts;
     status.innerHTML='';
     apriModalePdfMultiEnt();
@@ -6547,11 +6637,17 @@ async function importaPDFMultiEntrata(){
     var righeOk=0,ddtSaltati=0;
     for(var i=0;i<selezionati.length;i++){
       var d=selezionati[i];
+      if(d.ber){
+        // PDF Bergamasco: doppione = stesso numero nello stesso anno
+        if((await ddtEntrataBerPresenti([d]))[0]){ddtSaltati++;continue;}
+      } else {
       var check=await apiGet('ddt_entrata','numero_ddt=eq.'+encodeURIComponent(d.nddt)+'&select=id&limit=1');
       if(check&&check.length){ddtSaltati++;continue;}
+      }
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
-        var cod=risolviCodiceEntrataPdf(a.cod,a.desc);
+        // PDF Bergamasco: codice BER salvato cosi' com'e', mai sostituito con un B0
+        var cod=d.ber?a.cod:risolviCodiceEntrataPdf(a.cod,a.desc);
         var r=await apiPost('ddt_entrata',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF multi-DDT'});
         if(r)righeOk++;
       }
