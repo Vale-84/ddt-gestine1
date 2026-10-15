@@ -7430,22 +7430,56 @@ function b0ToBerMag(abb){
 // ── ETICHETTE MAG (DDT Uscita e Imballo) ─────────────────────────────
 // Giacenza dell'articolo ALLA DATA DELLA RIGA: entrate fino a quel giorno − uscite precedenti,
 // con lo stesso calcolo della scheda Magazzino. La riga non toglie mai se stessa.
-// AZZURRA con codice abbinato a Nova: numero Nova così com'è, solo per righe nuove o
-// registrate dopo l'ultimo import Nova (prima non si sa cosa Nova ha già scalato).
+// AZZURRA: stesso calcolo dell'Aperto di "Articoli Aperti" (codici IA -> A0, saldo iniziale
+// da saldo_iniziale_azzurra + entrate − uscite dopo la data del saldo), alla data della riga.
 var magCtx=null;
 async function caricaCtxMag(usc){
   var cl=getCliente();
   var res=await Promise.all([
     apiGet('ddt_entrata'),usc?Promise.resolve(usc):apiGet('ddt_uscita'),
     apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000'),
-    cl==='AZZURRA'?getGiacenzaNovaPerA0():Promise.resolve({}),
-    cl==='AZZURRA'?apiGet('impostazioni_azzurra','chiave=eq.ultimo_import_inevasi_nova_AZZURRA'):Promise.resolve([])
+    cl==='AZZURRA'?apiGet('abbinamenti_azzurra','order=id.asc&limit=5000'):Promise.resolve([]),
+    cl==='AZZURRA'?apiGet('saldo_iniziale_azzurra','order=id.asc&limit=5000'):Promise.resolve([])
   ]);
   if(!res[0]||!res[1])return null;
   var abb=res[2]||[];
+  var mappaIA={},saldo={},dataSaldo='';
+  (res[3]||[]).forEach(function(r){
+    var ia=(r.codice_ia||'').trim().toUpperCase(),a0=(r.codice_a0||'').trim().toUpperCase();
+    if(ia&&a0)mappaIA[ia]=a0;
+  });
+  (res[4]||[]).forEach(function(r){
+    var k=(r.codice_a0||'').trim().toUpperCase();if(!k)return;
+    saldo[k]=(saldo[k]||0)+(Number(r.quantita)||0);
+    if(r.data&&String(r.data).slice(0,10)>dataSaldo)dataSaldo=String(r.data).slice(0,10);
+  });
   magCtx={cliente:cl,ent:res[0],usc:res[1],abb:abb,b0ToBer:b0ToBerMag(abb),fifo:calcolaFifoBer([],[],abb).b0ToBer,
-    nova:res[3]||{},novaImport:res[4]&&res[4][0]?String(res[4][0].valore||''):''};
+    mappaIA:mappaIA,saldo:saldo,dataSaldo:dataSaldo};
   return magCtx;
+}
+// AZZURRA: giacenza alla data della riga con la stessa regola dell'Aperto app.
+// Riga datata prima del saldo iniziale: entrate − uscite senza saldo (fino a quella data).
+function giacenzaRigaMagAzzurra(ctx,riga,cod){
+  function a0Di(c){c=String(c||'').trim().toUpperCase();return ctx.mappaIA[c]||c;}
+  var k=a0Di(cod);
+  var d=riga.data||'9999-12-31';
+  var conSaldo=!!ctx.dataSaldo&&d>ctx.dataSaldo;
+  var base=conSaldo?(ctx.saldo[k]||0):0;
+  function dopoSaldo(r){return !conSaldo||dataRigaMag(r)>ctx.dataSaldo;}
+  var entK=ctx.ent.filter(function(e){return a0Di(e.codice_articolo)===k;});
+  if(!entK.length&&!ctx.saldo.hasOwnProperty(k))return{gia:0,nova:false,nessunaEntrata:true};
+  var gia=base;
+  entK.forEach(function(e){if(dataRigaMag(e)<=d&&dopoSaldo(e))gia+=Number(e.quantita_ddt)||0;});
+  ctx.usc.forEach(function(u){
+    if(fuoriMag(u.codice_articolo)||a0Di(u.codice_articolo)!==k||!dopoSaldo(u))return;
+    if(riga.id!=null&&String(u.id)===String(riga.id))return; // mai la riga stessa
+    var du=dataRigaMag(u);
+    if(du>d)return;
+    // Stesso giorno: come per BERGAMASCO (vedi giacenzaRigaMag)
+    if(du===d&&(riga.tipo==='imballo'||(riga.id!=null&&Number(u.id)>=Number(riga.id))))return;
+    gia-=Number(u.quantita_ddt||u.quantita||0);
+  });
+  return{gia:gia,nova:false};
 }
 function dataRigaMag(r){return String(r.data_ddt||r.data_inserimento||r.created_at||'').slice(0,10);}
 // Codici del Magazzino su cui cade un articolo (BERGAMASCO: il B0 e i suoi BER)
@@ -7458,11 +7492,8 @@ function chiaviMag(ctx,cod){
 function giacenzaRigaMag(ctx,riga){
   var cod=String(riga.cod||'').trim().toUpperCase();
   if(!ctx||!cod||fuoriMag(cod))return null;
+  if(ctx.cliente==='AZZURRA')return giacenzaRigaMagAzzurra(ctx,riga,cod);
   var chiavi=chiaviMag(ctx,cod);
-  if(ctx.cliente==='AZZURRA'&&ctx.nova.hasOwnProperty(chiavi[0])){
-    if(riga.creata!==undefined&&!(ctx.novaImport&&String(riga.creata||'')>ctx.novaImport))return null;
-    return{gia:ctx.nova[chiavi[0]],nova:true};
-  }
   // Codice senza nessuna entrata (a qualsiasi data) e senza abbinamento: giacenza sconosciuta, non "zero"
   var abbinato=ctx.cliente!=='AZZURRA'?!!ctx.fifo[cod]:!!ctx.b0ToBer[cod];
   if(!abbinato&&!ctx.ent.some(function(e){return chiavi.indexOf((e.codice_articolo||'').trim().toUpperCase())>=0;}))return{gia:0,nova:false,nessunaEntrata:true};
