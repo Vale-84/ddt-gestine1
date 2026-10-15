@@ -2525,6 +2525,8 @@ function sceltaUscitaToggle(cod,valore){
   if(waCell)waCell.style.cssText='text-align:right;'+(valore==='wa'?'background:#C6EFCE;font-weight:bold;':'');
   if(btnImb)btnImb.className='btn btn-sm '+(valore==='imballo'?'btn-green':'btn-gray');
   if(btnWa)btnWa.className='btn btn-sm '+(valore==='wa'?'btn-green':'btn-gray');
+  var num=document.getElementById('su-num-'+cod);
+  if(num)num.textContent=valore==='imballo'?num.getAttribute('data-imb'):num.getAttribute('data-wa');
 }
 
 // USA WA: a differenza di "USA IMBALLO" (solo evidenziazione locale, sopra), scrive
@@ -2534,7 +2536,9 @@ function sceltaUscitaToggle(cod,valore){
 // nemmeno premendo il tasto piu' volte. Non tocca Verniciato/DDT/WA Uscita.
 async function usaWA(cod){
   var btn=document.getElementById('su-btn-wa-'+cod);
-  if(btn){if(btn.disabled)return;btn.disabled=true;btn.textContent='...';}
+  if(btn){if(btn.disabled)return;}
+  sceltaUscitaToggle(cod,'wa');
+  if(btn){btn.disabled=true;btn.textContent='...';}
   try{
     var righeWA=await apiGet('whatsapp_uscita','codice_articolo=eq.'+encodeURIComponent(cod));
     if(!righeWA||!righeWA.length){
@@ -2659,7 +2663,8 @@ async function verificaVerniciatoImballo(){
       var imbHi=scelta==='imballo'?'background:#C6EFCE;font-weight:bold;':'';
       var waHi=scelta==='wa'?'background:#C6EFCE;font-weight:bold;':'';
       celImb='<td style="text-align:right;'+imbHi+'" id="su-imb-'+a.cod+'">'+a.imb+'</td>';
-      celWau='<td style="text-align:right;'+waHi+'" id="su-wa-'+a.cod+'">'+a.wau
+      celWau='<td style="text-align:right;'+waHi+'" id="su-wa-'+a.cod+'">'
+        +'<span id="su-num-'+a.cod+'" data-imb="'+a.imb+'" data-wa="'+a.wau+'">'+(scelta==='imballo'?a.imb:a.wau)+'</span>'
         +'<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
           +'<button id="su-btn-imb-'+a.cod+'" class="btn btn-sm '+(scelta==='imballo'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="sceltaUscitaToggle(\''+a.cod+'\',\'imballo\')">USA IMBALLO</button>'
           +'<button id="su-btn-wa-'+a.cod+'" class="btn btn-sm '+(scelta==='wa'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="usaWA(\''+a.cod+'\')">USA WA</button>'
