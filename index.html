@@ -952,6 +952,26 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- MODAL ANTEPRIMA RIPORTI CHIUDI MESE -->
+<div class="modal" id="modal-riporti">
+  <div class="modal-box" style="max-width:640px;">
+    <h3 style="color:#1F6B75;">Chiudi mese — riporti Verniciato</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Residuo = Verniciato del mese − il più alto tra Imballo e WA Uscita. Correggi o togli le quantità (0 = nessun riporto), poi conferma.</p>
+    <label>Mese che chiudi</label>
+    <input type="month" id="riporti-mese" onchange="aggiornaInfoRiporti()">
+    <p id="riporti-info" style="font-size:12px;color:#888;margin:4px 0 10px;"></p>
+    <div class="rc-table-scroll">
+      <table class="rc-table">
+        <thead><tr><th>Codice</th><th>Descrizione</th><th>Riporto</th><th></th></tr></thead>
+        <tbody id="riporti-tbody"></tbody>
+      </table>
+    </div>
+    <br>
+    <button class="btn btn-teal" style="padding:12px 20px;font-size:15px;" onclick="confermaChiudiMese()">CONFERMA E CHIUDI MESE</button>
+    <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="document.getElementById('modal-riporti').style.display='none'">ANNULLA</button>
+  </div>
+</div>
+
 <!-- ABBINAMENTI BERGAMASCO (codici BER -> codici B0, tabella abbinamenti_ber) -->
 <div id="page-abbinamenti-ber" class="page">
   <div id="msg-abbinamenti-ber"></div>
@@ -2589,8 +2609,9 @@ async function verificaVerniciatoImballo(){
   var mapVern={};
   vern.forEach(function(r){
     var key=((r.codice_articolo||'').toString().trim().toLowerCase());
-    if(!mapVern[key]) mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
+    if(!mapVern[key]) mapVern[key]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0,riporto:0};
     mapVern[key].tot += Number(r.quantita)||0;
+    if(isRiportoVern(r))mapVern[key].riporto += Number(r.quantita)||0;
   });
   // WA Uscita (solo AZZURRA): righe senza codice_articolo tenute da parte, come gia'
   // faceva verificaWAUscitaImballo(), per non perdere la segnalazione "da associare".
@@ -2621,7 +2642,7 @@ async function verificaVerniciatoImballo(){
     return {
       cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||'',
       desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||'',
-      vern:vTot,imb:iTot,wau:wTot,
+      vern:vTot,imb:iTot,wau:wTot,riporto:v?v.riporto:0,
       flagVernImb:flagVernImb,flagBypass:flagBypass,flagImbWau:flagImbWau,
       anomalo:flagVernImb||flagBypass||flagImbWau
     };
@@ -2678,7 +2699,9 @@ async function verificaVerniciatoImballo(){
     return '<tr>'
       +'<td><strong>'+(a.cod||'—')+'</strong></td>'
       +'<td>'+(a.desc||'')+'</td>'
-      +'<td style="text-align:right;'+colVern+'">'+a.vern+'</td>'
+      +'<td style="text-align:right;'+colVern+'">'+a.vern
+        +(a.riporto?'<div><span class="badge" style="background:#EDE7F6;color:#4527A0;">RIPORTO '+a.riporto+'</span></div>':'')
+      +'</td>'
       +celImb
       +celWau
       +celStato
@@ -2801,7 +2824,7 @@ async function salvaVerniciato(){
   if(esistenti){
     var dup=esistenti.find(function(r){
       var dataR=(r.created_at||'').slice(0,10);
-      return dataR===dataSel && r.codice_articolo===cod;
+      return dataR===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+qty;
@@ -2842,7 +2865,7 @@ async function caricaVerniciato(){
     var righeHtml=a.righe.map(function(r){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
-        +'<span>'+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
+        +'<span>'+badgeRiporto(r)+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
         +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciato)">✕</button>'
       +'</div>';
@@ -2914,7 +2937,7 @@ async function salvaVerniciatoP(){
   var dataSel=(document.getElementById('vernp-date')&&document.getElementById('vernp-date').value)?document.getElementById('vernp-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod;
+      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -2966,7 +2989,7 @@ async function caricaVerniciatoP(){
         +'<span style="font-weight:600;color:'+col+';min-width:70px;font-size:13px;">'+data+'</span>'
         +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.quantita+'</span>'
         +'<div class="row-info" style="flex:1;">'
-          +'<div class="rdesc">'+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
+          +'<div class="rdesc">'+badgeRiporto(r)+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
           +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
         +'</div>'
         +'<div class="no-print" style="display:flex;gap:4px;align-items:center;">'
@@ -2992,7 +3015,7 @@ async function salvaVerniciato2(){
   var dataSel=(document.getElementById('imb2-vern-date')&&document.getElementById('imb2-vern-date').value)?document.getElementById('imb2-vern-date').value:oggiISO();
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod;
+      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -3044,7 +3067,7 @@ async function caricaVerniciato2(){
         +'<span style="font-weight:600;color:'+col+';min-width:70px;font-size:13px;">'+data+'</span>'
         +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.quantita+'</span>'
         +'<div class="row-info" style="flex:1;">'
-          +'<div class="rdesc">'+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
+          +'<div class="rdesc">'+badgeRiporto(r)+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
           +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:4px;align-items:center;">'
@@ -3898,6 +3921,9 @@ async function aggiornaConfronto(){
   we=we.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_righe';}));
   wu=wu.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}));
   vern=vern.concat(arch.filter(function(r){return r.tabella_origine==='verniciato';}));
+  // I riporti Verniciato da Chiudi Mese sono pezzi gia' contati nel mese precedente (archivio):
+  // in un conto dall'inizio vanno esclusi, altrimenti si sommerebbero due volte.
+  vern=vern.filter(function(r){return !isRiportoVern(r);});
   imb=imb.concat(arch.filter(function(r){return r.tabella_origine==='imballo';}));
 
   var periodoElAz=document.getElementById('rc-periodo-info');
@@ -4357,9 +4383,13 @@ async function aggiornaConfrrontoBer(){
   var mVern={},mImb={},mDDTU={};
   vern.forEach(function(r){
     var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
-    if(!mVern[k])mVern[k]={cod:r.codice_articolo||k,desc:r.descrizione||'',tot:0};
+    if(!mVern[k])mVern[k]={cod:r.codice_articolo||k,desc:r.descrizione||'',tot:0,riporto:0};
     mVern[k].tot+=Number(r.quantita)||0;
+    if(isRiportoVern(r))mVern[k].riporto+=Number(r.quantita)||0;
   });
+  // Verniciato da confrontare con DDT Entrata: senza i riporti di Chiudi Mese, perche'
+  // quei pezzi sono entrati con i DDT del mese precedente. Vern≠Imb usa invece il totale.
+  function vernPerDDT(b0){return mVern[b0]?mVern[b0].tot-mVern[b0].riporto:0;}
   imb.forEach(function(r){
     var k=(r.codice_articolo||'').trim().toUpperCase();if(!k)return;
     if(!mImb[k])mImb[k]={cod:r.codice_articolo||k,desc:r.articolo||'',tot:0};
@@ -4403,14 +4433,14 @@ async function aggiornaConfrrontoBer(){
       return !((mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0));
     });
 
-    var sumVernActive=active.reduce(function(s,b0){return s+(mVern[b0]?mVern[b0].tot:0);},0);
+    var sumVernActive=active.reduce(function(s,b0){return s+vernPerDDT(b0);},0);
     var groupAnomaly=berTotal>0&&sumVernActive!==berTotal;
     var residuo=Math.max(0,berTotal-sumVernActive);
 
     // Scalare assignment among actives: each gets min(vernTot, remaining)
     var remaining=berTotal;
     active.forEach(function(b0){
-      var vernB0=mVern[b0]?mVern[b0].tot:0;
+      var vernB0=vernPerDDT(b0);
       var assigned=Math.min(vernB0,remaining);
       if(!mDDTE[b0])mDDTE[b0]=0;
       mDDTE[b0]+=assigned;
@@ -4435,10 +4465,11 @@ async function aggiornaConfrrontoBer(){
   var righe=Object.keys(keys).map(function(k){
     var v_=mVern[k],i_=mImb[k],u_=mDDTU[k];
     var vernTot=v_?v_.tot:0,imbTot=i_?i_.tot:0,ddtU=u_?u_.tot:0,ddtE=mDDTE[k]||0;
+    var riportoTot=v_?v_.riporto:0,vernDDT=vernTot-riportoTot;
     var cod=(v_&&v_.cod)||(i_&&i_.cod)||(u_&&u_.cod)||k;
     var desc=(v_&&v_.desc)||(i_&&i_.desc)||(u_&&u_.desc)||'';
     var diffVernImb=vernTot-imbTot;
-    var diffDDTEVern=ddtE-vernTot;
+    var diffDDTEVern=ddtE-vernDDT;
     var diffDDTUImb=ddtU-imbTot;
     var stato='ok',badge='✓ Ok',colore='';
     var grp=b0GroupAnomaly[k];
@@ -4454,10 +4485,10 @@ async function aggiornaConfrrontoBer(){
     } else {
       // Single B0 or no abbinamento: original logic
       if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
-      else if(ddtE>0&&ddtE!==vernTot){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
+      else if(ddtE>0&&ddtE!==vernDDT){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
       else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
     }
-    return {cod:cod,desc:desc,vern:vernTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
+    return {cod:cod,desc:desc,vern:vernTot,riporto:riportoTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
             diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,
             stato:stato,badge:badge,colore:colore};
   });
@@ -4508,7 +4539,9 @@ function renderRiepilogoCompletoBer(){
         :(manuale?'<button onclick="removeOkManualeBer(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
       return '<tr style="'+bg+'">'
         +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
-        +'<td style="text-align:right;">'+r.vern+'</td>'
+        +'<td style="text-align:right;">'+r.vern
+          +(r.riporto?'<div><span class="badge" style="background:#EDE7F6;color:#4527A0;" title="Escluso dal confronto con DDT Entrata">RIPORTO '+r.riporto+'</span></div>':'')
+        +'</td>'
         +'<td style="text-align:right;">'+r.imb+'</td>'
         +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colDE+';font-size:11px;">('+(r.diffDDTEVern>0?'+':'')+r.diffDDTEVern+')</span></td>'
         +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+')</span></td>'
@@ -7353,8 +7386,92 @@ function salvaCfgDataChiusura(){
 }
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
+// Chiudi Mese in due passi: prima anteprima dei riporti Verniciato (residuo =
+// Verniciato del mese − max(Imballo, WA Uscita), solo se > 0, modificabile), poi
+// confermaChiudiMese() salva i riporti, archivia e azzera come prima.
+var _riportiCM=[];
+var MESI_IT=['GENNAIO','FEBBRAIO','MARZO','APRILE','MAGGIO','GIUGNO','LUGLIO','AGOSTO','SETTEMBRE','OTTOBRE','NOVEMBRE','DICEMBRE'];
+
 async function chiudiMese(){
-  if(!confirm('Chiudere il mese? WA entrate/uscite, Imballo e Verniciato verranno cancellati dalla lista di lavoro (restano salvati in archivio per il Confronto). I DDT restano.'))return;
+  var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
+  var vern=await apiGet('verniciato');
+  var imb=await apiGet('imballo');
+  var wu=await apiGet('whatsapp_uscita');
+  if(!vern||!imb||!wu){alert('Errore caricamento Verniciato, Imballo o WA Uscita: riprova.');return;}
+  function chiave(cod,desc){return (cod||desc||'').toString().trim().toLowerCase();}
+  var m={};
+  function voce(k,cod,desc){
+    if(!m[k])m[k]={cod:cod||'',desc:desc||'',vern:0,imb:0,wa:0};
+    if(!m[k].cod&&cod)m[k].cod=cod;
+    if(!m[k].desc&&desc)m[k].desc=desc;
+    return m[k];
+  }
+  vern.forEach(function(r){var k=chiave(r.codice_articolo,r.descrizione);if(k)voce(k,r.codice_articolo,r.descrizione).vern+=Number(r.quantita)||0;});
+  imb.forEach(function(r){var k=chiave(r.codice_articolo,r.articolo);if(k)voce(k,r.codice_articolo,r.articolo).imb+=Number(r.totale)||0;});
+  wu.forEach(function(r){var d=r.descrizione_articolo||r.descrizione;var k=chiave(r.codice_articolo,d);if(k)voce(k,r.codice_articolo,d).wa+=Number(r.quantita)||0;});
+  _riportiCM=Object.keys(m).map(function(k){
+    var a=m[k];return {cod:a.cod,desc:a.desc,qta:a.vern-Math.max(a.imb,a.wa)};
+  }).filter(function(a){return a.qta>0;}).sort(function(a,b){return (a.cod||a.desc).localeCompare(b.cod||b.desc);});
+
+  // Mese chiuso proposto: il mese scorso se siamo nei primi 15 giorni, altrimenti quello in corso.
+  var oggi=new Date();
+  var mc=new Date(oggi.getFullYear(),oggi.getMonth()-(oggi.getDate()<=15?1:0),1);
+  document.getElementById('riporti-mese').value=mc.getFullYear()+'-'+String(mc.getMonth()+1).padStart(2,'0');
+  aggiornaInfoRiporti();
+  var tb=document.getElementById('riporti-tbody');
+  tb.innerHTML=_riportiCM.length?_riportiCM.map(function(a,i){
+    return '<tr id="riporti-tr-'+i+'"><td><strong>'+(a.cod||'—')+'</strong></td><td>'+a.desc+'</td>'
+      +'<td><input type="number" min="0" step="1" id="riporti-qta-'+i+'" value="'+a.qta+'" style="width:80px;margin:0;"></td>'
+      +'<td><button class="del-btn" title="Togli" onclick="document.getElementById(\'riporti-qta-'+i+'\').value=0;document.getElementById(\'riporti-tr-'+i+'\').style.opacity=0.4;">✕</button></td></tr>';
+  }).join(''):'<tr><td colspan="4" style="text-align:center;padding:14px;color:#999;">Nessun residuo da riportare.</td></tr>';
+  document.getElementById('modal-riporti').style.display='flex';
+}
+
+function meseRiportiSel(){
+  var v=document.getElementById('riporti-mese').value||'';
+  var p=v.split('-');if(p.length!==2)return null;
+  var anno=Number(p[0]),mese=Number(p[1])-1;
+  var nuovo=new Date(anno,mese+1,1);
+  return {
+    etichetta:MESI_IT[mese]+' '+anno,
+    dataNuovo:nuovo.getFullYear()+'-'+String(nuovo.getMonth()+1).padStart(2,'0')+'-01'
+  };
+}
+
+function aggiornaInfoRiporti(){
+  var s=meseRiportiSel();
+  document.getElementById('riporti-info').textContent=s?('Nota: "RIPORTO DA '+s.etichetta+'" — data riga: '+fmtData(s.dataNuovo)):'Scegli il mese.';
+}
+
+// Riga Verniciato creata da Chiudi Mese (vedi chiudiMese): nota "RIPORTO DA ...".
+function isRiportoVern(r){return /^RIPORTO DA /i.test((r&&r.note)||'');}
+function badgeRiporto(r){return isRiportoVern(r)?'<span class="badge" style="background:#EDE7F6;color:#4527A0;margin-right:4px;">RIPORTO</span>':'';}
+
+async function confermaChiudiMese(){
+  var s=meseRiportiSel();if(!s){alert('Scegli il mese che chiudi.');return;}
+  var riporti=_riportiCM.map(function(a,i){
+    var el=document.getElementById('riporti-qta-'+i);
+    return {cod:a.cod,desc:a.desc,qta:el?(Number(el.value)||0):0};
+  }).filter(function(a){return a.qta>0;});
+  if(!confirm('Chiudere il mese '+s.etichetta+'? '+riporti.length+' riporto/i Verniciato verranno creati al '+fmtData(s.dataNuovo)+'. WA entrate/uscite, Imballo e Verniciato verranno poi cancellati dalla lista di lavoro (restano salvati in archivio per il Confronto). I DDT restano.'))return;
+  document.getElementById('modal-riporti').style.display='none';
+  var nota='RIPORTO DA '+s.etichetta;
+  var idsRiporto=[];
+  for(var j=0;j<riporti.length;j++){
+    var a=riporti[j];
+    var res=await apiPost('verniciato',{codice_articolo:a.cod||null,descrizione:a.desc,quantita:a.qta,sequenza:String(a.qta),note:nota,data_inserimento:s.dataNuovo});
+    if(!res||!res[0]){
+      // Riporto non salvato: tolgo quelli gia' creati e non chiudo, cosi' si puo' riprovare pulito.
+      for(var k=0;k<idsRiporto.length;k++)await apiDel('verniciato','id=eq.'+idsRiporto[k]);
+      showMsg('msg-cfg','Errore nel salvare i riporti: mese NON chiuso, niente è stato cancellato.','err');
+      return;
+    }
+    idsRiporto.push(res[0].id);
+  }
+  await eseguiChiudiMese(idsRiporto);
+}
+
+async function eseguiChiudiMese(idsRiporto){
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
   var cl=getCliente();
   // Archive WA entrate
@@ -7378,7 +7495,9 @@ async function chiudiMese(){
   if(vernCM&&vernCM.length){
     for(var i=0;i<vernCM.length;i++){
       var r=vernCM[i];
-      await apiPost('archivio',{tabella_origine:'verniciato',descrizione:r.descrizione,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
+      if(idsRiporto.indexOf(r.id)>=0)continue;
+      // I riporti tengono "RIPORTO DA ..." in nota: il Confronto cumulativo li esclude (doppioni).
+      await apiPost('archivio',{tabella_origine:'verniciato',descrizione:r.descrizione,codice_articolo:r.codice_articolo,quantita:r.quantita,note:(isRiportoVern(r)?r.note+' - ':'')+'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
     }
   }
   // Archive Imballo
@@ -7393,11 +7512,12 @@ async function chiudiMese(){
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato'];
   try{
     for(var i=0;i<tables.length;i++){
-      await fetch(cfg.url+'/rest/v1/'+tables[i]+'?cliente=eq.'+encodeURIComponent(cl),{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});
+      var escludi=(tables[i]==='verniciato'&&idsRiporto.length)?'&id=not.in.('+idsRiporto.join(',')+')':'';
+      await fetch(cfg.url+'/rest/v1/'+tables[i]+'?cliente=eq.'+encodeURIComponent(cl)+escludi,{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});
     }
     localStorage.setItem('chiusura_'+cl, new Date().toISOString().slice(0,10));
     localStorage.removeItem('scelta_uscita_'+cl);
-    showMsg('msg-cfg','✓ Mese chiuso! WA, Verniciato e Imballo salvati in archivio. DDT e Confronto restano con lo storico completo.','ok');
+    showMsg('msg-cfg','✓ Mese chiuso! WA, Verniciato e Imballo salvati in archivio'+(idsRiporto.length?(', '+idsRiporto.length+' riporto/i Verniciato creati'):'')+'. DDT e Confronto restano con lo storico completo.','ok');
   }catch(e){showMsg('msg-cfg','Errore: '+e.message,'err');}
 }
 
@@ -7726,7 +7846,7 @@ async function unisciDuplicatiVerniciato(){
   var map={};
   d.forEach(function(r){
     var data=(r.data_inserimento||r.created_at||'').slice(0,10);
-    var k=data+'__'+(r.codice_articolo||r.descrizione||'?');
+    var k=data+'__'+(r.codice_articolo||r.descrizione||'?')+(isRiportoVern(r)?'__riporto':'');
     if(!map[k])map[k]=[];
     map[k].push(r);
   });
