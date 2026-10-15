@@ -262,6 +262,39 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   .row-item .rdesc  { font-size: 10px; font-weight: bold; }
   .row-item .rsub   { font-size: 9px; color: #555; }
 }
+/* ── TELEFONO: niente sforamento orizzontale (solo schermo, la stampa resta com'è) ── */
+@media screen and (max-width: 768px) {
+  /* Colonne delle griglie: possono stringersi invece di allargarsi al contenuto */
+  .page [style*="display:grid"] > * { min-width: 0; }
+  .card { max-width: 100%; }
+
+  /* File di pulsanti: larghezza naturale e a capo */
+  .card div[style*="display:flex"] > .btn[style*="flex:1"] { flex: 1 1 auto !important; width: auto; }
+  .btn { max-width: 100%; }
+
+  /* Righe delle liste: qty + descrizione in alto, badge e pulsanti sulla riga sotto */
+  .row-item .row-info { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+  .row-item:has(> .row-info ~ *),
+  .row-item > div:has(> .row-info ~ *) { flex-wrap: wrap; row-gap: 4px; justify-content: flex-end; }
+  .row-item:has(> .row-info ~ *)::before,
+  .row-item > div:has(> .row-info ~ *)::before { content: ""; flex-basis: 100%; height: 0; order: 1; }
+  .row-item > .row-info ~ *,
+  .row-item > div > .row-info ~ * { order: 2; }
+  .row-item .rsub[style*="display:flex"] { flex-wrap: wrap; }
+
+  /* Campi: mai oltre la card; il totale accanto alla sequenza resta visibile */
+  input, select, textarea { max-width: 100%; }
+  input { min-width: 0; }
+  .imb-row input { min-width: 0; }
+  .imb-tot { flex-shrink: 0; }
+
+  /* Popup: al massimo 95% dello schermo (il ⛶ tutto schermo resta al 98%) */
+  .modal-box:not(.modal-full) { max-width: 95vw !important; }
+
+  /* Ultima sicurezza: clip su body non rompe l'intestazione sticky */
+  html { overflow-x: hidden; }
+  body { overflow-x: clip; }
+}
 </style>
 </head>
 <body>
