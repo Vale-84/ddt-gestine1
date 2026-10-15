@@ -971,6 +971,18 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- MODAL OPERATORE ("Chi sei?"): nome salvato su questo dispositivo -->
+<div class="modal" id="modal-operatore" style="z-index:400;">
+  <div class="modal-box">
+    <h3>Chi sei?</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Il nome viene salvato su questo dispositivo e segnato su ogni riga che inserisci.</p>
+    <div id="operatore-nomi" style="margin-bottom:6px;"></div>
+    <label>Nome</label>
+    <input type="text" id="operatore-nome" placeholder="es. Valentina" onkeydown="if(event.key==='Enter')salvaOperatore()">
+    <button class="btn btn-blue" style="padding:12px 20px;font-size:15px;" onclick="salvaOperatore()">SALVA</button>
+  </div>
+</div>
+
 <!-- MODAL DOPPIONE PER CONTENUTO (import DDT Entrata da file) -->
 <div class="modal" id="modal-doppione-ddt" style="z-index:300;">
   <div class="modal-box">
@@ -1281,6 +1293,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <label>URL Progetto</label><input type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
     <label>Chiave API (anon key)</label><input type="text" id="cfg-key" placeholder="eyJhbGci...">
     <button class="btn btn-blue" onclick="salvaConfig()">SALVA</button>
+  </div>
+  <div class="card">
+    <h2>Operatore</h2>
+    <p style="font-size:14px;margin-bottom:10px;">Operatore: <strong id="cfg-operatore"></strong></p>
+    <button class="btn btn-blue btn-sm" style="width:auto;" onclick="apriSceltaOperatore()">CAMBIA</button>
   </div>
   <div class="card">
     <h2>Backup dati</h2>
@@ -1687,8 +1704,72 @@ async function apiPost(t,b){
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','archivio'];
   if(tables.indexOf(t)>=0) b.cliente=getCliente();
   if(tables.indexOf(t)>=0 && !b.created_at) b.created_at=new Date().toISOString();
+  // Chi ha inserito la riga (nome operatore del dispositivo), per tutte le vie di inserimento.
+  var op=getOperatore();
+  if(op&&TABELLE_OPERATORE.indexOf(t)>=0){
+    (Array.isArray(b)?b:[b]).forEach(function(x){if(x&&!x.inserito_da)x.inserito_da=op;});
+  }
   try{var r=await fetch(c.url+'/rest/v1/'+t,{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'},body:JSON.stringify(b)});
   if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){alert('Errore: '+e.message);return null;}
+}
+
+// ── OPERATORE (nome per dispositivo, senza login) ──────────────────────
+var TABELLE_OPERATORE=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita'];
+function getOperatore(){try{return (localStorage.getItem('operatore')||'').trim();}catch(e){return '';}}
+
+// Etichetta "👤 nome" per le righe che hanno inserito_da (le righe vecchie restano come sono).
+function badgeOperatore(r){
+  if(!r||!r.inserito_da)return '';
+  return ' <span style="font-size:10px;color:#666;background:#F0F0F0;border-radius:8px;padding:1px 6px;white-space:nowrap;" title="Inserita da">👤 '+escAbb(r.inserito_da)+'</span>';
+}
+
+// Prima di eliminare righe: se qualcuna e' stata inserita da un altro operatore chiede
+// conferma. true = si puo' eliminare. confermaGenerica = testo del confirm abituale,
+// usato quando le righe sono tutte mie (o senza nome).
+async function confermaEliminaOperatore(table,ids,confermaGenerica){
+  var altri=[];
+  if(ids.length){
+    var d=await apiGet(table,'id=in.('+ids.join(',')+')&select=id,inserito_da&limit=5000');
+    var io=getOperatore();
+    (d||[]).forEach(function(r){if(r.inserito_da&&r.inserito_da!==io)altri.push(r.inserito_da);});
+  }
+  if(!altri.length)return confermaGenerica?confirm(confermaGenerica):true;
+  if(ids.length===1)return confirm('Questa riga l\'ha inserita '+altri[0]+'. Eliminarla comunque?');
+  var nomi=altri.filter(function(x,i,a){return a.indexOf(x)===i;});
+  return confirm('Eliminare '+ids.length+' righe selezionate? '+altri.length+' sono state inserite da altri ('+nomi.join(', ')+'). Eliminarle comunque?');
+}
+
+// Finestra "Chi sei?": nome libero oppure scelta tra i nomi gia' usati (sul database).
+async function apriSceltaOperatore(){
+  var m=document.getElementById('modal-operatore');
+  var inp=document.getElementById('operatore-nome');
+  inp.value=getOperatore();
+  var box=document.getElementById('operatore-nomi');
+  box.innerHTML='';
+  m.style.display='flex';
+  var nomi={};
+  try{nomi[getOperatore()]=true;}catch(e){}
+  var c=getConfig();
+  if(c.url){
+    var ris=await Promise.all(TABELLE_OPERATORE.map(function(t){return apiGet(t,'select=inserito_da&inserito_da=not.is.null&order=id.desc&limit=500');}));
+    ris.forEach(function(d){(d||[]).forEach(function(r){if(r.inserito_da)nomi[r.inserito_da]=true;});});
+  }
+  box.innerHTML=Object.keys(nomi).filter(Boolean).sort().map(function(n){
+    return '<button type="button" class="btn btn-sm btn-gray" style="width:auto;margin:0 6px 6px 0;" data-nome="'+escAbb(n)+'" onclick="document.getElementById(\'operatore-nome\').value=this.getAttribute(\'data-nome\')">'+escAbb(n)+'</button>';
+  }).join('');
+}
+
+function salvaOperatore(){
+  var n=(document.getElementById('operatore-nome').value||'').trim();
+  if(!n){alert('Scrivi il tuo nome.');return;}
+  try{localStorage.setItem('operatore',n);}catch(e){alert('Impossibile salvare il nome su questo dispositivo.');return;}
+  document.getElementById('modal-operatore').style.display='none';
+  aggiornaLabelOperatore();
+}
+
+function aggiornaLabelOperatore(){
+  var el=document.getElementById('cfg-operatore');
+  if(el)el.textContent=getOperatore()||'(non impostato)';
 }
 
 async function apiDel(t,f){
@@ -1976,7 +2057,7 @@ async function caricaEntrate(){
     return '<div class="row-item'+(isLibE?' libero':'')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="e" value="'+r.id+'" onchange="aggiornaStatoElimina(\'e\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">✕</button></div>';
@@ -1985,7 +2066,8 @@ async function caricaEntrate(){
 }
 
 async function eliminaRiga(table,id,callback){
-  if(!confirm('Eliminare questa riga?'))return;
+  if(TABELLE_OPERATORE.indexOf(table)>=0){if(!(await confermaEliminaOperatore(table,[id],'Eliminare questa riga?')))return;}
+  else if(!confirm('Eliminare questa riga?'))return;
   await apiDel(table,'id=eq.'+id);
   if(callback)callback();
 }
@@ -2434,7 +2516,7 @@ async function caricaUscite(){
     return '<div class="row-item'+(isLibU?' libero':' teal')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="u" value="'+r.id+'" onchange="aggiornaStatoElimina(\'u\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +imbBtnU
@@ -2821,7 +2903,7 @@ async function eliminaSelezionati(prefix){
   var checks=document.querySelectorAll('.riga-check[data-prefix="'+prefix+'"]:checked');
   var ids=Array.prototype.map.call(checks,function(cb){return cb.value;});
   if(!ids.length)return;
-  if(!confirm('Eliminare '+ids.length+' elementi selezionati? L\'azione è definitiva.'))return;
+  if(!(await confermaEliminaOperatore(table,ids,'Eliminare '+ids.length+' elementi selezionati? L\'azione è definitiva.')))return;
   for(var i=0;i<ids.length;i++){
     await apiDel(table,'id=eq.'+ids[i]);
   }
@@ -2894,7 +2976,7 @@ async function caricaVerniciato(){
     var righeHtml=a.righe.map(function(r){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
-        +'<span>'+badgeRiporto(r)+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span></span>'
+        +'<span>'+badgeRiporto(r)+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'+badgeOperatore(r)+'</span>'
         +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciato)">✕</button>'
       +'</div>';
@@ -3019,7 +3101,7 @@ async function caricaVerniciatoP(){
         +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.quantita+'</span>'
         +'<div class="row-info" style="flex:1;">'
           +'<div class="rdesc">'+badgeRiporto(r)+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
-          +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
+          +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+badgeOperatore(r)+'</div>'
         +'</div>'
         +'<div class="no-print" style="display:flex;gap:4px;align-items:center;">'
           +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
@@ -3097,7 +3179,7 @@ async function caricaVerniciato2(){
         +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.quantita+'</span>'
         +'<div class="row-info" style="flex:1;">'
           +'<div class="rdesc">'+badgeRiporto(r)+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.descrizione+'</div>'
-          +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
+          +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+badgeOperatore(r)+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:4px;align-items:center;">'
           +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'_BER\',\''+seqStr.replace(/'/g,"\\'")+'_BER\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
@@ -3110,7 +3192,7 @@ async function caricaVerniciato2(){
 }
 
 async function eliminaRiga2(id){
-  if(!confirm('Eliminare?'))return;
+  if(!(await confermaEliminaOperatore('verniciato',[id],'Eliminare?')))return;
   await apiDel('verniciato','id=eq.'+id);
   caricaVerniciato2();caricaRiepilogoBer();
 }
@@ -5200,7 +5282,7 @@ async function caricaDDTE(){
     return '<div class="row-item">'
       +'<input type="checkbox" class="de-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;">'
       +'<div class="row-qty">'+(r.quantita_ddt||'—')+'</div>'
-      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong>'+iaHtml+' '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
+      +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong>'+iaHtml+' '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+badgeOperatore(r)+'</div></div>'
       +'<label style="display:flex;align-items:center;gap:3px;font-size:10px;color:#5B2C8D;margin-right:6px;white-space:nowrap;" title="Senza addebito (riparazione)"><input type="checkbox" class="de-sa-chk" '+(isSA?'checked':'')+' onchange="toggleSenzaAddebitoDE('+r.id+',this.checked)" style="width:15px;height:15px;min-width:15px;margin:0;padding:0;border:none;"> Senza add.</label>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
       +btnNumero
@@ -5475,7 +5557,7 @@ function toggleSelAllDDTE(checked){
 async function eliminaSelezionatiDDTE(){
   var ids=Array.prototype.slice.call(document.querySelectorAll('.de-chk:checked')).map(function(cb){return cb.value;});
   if(!ids.length){alert('Nessun DDT selezionato.');return;}
-  if(!confirm('Eliminare '+ids.length+' righe di DDT Entrata selezionate? Operazione non reversibile.'))return;
+  if(!(await confermaEliminaOperatore('ddt_entrata',ids,'Eliminare '+ids.length+' righe di DDT Entrata selezionate? Operazione non reversibile.')))return;
   await apiDel('ddt_entrata','id=in.('+ids.join(',')+')');
   showMsg('msg-ddt-e',ids.length+' righe eliminate.','ok');
   caricaDDTE();
@@ -5714,7 +5796,7 @@ async function caricaDDTU(){
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
   var ctx=await caricaCtxMag(d);
-  l.innerHTML=d.map(function(r){var mag=htmlMag(giacenzaRigaMag(ctx,{cod:r.codice_articolo,data:dataRigaMag(r),id:r.id,creata:r.created_at||'',tipo:'ddt'}),r.quantita_ddt);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+'</div></div>'+mag+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\',\''+String(r.numero_ddt||'').replace(/\'/g,"\\'")+'\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+  l.innerHTML=d.map(function(r){var mag=htmlMag(giacenzaRigaMag(ctx,{cod:r.codice_articolo,data:dataRigaMag(r),id:r.id,creata:r.created_at||'',tipo:'ddt'}),r.quantita_ddt);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+badgeOperatore(r)+'</div></div>'+mag+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\',\''+String(r.numero_ddt||'').replace(/\'/g,"\\'")+'\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
 }
 
 function toggleSelAllDDTU(checked){
@@ -5724,7 +5806,7 @@ function toggleSelAllDDTU(checked){
 async function eliminaSelezionatiDDTU(){
   var ids=Array.prototype.slice.call(document.querySelectorAll('.du-chk:checked')).map(function(cb){return cb.value;});
   if(!ids.length){alert('Nessun DDT selezionato.');return;}
-  if(!confirm('Eliminare '+ids.length+' righe di DDT Uscita selezionate? Operazione non reversibile.'))return;
+  if(!(await confermaEliminaOperatore('ddt_uscita',ids,'Eliminare '+ids.length+' righe di DDT Uscita selezionate? Operazione non reversibile.')))return;
   await apiDel('ddt_uscita','id=in.('+ids.join(',')+')');
   showMsg('msg-ddt-u',ids.length+' righe eliminate.','ok');
   caricaDDTU();
@@ -7132,7 +7214,7 @@ async function caricaImballo(){
   var html=Object.values(map).map(function(a){
     var righe=a.righe.map(function(r){
       return '<div class="rsub" style="padding:4px 0;display:flex;align-items:center;gap:8px;">'
-        +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'
+        +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'+badgeOperatore(r)
         +'<span style="margin-left:auto;display:flex;gap:4px;">'
           +'<button class="edit-btn" title="Modifica" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||a.desc).replace(/'/g,"\\'")+'\',\''+String(r.sequenza||'').replace(/'/g,"\\'")+'\',\''+String(r.note||'').replace(/'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✎</button>'
           +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')">✕</button>'
@@ -7174,7 +7256,7 @@ async function caricaImballo(){
           +'<span class="row-qty" style="color:'+col+';min-width:36px;">'+r.totale+'</span>'
           +'<div class="row-info" style="flex:1;">'
             +'<div class="rdesc">'+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.articolo+'</div>'
-            +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+'</div>'
+            +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+badgeOperatore(r)+'</div>'
           +'</div>'
           +htmlMag(giacenzaRigaMag(ctxMag,{cod:r.codice_articolo,data:dataRigaMag(r),creata:r.created_at||'',tipo:'imballo'}),r.totale)
           +'<div style="display:flex;gap:4px;align-items:center;">'
@@ -7189,7 +7271,7 @@ async function caricaImballo(){
 }
 
 async function eliminaRigaImb(id){
-  if(!confirm('Eliminare questa riga?'))return;
+  if(!(await confermaEliminaOperatore('imballo',[id],'Eliminare questa riga?')))return;
   await apiDel('imballo','id=eq.'+id);
   caricaImballo();caricaRiepilogoBer();
 }
@@ -10009,6 +10091,8 @@ window.onload=function(){
   // Imposta le date di default a oggi per i campi nuova inserzione
   var today=oggiISO();
   ['e-date','u-date','e-wa-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date','foto-e-date','foto-u-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
+  aggiornaLabelOperatore();
+  if(!getOperatore())apriSceltaOperatore();
 };
 
 if('serviceWorker' in navigator){
