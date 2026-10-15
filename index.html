@@ -971,6 +971,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
 </div>
 
+<!-- MODAL DOPPIONE PER CONTENUTO (import DDT Entrata da file) -->
+<div class="modal" id="modal-doppione-ddt" style="z-index:300;">
+  <div class="modal-box">
+    <h3 style="color:#C55A11;">Possibile DDT doppio</h3>
+    <p id="modal-doppione-ddt-testo" style="font-size:14px;margin-bottom:14px;"></p>
+    <button class="btn btn-gray" id="modal-doppione-ddt-no" style="padding:12px 20px;font-size:15px;">Annulla</button>
+    <button class="btn btn-orange" id="modal-doppione-ddt-si" style="padding:12px 20px;font-size:15px;">Carica comunque</button>
+  </div>
+</div>
+
 <!-- MODAL ANTEPRIMA RIPORTI CHIUDI MESE -->
 <div class="modal" id="modal-riporti">
   <div class="modal-box" style="max-width:640px;">
@@ -5074,6 +5084,8 @@ async function importaDaPDF(){
   var pfxMap={'AZZURRA':'A0','BERGAMASCO':'B0'};
   var pfx=pfxMap[getCliente()]||'';
   var artFiltrato=pfx?artCache.filter(function(x){return (x.codice_articolo||'').toUpperCase().startsWith(pfx);}):artCache;
+  // Prima risolvo i codici (come verranno salvati), poi controllo il doppione per contenuto, poi salvo.
+  var daSalvare=[];
   for(var i=0;i<pdfDati.articoli.length;i++){
     var a=pdfDati.articoli[i];
     var cod=a.cod||'';
@@ -5094,7 +5106,12 @@ async function importaDaPDF(){
       var art=trovaArt(descNorm,artFiltrato);
       if(art)cod=art.codice_articolo;
     }
-    var r=await apiPost('ddt_entrata',{numero_ddt:pdfDati.nddt,data_ddt:pdfDati.data||null,cliente:pdfDati.cliente||getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF'});
+    daSalvare.push({cod:cod,desc:a.desc,qty:a.qty});
+  }
+  if(!(await confermaSeDoppioneContenuto(pdfDati.data,daSalvare)))return;
+  for(var j=0;j<daSalvare.length;j++){
+    var s=daSalvare[j];
+    var r=await apiPost('ddt_entrata',{numero_ddt:pdfDati.nddt,data_ddt:pdfDati.data||null,cliente:pdfDati.cliente||getCliente(),codice_articolo:s.cod,descrizione:s.desc,quantita_ddt:s.qty,quantita_whatsapp:0,note:'PDF'});
     if(r)n++;
   }
   showMsg('msg-ddt-e',n+' articoli importati!','ok');
@@ -5148,8 +5165,15 @@ async function caricaDDTE(){
   var mIA=isAz?await getMappaA0IA():{};
   // "Copia per Nova": un solo pulsante per DDT (non uno per riga articolo) — mostrato
   // sulla prima riga di ogni numero_ddt incontrato scorrendo la lista.
-  var ddtGiaMostrati={};
+  var ddtGiaMostrati={},numeroGiaMostrati={};
   l.innerHTML=d.map(function(r){
+    // "✏️ Numero": uno per DDT (stesso numero + stessa data), sulla prima riga del DDT.
+    var btnNumero='';
+    var chiaveNum=(r.numero_ddt||'')+'|'+(r.data_ddt||'');
+    if(r.numero_ddt&&!numeroGiaMostrati[chiaveNum]){
+      numeroGiaMostrati[chiaveNum]=true;
+      btnNumero='<button class="btn btn-sm btn-gray" style="width:auto;padding:4px 8px;font-size:11px;white-space:nowrap;" title="Cambia il numero di questo DDT" onclick="cambiaNumeroDDTE(\''+String(r.numero_ddt).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',\''+(r.data_ddt||'')+'\')">✏️ Numero</button>';
+    }
     var diff=(r.quantita_ddt||0)-(r.quantita_whatsapp||0);
     var cls=diff===0?'badge-ok':diff>0?'badge-warn':'badge-err';
     var iaHtml='';
@@ -5179,12 +5203,66 @@ async function caricaDDTE(){
       +'<div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong>'+iaHtml+' '+(r.descrizione||'')+'</div><div class="rsub">'+(r.numero_ddt||'')+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+(r.cliente||'')+'</div></div>'
       +'<label style="display:flex;align-items:center;gap:3px;font-size:10px;color:#5B2C8D;margin-right:6px;white-space:nowrap;" title="Senza addebito (riparazione)"><input type="checkbox" class="de-sa-chk" '+(isSA?'checked':'')+' onchange="toggleSenzaAddebitoDE('+r.id+',this.checked)" style="width:15px;height:15px;min-width:15px;margin:0;padding:0;border:none;"> Senza add.</label>'
       +'<span class="badge '+cls+'">'+(diff===0?'OK':diff>0?'+'+diff:''+diff)+'</span>'
+      +btnNumero
       +btnCopiaNova
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/'/g,"\\'")+'\',\'ddt_entrata\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_entrata\','+r.id+',caricaDDTE)">✕</button>'
       +'</div>';
   }).join('');
   caricaRiparazioniDaFare();
+}
+
+// Cambia numero DDT Entrata: aggiorna numero_ddt su tutte le righe del DDT (stesso
+// cliente, stesso numero, stessa data). Nient'altro cambia.
+async function cambiaNumeroDDTE(numero,data){
+  var nuovo=prompt('Nuovo numero per il DDT '+numero+(data?' del '+fmtData(data):'')+':',numero);
+  if(nuovo===null)return;
+  nuovo=nuovo.trim();
+  if(!nuovo||nuovo===numero)return;
+  var cl=getCliente();
+  var es=await apiGet('ddt_entrata','numero_ddt=eq.'+encodeURIComponent(nuovo)+'&select=data_ddt&limit=5000');
+  if(es===null){alert('Errore di connessione, riprova.');return;}
+  if(es.length){
+    var date=es.map(function(r){return r.data_ddt?fmtData(r.data_ddt):'senza data';}).filter(function(x,i,a){return a.indexOf(x)===i;});
+    if(!confirm('Esiste già un DDT n° '+nuovo+' per '+cl+' (del '+date.join(', ')+'). Cambiare comunque il numero?'))return;
+  }
+  var filtro='cliente=eq.'+encodeURIComponent(cl)+'&numero_ddt=eq.'+encodeURIComponent(numero)+'&data_ddt='+(data?'eq.'+encodeURIComponent(data):'is.null');
+  var ok=await apiPatch('ddt_entrata',filtro,{numero_ddt:nuovo});
+  if(!ok){alert('Errore nel salvare, riprova.');return;}
+  showMsg('msg-ddt-e','✓ Numero DDT cambiato: '+numero+' → '+nuovo+'.','ok');
+  caricaDDTE();
+}
+
+// Doppione per CONTENUTO (in piu' al controllo per numero): stesso cliente (apiGet),
+// stessa data, stessi codici con le stesse quantita' (sommate per codice), qualunque
+// numero abbia. Restituisce il DDT trovato {nddt,data} oppure null.
+async function ddtEntrataStessoContenuto(data,righe){
+  if(!data||!righe||!righe.length)return null;
+  var es=await apiGet('ddt_entrata','data_ddt=eq.'+encodeURIComponent(data)+'&select=numero_ddt,codice_articolo,quantita_ddt&limit=5000');
+  if(!es||!es.length)return null;
+  function firma(arr){
+    var m={};
+    arr.forEach(function(r){var k=String(r.cod||'').trim().toUpperCase();m[k]=(m[k]||0)+(Number(r.qty)||0);});
+    return Object.keys(m).sort().map(function(k){return k+'='+m[k];}).join('|');
+  }
+  var nuova=firma(righe);
+  var gruppi={};
+  es.forEach(function(r){var n=r.numero_ddt||'';(gruppi[n]=gruppi[n]||[]).push({cod:r.codice_articolo,qty:r.quantita_ddt});});
+  for(var n in gruppi){if(firma(gruppi[n])===nuova)return {nddt:n,data:data};}
+  return null;
+}
+
+// true = salva (nessun doppione, oppure "Carica comunque"), false = Annulla.
+async function confermaSeDoppioneContenuto(data,righe){
+  var t=await ddtEntrataStessoContenuto(data,righe);
+  if(!t)return true;
+  return await new Promise(function(res){
+    var m=document.getElementById('modal-doppione-ddt');
+    document.getElementById('modal-doppione-ddt-testo').textContent='Sembra già caricato come DDT n° '+(t.nddt||'?')+' del '+formattaDataGGMMAAAA(t.data)+'. Caricare comunque?';
+    document.getElementById('modal-doppione-ddt-si').onclick=function(){m.style.display='none';res(true);};
+    document.getElementById('modal-doppione-ddt-no').onclick=function(){m.style.display='none';res(false);};
+    m.style.display='flex';
+  });
 }
 
 // ── COPIA PER NOVA (DDT Entrata AZZURRA): TSV pronto per "incolla" in Nova ──
@@ -5481,6 +5559,7 @@ async function leggiExcelEntrata(input){
 
 async function importaDaExcel(){
   if(!excelDati||!excelDati.articoli.length)return;
+  if(!(await confermaSeDoppioneContenuto(excelDati.data,excelDati.articoli.map(function(a){return {cod:a.cod||'',qty:a.qty};}))))return;
   var nuoviArt=0,righe=0,visti={};
   for(var i=0;i<excelDati.articoli.length;i++){
     var a=excelDati.articoli[i];
@@ -6827,10 +6906,12 @@ async function importaPDFMultiEntrata(){
       var check=await apiGet('ddt_entrata','numero_ddt=eq.'+encodeURIComponent(d.nddt)+'&select=id&limit=1');
       if(check&&check.length){ddtSaltati++;continue;}
       }
+      // PDF Bergamasco: codice BER salvato cosi' com'e', mai sostituito con un B0
+      var codici=d.righe.map(function(a){return d.ber?a.cod:risolviCodiceEntrataPdf(a.cod,a.desc);});
+      if(!(await confermaSeDoppioneContenuto(d.data,d.righe.map(function(a,k){return {cod:codici[k],qty:a.qty};})))){ddtSaltati++;continue;}
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
-        // PDF Bergamasco: codice BER salvato cosi' com'e', mai sostituito con un B0
-        var cod=d.ber?a.cod:risolviCodiceEntrataPdf(a.cod,a.desc);
+        var cod=codici[j];
         var r=await apiPost('ddt_entrata',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:cod,descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'PDF multi-DDT'});
         if(r)righeOk++;
       }
