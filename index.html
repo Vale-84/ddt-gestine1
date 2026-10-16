@@ -2689,9 +2689,26 @@ function sceltaUscitaToggle(cod,valore){
   if(waCell)waCell.style.cssText='text-align:right;'+(valore==='wa'?'background:#C6EFCE;font-weight:bold;':'');
   if(btnImb)btnImb.className='btn btn-sm '+(valore==='imballo'?'btn-green':'btn-gray');
   if(btnWa)btnWa.className='btn btn-sm '+(valore==='wa'?'btn-green':'btn-gray');
-  var num=document.getElementById('su-num-'+cod);
-  if(num)num.textContent=valore==='imballo'?num.getAttribute('data-imb'):num.getAttribute('data-wa');
+  var box=document.getElementById('su-num-'+cod);
+  if(box){
+    var ddt=Number(box.getAttribute('data-ddt'))||0;
+    box.innerHTML=valore==='imballo'
+      ?htmlDaFareDDT('Imballo',Number(box.getAttribute('data-imb'))||0,ddt)
+      :htmlDaFareDDT('WA',Number(box.getAttribute('data-wa'))||0,ddt);
+  }
 }
+
+// Casella "DA FARE IN DDT" del Confronto Produzione: fonte scelta (WA/Imballo/Vern)
+// meno i DDT Uscita dalla chiusura mese. Il negativo resta visibile in rosso: vuol
+// dire piu' DDT che pezzi prodotti, da controllare.
+function htmlDaFareDDT(etichetta,fonte,ddt){
+  var n=fonte-ddt;
+  var stile=n===0?'color:#888;':(n<0?'color:#C62828;':'color:#2E7D32;');
+  return '<div style="font-size:18px;font-weight:bold;'+stile+'">'+(n===0?'✓ 0':n)+'</div>'
+    +'<div style="font-size:11px;color:#666;white-space:normal;">'+etichetta+' '+fonte+' – in DDT '+ddt+'</div>';
+}
+
+function fmtDiffSegno(n){return (n>0?'+':(n<0?'−':''))+Math.abs(n);}
 
 // USA WA: a differenza di "USA IMBALLO" (solo evidenziazione locale, sopra), scrive
 // davvero in Imballo una riga per ogni riga WA Uscita dell'articolo, con la data del
@@ -2740,9 +2757,31 @@ async function verificaVerniciatoImballo(){
   var vern=await apiGet('verniciato');
   var isAz=getCliente()==='AZZURRA';
   var wau=isAz?await apiGet('whatsapp_uscita'):null;
+  var ddtu=await apiGet('ddt_uscita');
+  if(isAz&&!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
   var res=document.getElementById('imb2-verifica-res');
   if(!res){return;}
-  if(!imb||!vern||(isAz&&!wau)){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo o WA Uscita.</div>';return;}
+  if(!imb||!vern||(isAz&&!wau)||!ddtu){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo, WA Uscita o DDT Uscita.</div>';return;}
+
+  // DDT Uscita dalla chiusura mese in poi (tutti se non c'e' chiusura), raggruppati
+  // sul codice A0 (AZZURRA: codici IA risolti via abbinamenti_azzurra) o B0 (BERGAMASCO).
+  var dataChiusura=localStorage.getItem('chiusura_'+getCliente())||'';
+  var mappaIA={};
+  if(isAz)abzCache.forEach(function(r){
+    var ia=(r.codice_ia||'').trim().toUpperCase(),a0=(r.codice_a0||'').trim().toUpperCase();
+    if(ia&&a0)mappaIA[ia]=a0;
+  });
+  var mapDDT={};
+  ddtu.forEach(function(r){
+    if(!r.codice_articolo)return;
+    var d=(r.data_ddt||r.created_at||'').slice(0,10);
+    if(dataChiusura&&d&&d<dataChiusura)return;
+    var c=r.codice_articolo.toString().trim().toUpperCase();
+    if(isAz&&mappaIA[c])c=mappaIA[c];
+    var key=c.toLowerCase();
+    if(!mapDDT[key])mapDDT[key]={cod:c,desc:r.descrizione||'',tot:0};
+    mapDDT[key].tot+=Number(r.quantita_ddt)||0;
+  });
 
   var mapImb={};
   imb.forEach(function(r){
@@ -2777,20 +2816,29 @@ async function verificaVerniciatoImballo(){
   Object.keys(mapVern).forEach(function(k){keys[k]=true;});
   Object.keys(mapImb).forEach(function(k){keys[k]=true;});
   if(isAz)Object.keys(mapWA).forEach(function(k){keys[k]=true;});
+  Object.keys(mapDDT).forEach(function(k){keys[k]=true;});
   var list=Object.keys(keys).map(function(key){
-    var v=mapVern[key],i=mapImb[key],w=mapWA[key];
-    var vTot=v?v.tot:0,iTot=i?i.tot:0,wTot=w?w.tot:0;
-    var flagVernImb=vTot!==iTot;
+    var v=mapVern[key],i=mapImb[key],w=mapWA[key],dd=mapDDT[key];
+    var vTot=v?v.tot:0,iTot=i?i.tot:0,wTot=w?w.tot:0,dTot=dd?dd.tot:0;
+    // BERGAMASCO: Vern≠Imb solo sulle righe con Imballo (senza Imballo i pezzi vanno
+    // da Verniciato direttamente al DDT, non e' un'anomalia).
+    var flagVernImb=isAz?vTot!==iTot:(iTot!==0&&vTot!==iTot);
     var flagBypass=isAz&&wTot>0&&iTot===0;
     var flagImbWau=isAz&&!flagBypass&&iTot>0&&wTot>0&&iTot!==wTot;
+    // Fonte della casella "DA FARE IN DDT" (sulle righe Imb≠WA decide il toggle).
+    var fonte;
+    if(isAz)fonte=flagImbWau?leggiSceltaUscita((v&&v.cod)||(i&&i.cod)||(w&&w.cod)||''):(wTot!==0?'wa':(iTot!==0?'imballo':'wa'));
+    else fonte=iTot!==0?'imballo':'vern';
+    var fonteVal=fonte==='wa'?wTot:(fonte==='imballo'?iTot:vTot);
+    var ddtNeg=fonteVal-dTot<0;
     return {
-      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||'',
-      desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||'',
-      vern:vTot,imb:iTot,wau:wTot,riporto:v?v.riporto:0,
-      flagVernImb:flagVernImb,flagBypass:flagBypass,flagImbWau:flagImbWau,
-      anomalo:flagVernImb||flagBypass||flagImbWau
+      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||(dd&&dd.cod)||'',
+      desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||(dd&&dd.desc)||'',
+      vern:vTot,imb:iTot,wau:wTot,ddt:dTot,riporto:v?v.riporto:0,fonte:fonte,
+      flagVernImb:flagVernImb,flagBypass:flagBypass,flagImbWau:flagImbWau,ddtNeg:ddtNeg,
+      anomalo:flagVernImb||flagBypass||flagImbWau||ddtNeg
     };
-  }).filter(function(a){return a.vern!==0||a.imb!==0||a.wau!==0;});
+  }).filter(function(a){return a.vern!==0||a.imb!==0||a.wau!==0||a.ddt!==0;});
 
   list.sort(function(a,b){
     if(a.anomalo!==b.anomalo)return a.anomalo?-1:1;
@@ -2804,32 +2852,35 @@ async function verificaVerniciatoImballo(){
   }
 
   var thWau=isAz?'<th>WA Uscita</th>':'';
-  var thStato=isAz?'<th>Stato</th>':'<th>Diff</th>';
+  var thStato='<th>Da fare in DDT</th><th>Stato</th>';
   var totV=0,totI=0,totW=0;
   var righeHtml=list.map(function(a){
     totV+=a.vern;totI+=a.imb;totW+=a.wau;
     var colVern=a.flagVernImb?'background:#FFF3CD;':'';
     var colWau=a.flagBypass?'background:#E6F1FB;':(a.flagImbWau?'background:#FCE4D6;':'');
     var badges='';
-    if(a.flagVernImb)badges+='<span class="badge badge-warn" style="margin-right:4px;">⚠ Vern≠Imb</span>';
-    if(a.flagImbWau)badges+='<span class="badge badge-err" style="margin-right:4px;">⚠ Imb≠WA</span>';
+    if(a.flagVernImb)badges+='<span class="badge badge-warn" style="margin-right:4px;">⚠ Vern≠Imb '+fmtDiffSegno(a.vern-a.imb)+'</span>';
+    if(a.flagImbWau)badges+='<span class="badge badge-err" style="margin-right:4px;">⚠ Imb≠WA '+fmtDiffSegno(a.imb-a.wau)+'</span>';
     if(a.flagBypass){
       var codEsc=String(a.cod||'').replace(/'/g,"\\'");
       var descEsc=String(a.desc||'').replace(/'/g,"\\'");
       badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>'
         +'<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEsc+'\',\''+descEsc+'\','+a.wau+')">+ Imballo</button>';
     }
-    if(!a.anomalo)badges='<span class="badge badge-ok">✓ OK</span>';
-    // Solo sulle righe "Imb≠WA": due toggle per scegliere a mano quale dei due valori
-    // usare per il DDT Uscita. Puro aiuto visivo (localStorage), non tocca i totali.
-    var celImb,celWau;
+    if(!badges&&!a.ddtNeg)badges='<span class="badge badge-ok">✓ OK</span>';
+    // Casella "DA FARE IN DDT" su ogni riga. Solo sulle righe "Imb≠WA" ha i due toggle
+    // per scegliere la fonte (WA o Imballo); la scelta resta in localStorage.
+    var celImb,celWau,celDaFare;
+    var etich={wa:'WA',imballo:'Imballo',vern:'Vern'}[a.fonte];
+    var fonteVal=a.fonte==='wa'?a.wau:(a.fonte==='imballo'?a.imb:a.vern);
     if(isAz&&a.flagImbWau){
-      var scelta=leggiSceltaUscita(a.cod);
+      var scelta=a.fonte;
       var imbHi=scelta==='imballo'?'background:#C6EFCE;font-weight:bold;':'';
       var waHi=scelta==='wa'?'background:#C6EFCE;font-weight:bold;':'';
       celImb='<td style="text-align:right;'+imbHi+'" id="su-imb-'+a.cod+'">'+a.imb+'</td>';
-      celWau='<td style="text-align:right;'+waHi+'" id="su-wa-'+a.cod+'">'
-        +'<span id="su-num-'+a.cod+'" data-imb="'+a.imb+'" data-wa="'+a.wau+'">'+(scelta==='imballo'?a.imb:a.wau)+'</span>'
+      celWau='<td style="text-align:right;'+waHi+'" id="su-wa-'+a.cod+'">'+a.wau+'</td>';
+      celDaFare='<td style="text-align:right;background:#E8F5E9;white-space:normal;min-width:110px;">'
+        +'<div id="su-num-'+a.cod+'" data-imb="'+a.imb+'" data-wa="'+a.wau+'" data-ddt="'+a.ddt+'">'+htmlDaFareDDT(etich,fonteVal,a.ddt)+'</div>'
         +'<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
           +'<button id="su-btn-imb-'+a.cod+'" class="btn btn-sm '+(scelta==='imballo'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="sceltaUscitaToggle(\''+a.cod+'\',\'imballo\')">USA IMBALLO</button>'
           +'<button id="su-btn-wa-'+a.cod+'" class="btn btn-sm '+(scelta==='wa'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="usaWA(\''+a.cod+'\')">USA WA</button>'
@@ -2838,8 +2889,9 @@ async function verificaVerniciatoImballo(){
     } else {
       celImb='<td style="text-align:right;">'+a.imb+'</td>';
       celWau=isAz?('<td style="text-align:right;'+colWau+'">'+a.wau+'</td>'):'';
+      celDaFare='<td style="text-align:right;background:#E8F5E9;white-space:normal;min-width:110px;">'+htmlDaFareDDT(etich,fonteVal,a.ddt)+'</td>';
     }
-    var celStato=isAz?('<td>'+badges+'</td>'):('<td style="text-align:right;">'+(a.vern-a.imb>0?'+':'')+(a.vern-a.imb)+'</td>');
+    var celStato=celDaFare+'<td style="white-space:normal;">'+badges+'</td>';
     return '<tr>'
       +'<td><strong>'+(a.cod||'—')+'</strong></td>'
       +'<td>'+(a.desc||'')+'</td>'
