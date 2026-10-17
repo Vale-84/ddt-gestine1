@@ -2791,42 +2791,61 @@ function htmlDaFareDDT(etichetta,fonte,ddt){
 
 function fmtDiffSegno(n){return (n>0?'+':(n<0?'−':''))+Math.abs(n);}
 
-// USA WA: a differenza di "USA IMBALLO" (solo evidenziazione locale, sopra), scrive
-// davvero in Imballo una riga per ogni riga WA Uscita dell'articolo, con la data del
-// messaggio WA (non oggi) e nota "da WA". Antidoppione tramite wa_origine_id (id della
-// riga whatsapp_uscita di origine): non riscrive mai una riga gia' creata in precedenza,
-// nemmeno premendo il tasto piu' volte. Non tocca Verniciato/DDT/WA Uscita.
+// USA WA: a differenza di "USA IMBALLO" (solo evidenziazione locale, sopra), porta
+// davvero l'Imballo dell'articolo a uguagliare il WA Uscita aggiungendo solo la
+// differenza (WA − Imballo, stesse liste e stesso raggruppamento del Confronto, cioe'
+// dalla chiusura mese). La differenza si divide sulle righe WA partendo dalla piu'
+// recente, ognuna con la sua data; nota "Allineato a WA". Differenza 0 o negativa:
+// non scrive niente. Non tocca le righe Imballo esistenti ne' Verniciato/DDT/WA Uscita.
 async function usaWA(cod){
   var btn=document.getElementById('su-btn-wa-'+cod);
   if(btn){if(btn.disabled)return;}
   sceltaUscitaToggle(cod,'wa');
+  function sblocca(){if(btn){btn.disabled=false;btn.textContent='USA WA';}}
   if(btn){btn.disabled=true;btn.textContent='...';}
   try{
-    var righeWA=await apiGet('whatsapp_uscita','codice_articolo=eq.'+encodeURIComponent(cod));
-    if(!righeWA||!righeWA.length){
-      showMsg('msg-imballo2','Nessuna riga WA Uscita trovata per '+cod+'.','err');
-      if(btn){btn.disabled=false;btn.textContent='USA WA';}
-      return;
+    var key=String(cod||'').trim().toLowerCase();
+    var wau=await apiGet('whatsapp_uscita');
+    var imb=await apiGet('imballo');
+    if(!wau||!imb){showMsg('msg-imballo2','Errore caricamento WA Uscita o Imballo.','err');sblocca();return;}
+    var righeWA=wau.filter(function(r){return r.codice_articolo&&r.codice_articolo.toString().trim().toLowerCase()===key;});
+    if(!righeWA.length){showMsg('msg-imballo2','Nessuna riga WA Uscita trovata per '+cod+'.','err');sblocca();return;}
+    var totWA=0,totImb=0;
+    righeWA.forEach(function(r){totWA+=Number(r.quantita)||0;});
+    imb.forEach(function(r){
+      if((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase()===key)totImb+=Number(r.totale)||0;
+    });
+    var diff=totWA-totImb;
+    if(diff===0){alert('Imballo già uguale al WA ('+totWA+') per '+cod+'.');sblocca();return;}
+    if(diff<0){alert('Imballo '+totImb+' più alto del WA '+totWA+' per '+cod+' ('+fmtDiffSegno(diff)+'): controlla a mano, non aggiungo niente.');sblocca();return;}
+    // Dalla riga WA piu' recente alla piu' vecchia, finche' la differenza non e' coperta.
+    var dataRiga=function(r){return (r.data_inserimento||r.created_at||'').slice(0,10)||oggiISO();};
+    righeWA.sort(function(a,b){
+      var da=dataRiga(a),db=dataRiga(b);
+      if(da!==db)return da<db?1:-1;
+      return (Number(b.id)||0)-(Number(a.id)||0);
+    });
+    var daAggiungere=[],resto=diff;
+    for(var i=0;i<righeWA.length&&resto>0;i++){
+      var q=Number(righeWA[i].quantita)||0;
+      if(q<=0)continue;
+      var n=Math.min(q,resto);
+      daAggiungere.push({data:dataRiga(righeWA[i]),qty:n,desc:righeWA[i].descrizione_articolo||righeWA[i].descrizione||''});
+      resto-=n;
     }
-    var ids=righeWA.map(function(r){return r.id;});
-    var esistenti=await apiGet('imballo','wa_origine_id=in.('+ids.join(',')+')&select=wa_origine_id');
-    var giaFatte={};
-    (esistenti||[]).forEach(function(r){if(r.wa_origine_id!=null)giaFatte[r.wa_origine_id]=true;});
+    var elenco=daAggiungere.map(function(x){return '• '+x.qty+' pz il '+fmtData(x.data);}).join('\n');
+    if(!confirm(cod+': Imballo '+totImb+' → aggiungo '+diff+' per arrivare a WA '+totWA+'\n\n'+elenco+'\n\nConfermi?')){sblocca();return;}
     var nCreate=0;
-    for(var i=0;i<righeWA.length;i++){
-      var r=righeWA[i];
-      if(giaFatte[r.id])continue;
-      var dataWA=(r.data_inserimento||r.created_at||'').slice(0,10)||oggiISO();
-      var qty=Number(r.quantita)||0;
-      var seq=r.testo_seq||String(qty);
-      var desc=r.descrizione_articolo||r.descrizione||'';
-      var res=await apiPost('imballo',{codice_articolo:cod,articolo:desc,sequenza:seq,totale:qty,note:'da WA',data_inserimento:dataWA,wa_origine_id:r.id});
+    for(var j=0;j<daAggiungere.length;j++){
+      var x=daAggiungere[j];
+      var res=await apiPost('imballo',{codice_articolo:cod,articolo:x.desc,sequenza:String(x.qty),totale:x.qty,note:'Allineato a WA',data_inserimento:x.data});
       if(res)nCreate++;
     }
-    showMsg('msg-imballo2',nCreate?('✓ '+nCreate+' riga/e create in Imballo da WA per '+cod+'.'):('Già tutto sistemato per '+cod+', nessuna riga nuova.'),'ok');
+    if(nCreate<daAggiungere.length)showMsg('msg-imballo2','Attenzione: salvate solo '+nCreate+' riga/e su '+daAggiungere.length+' per '+cod+'. Ricontrolla il Confronto prima di ripremere.','err');
+    else showMsg('msg-imballo2','✓ '+cod+': aggiunti '+diff+' pz in Imballo ('+nCreate+' riga/e) per arrivare a WA '+totWA+'.','ok');
   }catch(e){
     showMsg('msg-imballo2','Errore: '+e.message,'err');
-    if(btn){btn.disabled=false;btn.textContent='USA WA';}
+    sblocca();
     return;
   }
   caricaImballo();
