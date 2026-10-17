@@ -2159,27 +2159,39 @@ function rispondiDoppioneFoto(esito){
   if(_fotoDupResolver){_fotoDupResolver(esito);_fotoDupResolver=null;}
 }
 
+// Ridimensiona, controlla doppioni e salva una foto in foto_promemoria.
+// Ritorna 'ok' o 'annullato' (doppione rifiutato). Con rigoroso=true (foto condivise)
+// lancia errore anche se il controllo doppioni o il salvataggio non riescono, cosi'
+// chi chiama sa con certezza se la foto e' finita su Supabase.
+async function salvaFotoPromemoriaFile(prefix,file,rigoroso){
+  var tipo=prefix==='e'?'entrata':'uscita';
+  var base64=await resizeImageFile(file,1200);
+  var nuovoHash=hashString(base64);
+  var esistenti=await apiGet('foto_promemoria','select=id,foto_base64,data_foto,created_at&cliente=eq.'+encodeURIComponent(getCliente())+'&tipo=eq.'+tipo);
+  if(rigoroso&&!esistenti)throw new Error('connessione non riuscita');
+  var dup=(esistenti||[]).find(function(r){return hashString(r.foto_base64)===nuovoHash;});
+  var note=document.getElementById('foto-'+prefix+'-note').value.trim();
+  var dataFoto=document.getElementById('foto-'+prefix+'-date').value||oggiISO();
+  if(dup){
+    var dataDup=fmtData(dup.data_foto||dup.created_at);
+    var procedi=await mostraConfermaDoppioneFoto(base64,fmtData(dataFoto),dup.foto_base64,dataDup);
+    if(!procedi)return 'annullato';
+  }
+  var salvata=await apiPost('foto_promemoria',{cliente:getCliente(),tipo:tipo,foto_base64:base64,note:note,data_foto:dataFoto,fatto:false});
+  if(rigoroso&&!salvata)throw new Error('salvataggio non riuscito');
+  return 'ok';
+}
+
 async function caricaFotoPromemoria(prefix,inputEl){
   var file=inputEl.files&&inputEl.files[0];
   if(!file)return;
-  var tipo=prefix==='e'?'entrata':'uscita';
   var msgId=prefix==='e'?'msg-entrata':'msg-uscita';
   try{
-    var base64=await resizeImageFile(file,1200);
-    var nuovoHash=hashString(base64);
-    var esistenti=await apiGet('foto_promemoria','select=id,foto_base64,data_foto,created_at&cliente=eq.'+encodeURIComponent(getCliente())+'&tipo=eq.'+tipo);
-    var dup=(esistenti||[]).find(function(r){return hashString(r.foto_base64)===nuovoHash;});
-    var note=document.getElementById('foto-'+prefix+'-note').value.trim();
-    var dataFoto=document.getElementById('foto-'+prefix+'-date').value||oggiISO();
-    if(dup){
-      var dataDup=fmtData(dup.data_foto||dup.created_at);
-      var procedi=await mostraConfermaDoppioneFoto(base64,fmtData(dataFoto),dup.foto_base64,dataDup);
-      if(!procedi){
-        inputEl.value='';
-        return;
-      }
+    var esito=await salvaFotoPromemoriaFile(prefix,file,false);
+    if(esito==='annullato'){
+      inputEl.value='';
+      return;
     }
-    await apiPost('foto_promemoria',{cliente:getCliente(),tipo:tipo,foto_base64:base64,note:note,data_foto:dataFoto,fatto:false});
     document.getElementById('foto-'+prefix+'-note').value='';
     inputEl.value='';
     showMsg(msgId,'✅ Foto aggiunta!','ok');
@@ -2187,6 +2199,75 @@ async function caricaFotoPromemoria(prefix,inputEl){
   }catch(e){
     showMsg(msgId,'Errore foto: '+e.message,'err');
   }
+}
+
+// ── FOTO CONDIVISE VERSO L'APP (Web Share Target) ──────────────────────
+// sw.js parcheggia le foto condivise in IndexedDB ('ddt-share'/'foto') e apre
+// /?condiviso=1: qui vengono caricate come promemoria WA Uscita del cliente
+// selezionato. Ogni foto viene tolta da IndexedDB solo dopo il salvataggio riuscito
+// (o se rifiutata come doppione): se fallisce resta li' per la condivisione successiva.
+function apriDbCondivise(){
+  return new Promise(function(resolve,reject){
+    var req=indexedDB.open('ddt-share',1);
+    req.onupgradeneeded=function(){req.result.createObjectStore('foto',{autoIncrement:true});};
+    req.onsuccess=function(){resolve(req.result);};
+    req.onerror=function(){reject(req.error);};
+  });
+}
+
+function leggiFotoCondivise(db){
+  return new Promise(function(resolve,reject){
+    var out=[];
+    var req=db.transaction('foto','readonly').objectStore('foto').openCursor();
+    req.onsuccess=function(){
+      var cur=req.result;
+      if(cur){out.push({key:cur.key,file:cur.value.file});cur.continue();}
+      else resolve(out);
+    };
+    req.onerror=function(){reject(req.error);};
+  });
+}
+
+function cancellaFotoCondivisa(db,key){
+  return new Promise(function(resolve,reject){
+    var tx=db.transaction('foto','readwrite');
+    tx.objectStore('foto').delete(key);
+    tx.oncomplete=function(){resolve();};
+    tx.onerror=function(){reject(tx.error);};
+  });
+}
+
+async function gestisciFotoCondivise(){
+  var params=new URLSearchParams(location.search);
+  if(params.get('condiviso')!=='1')return;
+  showPage('wa',document.querySelector('.tab[data-page="wa"]'));
+  setWAMode('uscita');
+  var msgId='msg-uscita';
+  var cliente=getCliente();
+  var caricate=0,doppioni=0,fallite=0,ultimoErrore='';
+  var db=null;
+  try{
+    db=await apriDbCondivise();
+    var elenco=await leggiFotoCondivise(db);
+    for(var i=0;i<elenco.length;i++){
+      try{
+        var esito=await salvaFotoPromemoriaFile('u',elenco[i].file,true);
+        if(esito==='ok')caricate++;else doppioni++;
+        await cancellaFotoCondivisa(db,elenco[i].key);
+      }catch(e){fallite++;ultimoErrore=e.message;}
+    }
+  }catch(e){
+    fallite++;ultimoErrore=e.message;
+  }
+  if(db)db.close();
+  params.delete('condiviso');
+  var qs=params.toString();
+  history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+location.hash);
+  caricaFotoLista('u');
+  var testo=caricate+' foto caricate in WA Uscita (cliente: '+cliente+')';
+  if(doppioni)testo+=' — '+doppioni+' doppioni non caricati';
+  if(fallite)testo+=' — '+fallite+' non caricate ('+ultimoErrore+'): restano in attesa per la prossima condivisione';
+  showMsg(msgId,(fallite?'⚠️ ':'✅ ')+testo,fallite?'err':'ok');
 }
 
 async function caricaFotoLista(prefix){
@@ -10209,6 +10290,7 @@ window.onload=function(){
   ['e-date','u-date','e-wa-date','u-wa-date','vern-date','vernp-date','imb2-date','imb-date','imb2-vern-date','foto-e-date','foto-u-date'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.value)el.value=today;});
   aggiornaLabelOperatore();
   if(!getOperatore())apriSceltaOperatore();
+  gestisciFotoCondivise();
 };
 
 if('serviceWorker' in navigator){
