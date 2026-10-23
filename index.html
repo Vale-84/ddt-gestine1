@@ -5852,6 +5852,48 @@ async function importaExcelUscita(){
 // Numero DDT come lo scrive Nova (maiuscolo, senza spazi): il Controlla fattura lo cerca uguale
 function normNumeroDdt(s){return String(s||'').replace(/\s+/g,'').toUpperCase();}
 
+// ── DDT USCITA GIA' PRESENTE ──────────────────────────────────────────
+// I DDT Uscita sono numerati in Nova e la numerazione ricomincia ogni anno: un DDT e'
+// "gia' presente" se per il cliente attivo (apiPost salva sempre con getCliente()) c'e' lo
+// stesso numero NELLO STESSO ANNO (se una delle due date manca basta il numero, per prudenza).
+// Query diretta a Supabase, mai la lista caricata (max 1000 righe).
+function stessoAnnoDdt(dataNuova,dataEsistente){
+  var a=String(dataNuova||'').slice(0,4),b=String(dataEsistente||'').slice(0,4);
+  return !a||!b||a===b;
+}
+// Righe gia' salvate di quel DDT ([{id,data_ddt}]), null se errore di collegamento.
+async function righeDdtUscitaPresenti(numero,data){
+  if(!numero)return [];
+  var r=await apiGetTutto('ddt_uscita','select=id,data_ddt&numero_ddt=eq.'+encodeURIComponent(numero)+'&order=id.asc');
+  if(r===null)return null;
+  return r.filter(function(x){return stessoAnnoDdt(data,x.data_ddt);});
+}
+// Per l'anteprima multi-DDT: numero di righe gia' salvate per ogni DDT, null se errore.
+async function contaDdtUscitaPresenti(ddts){
+  var numeri=ddts.map(function(d){return d.nddt;}).filter(function(n,i,a){return n&&a.indexOf(n)===i;});
+  if(!numeri.length)return ddts.map(function(){return 0;});
+  var es=await apiGetTutto('ddt_uscita','select=id,numero_ddt,data_ddt&numero_ddt=in.('+numeri.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=id.asc');
+  if(es===null)return null;
+  return ddts.map(function(d){
+    return es.filter(function(r){return String(r.numero_ddt)===String(d.nddt)&&stessoAnnoDdt(d.data,r.data_ddt);}).length;
+  });
+}
+// "DDT n. X del gg/mm/aaaa già presente (N righe)"
+function testoDdtUscitaPresente(numero,righe){
+  var conData=righe.filter(function(r){return r.data_ddt;})[0];
+  return 'DDT n. '+numero+(conData?' del '+fmtDataGMA(conData.data_ddt):'')+' già presente ('+righe.length+(righe.length===1?' riga':' righe')+')';
+}
+// Cancella SOLO le righe indicate (per id). true se riuscito.
+async function eliminaRigheDdtUscita(righe){
+  if(!righe.length)return true;
+  var c=getConfig();if(!c.url)return false;
+  try{
+    var r=await fetch(c.url+'/rest/v1/ddt_uscita?id=in.('+righe.map(function(x){return x.id;}).join(',')+')',{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+    if(!r.ok)throw new Error(await r.text());
+    return true;
+  }catch(e){console.error(e);return false;}
+}
+
 // BERGAMASCO: in fattura Nova con l'imballo lettino (B0IMBLETTI) ci sono quasi sempre, con la
 // stessa quantità, i cassetti C0BI e il materiale di consumo (riga "*" in Nova, qui CONSUMO).
 // CONSUMO va su tutti gli imballi; C0BI no sui lettini GIOIA e PIKKOLETTO (non hanno cassetti).
@@ -5902,6 +5944,11 @@ function aggiornaProposteDU(){
 
 async function salvaDDTUscita(){
   var b={numero_ddt:normNumeroDdt(document.getElementById('du-nddt').value),data_ddt:document.getElementById('du-data').value||null,cliente:document.getElementById('du-cliente').value,codice_articolo:document.getElementById('du-cod').value,descrizione:document.getElementById('du-dsc').value,quantita_verniciato:parseInt(document.getElementById('du-qvern').value)||0,quantita_imballato:parseInt(document.getElementById('du-qimb').value)||0,quantita_ddt:parseInt(document.getElementById('du-qddt').value)||0,note:document.getElementById('du-note').value};
+  // Manuale: si salva una riga alla volta, quindi un DDT gia' presente non si sostituisce mai:
+  // si chiede solo se aggiungere la riga.
+  var vecchie=await righeDdtUscitaPresenti(b.numero_ddt,b.data_ddt);
+  if(vecchie===null){showMsg('msg-ddt-u','Errore di collegamento nel controllo del DDT, riprova','err');return;}
+  if(vecchie.length&&!confirm(testoDdtUscitaPresente(b.numero_ddt,vecchie)+'. Aggiungere questa riga?')){showMsg('msg-ddt-u','Riga non salvata.','err');return;}
   var r=await apiPost('ddt_uscita',b);if(!r)return;
   var extra=duProposte.filter(function(p){return p.attiva;});
   for(var i=0;i<extra.length;i++){
@@ -6101,6 +6148,9 @@ var pdfUscDati=null;
 
 async function importaPDFUscita(){
   if(!pdfUscDati||!pdfUscDati.articoli.length)return;
+  var vecchie=await righeDdtUscitaPresenti(pdfUscDati.nddt,pdfUscDati.data);
+  if(vecchie===null){showMsg('msg-ddt-u','Errore di collegamento nel controllo del DDT, riprova','err');return;}
+  if(vecchie.length&&!confirm(testoDdtUscitaPresente(pdfUscDati.nddt,vecchie)+'. Sostituire?')){showMsg('msg-ddt-u','DDT n. '+pdfUscDati.nddt+' non caricato.','err');return;}
   var n=0;
   for(var i=0;i<pdfUscDati.articoli.length;i++){
     var a=pdfUscDati.articoli[i];
@@ -6112,7 +6162,13 @@ async function importaPDFUscita(){
     var rx=await apiPost('ddt_uscita',{numero_ddt:pdfUscDati.nddt,data_ddt:pdfUscDati.data||null,cliente:pdfUscDati.cliente||getCliente(),codice_articolo:extra[k].cod,descrizione:extra[k].desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:extra[k].qty,note:'Con B0IMBLETTI'});
     if(rx)n++;
   }
-  showMsg('msg-ddt-u',n+' articoli importati!','ok');
+  // Sostituzione: le righe vecchie si cancellano solo se tutte le nuove sono state salvate
+  var msgSost='';
+  if(vecchie.length){
+    if(n===pdfUscDati.articoli.length+extra.length&&await eliminaRigheDdtUscita(vecchie))msgSost=' (sostituite '+vecchie.length+' righe vecchie)';
+    else msgSost=' — ATTENZIONE: sostituzione non completata, le righe vecchie sono rimaste: controlla il DDT n. '+pdfUscDati.nddt;
+  }
+  showMsg('msg-ddt-u',n+' articoli importati'+msgSost+'!',msgSost.indexOf('ATTENZIONE')>=0?'err':'ok');
   document.getElementById('pdf-usc-prev').style.display='none';
   document.getElementById('btn-importa-usc').style.display='none';
   document.getElementById('pdf-usc-inp').value='';pdfUscDati=null;caricaDDTU();
@@ -6132,11 +6188,10 @@ async function leggiPDFMultiUscita(input){
     offriScalaSostDaUscita(testo);
     var ddts=parsePdfMultiAzzurra(testo);
     if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
-    var numeri=ddts.map(function(d){return d.nddt;});
-    var esistentiNum={};
-    var esistenti=await apiGet('ddt_uscita','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
-    if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
-    ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
+    // DDT gia' presenti (stesso numero e anno): restano selezionati, all'import si chiede se sostituirli
+    var presenti=await contaDdtUscitaPresenti(ddts);
+    if(presenti===null){status.innerHTML='<div class="msg msg-err">Errore di collegamento nel controllo dei DDT già presenti, riprova.</div>';input.value='';return;}
+    ddts.forEach(function(d,i){d.dupe=presenti[i];d.selected=true;d.aperto=false;});
     pdfMultiUscDati=ddts;
     status.innerHTML='';
     apriModalePdfMulti();
@@ -6196,10 +6251,10 @@ function renderPdfMultiPreview(){
       return '<div class="pdf-item"><div class="pdesc"><strong>'+a.cod+'</strong> '+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';
     }).join('');
     dettagli+=htmlProposteImbLetti(d.proposte||[],function(k){return 'pdfMultiUscDati['+idx+'].proposte['+k+'].attiva=this.checked';});
-    var dupeBadge=d.dupe?'<span class="badge badge-warn" style="margin-left:8px;">Già presente — verrà saltato</span>':'';
-    return '<div class="row-item" style="display:block;'+(d.dupe?'opacity:0.6;':'')+'">'
+    var dupeBadge=d.dupe?'<span class="badge badge-warn" style="margin-left:8px;">Già presente ('+d.dupe+(d.dupe===1?' riga':' righe')+') — chiederà se sostituire</span>':'';
+    return '<div class="row-item" style="display:block;">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
-        +'<input type="checkbox" '+(d.selected?'checked':'')+(d.dupe?' disabled':'')+' onchange="togglePdfMultiSel('+idx+',this.checked)" style="width:18px;height:18px;">'
+        +'<input type="checkbox" '+(d.selected?'checked':'')+' onchange="togglePdfMultiSel('+idx+',this.checked)" style="width:18px;height:18px;">'
         +'<div style="flex:1;"><strong>'+d.nddt+'</strong> &nbsp; '+(d.data||'data ?')+' &nbsp; <span style="color:#666;">'+d.righe.length+' articoli</span>'+dupeBadge+'</div>'
         +'<button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" onclick="togglePdfMultiDettagli('+idx+')">'+(d.aperto?'Nascondi':'Dettagli')+'</button>'
       +'</div>'
@@ -6223,7 +6278,7 @@ var pdfMultiImportInCorso=false;
 async function importaPDFMultiUscita(){
   if(pdfMultiImportInCorso)return;
   if(!pdfMultiUscDati||!pdfMultiUscDati.length)return;
-  var selezionati=pdfMultiUscDati.filter(function(d){return d.selected&&!d.dupe;});
+  var selezionati=pdfMultiUscDati.filter(function(d){return d.selected;});
   if(!selezionati.length){alert('Nessun DDT selezionato da importare.');return;}
   pdfMultiImportInCorso=true;
   var btnImporta=document.getElementById('btn-importa-pdf-multi');
@@ -6231,25 +6286,37 @@ async function importaPDFMultiUscita(){
   if(btnImporta){btnImporta.disabled=true;btnImporta.textContent='Importazione in corso...';}
   if(btnAnnulla)btnAnnulla.disabled=true;
   try{
-    var righeOk=0,ddtSaltati=0;
+    var righeOk=0,ddtSaltati=0,ddtSostituiti=0,nonSostituiti=[],ddtErrore=[];
     for(var i=0;i<selezionati.length;i++){
       var d=selezionati[i];
-      var check=await apiGet('ddt_uscita','numero_ddt=eq.'+encodeURIComponent(d.nddt)+'&select=id&limit=1');
-      if(check&&check.length){ddtSaltati++;continue;}
+      // Controllo DDT per DDT, al momento dell'import (direttamente su Supabase)
+      var vecchie=await righeDdtUscitaPresenti(d.nddt,d.data);
+      if(vecchie===null){ddtErrore.push(d.nddt);continue;}
+      if(vecchie.length&&!confirm(testoDdtUscitaPresente(d.nddt,vecchie)+'. Sostituire?')){ddtSaltati++;continue;}
+      var righeDdt=0;
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
         var r=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:a.cod,descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF multi-DDT'});
-        if(r)righeOk++;
+        if(r)righeDdt++;
       }
       var extra=(d.proposte||[]).filter(function(p){return p.attiva;});
       for(var k=0;k<extra.length;k++){
         var rx=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:extra[k].cod,descrizione:extra[k].desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:extra[k].qty,note:'Con B0IMBLETTI'});
-        if(rx)righeOk++;
+        if(rx)righeDdt++;
+      }
+      righeOk+=righeDdt;
+      // Sostituzione: le righe vecchie si cancellano solo se tutte le nuove sono state salvate
+      if(vecchie.length){
+        if(righeDdt===d.righe.length+extra.length&&await eliminaRigheDdtUscita(vecchie))ddtSostituiti++;
+        else nonSostituiti.push(d.nddt);
       }
     }
     document.getElementById('modal-pdf-multi').style.display='none';
     pdfMultiUscDati=null;
-    showMsg('msg-ddt-u',righeOk+' righe importate'+(ddtSaltati?(' — '+ddtSaltati+' DDT saltati (già presenti)'):'')+'!','ok');
+    var avvisi=[];
+    if(nonSostituiti.length)avvisi.push('ATTENZIONE: sostituzione non completata, righe vecchie rimaste per DDT '+nonSostituiti.join(', '));
+    if(ddtErrore.length)avvisi.push('errore di collegamento, non caricati: DDT '+ddtErrore.join(', '));
+    showMsg('msg-ddt-u',righeOk+' righe importate'+(ddtSostituiti?(' — '+ddtSostituiti+' DDT sostituiti'):'')+(ddtSaltati?(' — '+ddtSaltati+' DDT non caricati (già presenti)'):'')+(avvisi.length?' — '+avvisi.join(' — '):'')+'!',avvisi.length?'err':'ok');
     caricaDDTU();
   }finally{
     pdfMultiImportInCorso=false;
@@ -6855,14 +6922,13 @@ async function leggiPDFMultiBergamasco(input){
     offriScalaSostDaUscita(testo);
     var ddts=parsePdfMultiBergamasco(testo);
     if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT trovato nel PDF.</div>';input.value='';return;}
-    var numeri=ddts.map(function(d){return d.nddt;});
-    var esistentiNum={};
-    var esistenti=await apiGet('ddt_uscita','numero_ddt=in.('+numeri.join(',')+')&select=numero_ddt');
-    if(esistenti)esistenti.forEach(function(r){esistentiNum[r.numero_ddt]=true;});
-    ddts.forEach(function(d){
-      d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;
+    // DDT gia' presenti (stesso numero e anno): restano selezionati, all'import si chiede se sostituirli
+    var presenti=await contaDdtUscitaPresenti(ddts);
+    if(presenti===null){status.innerHTML='<div class="msg msg-err">Errore di collegamento nel controllo dei DDT già presenti, riprova.</div>';input.value='';return;}
+    ddts.forEach(function(d,i){
+      d.dupe=presenti[i];d.selected=true;
       // Con B0IMBLETTI: C0BI e CONSUMO proposti (dettagli aperti così si vedono le spunte)
-      d.proposte=d.dupe?[]:proposteImbLetti(d.righe,'BERGAMASCO');
+      d.proposte=proposteImbLetti(d.righe,'BERGAMASCO');
       d.aperto=d.proposte.length>0;
     });
     pdfMultiUscDati=ddts;
