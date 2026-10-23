@@ -1731,6 +1731,18 @@ async function apiGet(t,p){
   try{var r=await fetch(c.url+'/rest/v1/'+t+'?'+params,{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
   if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){console.error(e);return null;}
 }
+// Come apiGet ma legge TUTTE le righe a pagine da 1000 (Supabase ne restituisce al massimo 1000
+// per richiesta). Ordine per id: le pagine restano stabili anche con created_at vuoto.
+async function apiGetTutto(t,p){
+  var tutte=[];
+  while(true){
+    var b=await apiGet(t,(p||'order=id.asc')+'&limit=1000&offset='+tutte.length);
+    if(!b)return null;
+    if(!b.length)break;
+    tutte=tutte.concat(b);
+  }
+  return tutte;
+}
 
 async function apiPost(t,b){
   var c=getConfig();if(!c.url){alert('Configura Supabase!');return null;}
@@ -4297,8 +4309,8 @@ async function caricaArticoliApertiAzzurra(){
   if(box)box.style.display='';
   if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
 
-  var ddte=await apiGet('ddt_entrata');
-  var ddtu=await apiGet('ddt_uscita');
+  var ddte=await apiGetTutto('ddt_entrata');
+  var ddtu=await apiGetTutto('ddt_uscita');
   var abzIA=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
   var saldo=await apiGet('saldo_iniziale_azzurra','order=id.asc&limit=5000');
   if(!ddte||!ddtu||!abzIA){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
@@ -7552,7 +7564,8 @@ var magCtx=null;
 async function caricaCtxMag(usc){
   var cl=getCliente();
   var res=await Promise.all([
-    apiGet('ddt_entrata'),usc?Promise.resolve(usc):apiGet('ddt_uscita'),
+    // La lista DDT Uscita passata (max 1000 righe) si riusa solo se e' sicuramente completa
+    apiGetTutto('ddt_entrata'),usc&&usc.length<1000?Promise.resolve(usc):apiGetTutto('ddt_uscita'),
     apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000'),
     cl==='AZZURRA'?apiGet('abbinamenti_azzurra','order=id.asc&limit=5000'):Promise.resolve([]),
     cl==='AZZURRA'?apiGet('saldo_iniziale_azzurra','order=id.asc&limit=5000'):Promise.resolve([])
@@ -9109,6 +9122,13 @@ function dataDdtExtraISO(s){
 }
 // Maiuscole e spazi doppi ignorati
 function normTestoExtra(s){return String(s||'').replace(/\s+/g,' ').trim().toUpperCase();}
+// DDT gia' presente in lavori_extra per quel cliente e numero: query diretta a Supabase.
+// true/false, null se errore di collegamento.
+async function ddtExtraGiaPresente(cliente,numero){
+  if(!numero)return false;
+  var r=await apiGet('lavori_extra','select=id&cliente=eq.'+encodeURIComponent(cliente||'')+'&numero_ddt=eq.'+encodeURIComponent(numero)+'&limit=1');
+  return r===null?null:r.length>0;
+}
 // Quantità in formato italiano: "360,00", "1.200,00", "12"
 function qtaItExtra(s){
   s=String(s||'').trim();
@@ -9579,13 +9599,17 @@ async function leggiPdfExtra(input){
   }
   input.value='';
   if(!trovati.length){ant.innerHTML='';showMsg('msg-ext-pdf','Nessun DDT trovato nel PDF','err');return;}
-  var giaCaricati={},visti={};
-  extraCache.forEach(function(r){if(r.numero_ddt)giaCaricati[normTestoExtra(r.numero_ddt)]=1;});
-  trovati.forEach(function(d){
-    var n=normTestoExtra(d.numero);
+  // DDT gia' caricato: chiesto a Supabase (cliente + numero), non alla lista caricata (max 1000 righe)
+  var presenti=await Promise.all(trovati.map(function(d){
+    return /AZZURRA|BERGAMASCO/i.test(d.cliente)?false:ddtExtraGiaPresente(d.cliente,d.numero);
+  }));
+  if(presenti.indexOf(null)>=0){ant.innerHTML='';showMsg('msg-ext-pdf','Errore di collegamento nel controllo dei DDT già caricati, riprova','err');return;}
+  var visti={};
+  trovati.forEach(function(d,i){
+    var n=normTestoExtra(d.numero),kv=normTestoExtra(d.cliente)+'|'+n;
     d.escluso=/AZZURRA|BERGAMASCO/i.test(d.cliente);
-    d.duplicato=!!(n&&(giaCaricati[n]||visti[n]));
-    if(n)visti[n]=1;
+    d.duplicato=!!(n&&(presenti[i]||visti[kv]));
+    if(n)visti[kv]=1;
     d.salvato=false;
     d.righe.forEach(function(r){
       r.conferma=false;
@@ -9701,9 +9725,9 @@ async function salvaPdfExtra(i){
     if(statoRigaPdfExtra(r)==='cambiato'&&!r.conferma){showMsg(msgId,'Spunta la conferma del nuovo prezzo per: '+escAbb(r.descrizione),'err');return;}
   }
   // Controllo sul database: il DDT potrebbe essere stato caricato nel frattempo
-  var esist=await apiGet('lavori_extra','select=id&numero_ddt=eq.'+encodeURIComponent(d.numero)+'&limit=1');
+  var esist=await ddtExtraGiaPresente(d.cliente,d.numero);
   if(esist===null){showMsg(msgId,'Errore di collegamento, riprova','err');return;}
-  if(esist.length){d.duplicato=true;renderPdfExtra();return;}
+  if(esist){d.duplicato=true;renderPdfExtra();return;}
   var righe=d.righe.map(function(r){
     return{data:d.data,cliente:d.cliente,descrizione:descCompletaExtra(r),numero_ddt:d.numero,codice_articolo:normCodiceExtra(r.codice)||null,
       quantita:r.quantita,prezzo_unitario:Math.round(r.prezzo*10000)/10000,importo:importoRigaExtra(r)};
