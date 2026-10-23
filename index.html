@@ -2746,111 +2746,23 @@ async function verificaWAImballo(){
   res.innerHTML=html;
 }
 
-// ── SCELTA MANUALE IMBALLO/WA (righe "Imb≠WA" in Confronto Produzione) ──
-// Solo un promemoria visivo su quale numero copiare a mano nel DDT Uscita:
-// non entra mai nei calcoli di Verniciato/Imballo/WA/totali. Specifica per
-// cliente (AZZURRA/BERGAMASCO), persa solo alla Chiudi Mese.
-function leggiSceltaUscita(cod){
-  var mappa={};
-  try{mappa=JSON.parse(localStorage.getItem('scelta_uscita_'+getCliente())||'{}');}catch(e){}
-  return mappa[cod]||'wa';
-}
-
-function sceltaUscitaToggle(cod,valore){
-  var chiave='scelta_uscita_'+getCliente();
-  var mappa={};
-  try{mappa=JSON.parse(localStorage.getItem(chiave)||'{}');}catch(e){}
-  mappa[cod]=valore;
-  localStorage.setItem(chiave,JSON.stringify(mappa));
-  var imbCell=document.getElementById('su-imb-'+cod);
-  var waCell=document.getElementById('su-wa-'+cod);
-  var btnImb=document.getElementById('su-btn-imb-'+cod);
-  var btnWa=document.getElementById('su-btn-wa-'+cod);
-  if(imbCell)imbCell.style.cssText='text-align:right;'+(valore==='imballo'?'background:#C6EFCE;font-weight:bold;':'');
-  if(waCell)waCell.style.cssText='text-align:right;'+(valore==='wa'?'background:#C6EFCE;font-weight:bold;':'');
-  if(btnImb)btnImb.className='btn btn-sm '+(valore==='imballo'?'btn-green':'btn-gray');
-  if(btnWa)btnWa.className='btn btn-sm '+(valore==='wa'?'btn-green':'btn-gray');
-  var box=document.getElementById('su-num-'+cod);
-  if(box){
-    var ddt=Number(box.getAttribute('data-ddt'))||0;
-    box.innerHTML=valore==='imballo'
-      ?htmlDaFareDDT('Imballo',Number(box.getAttribute('data-imb'))||0,ddt)
-      :htmlDaFareDDT('WA',Number(box.getAttribute('data-wa'))||0,ddt);
-  }
-}
-
-// Casella "DA FARE IN DDT" del Confronto Produzione: fonte scelta (WA/Imballo/Vern)
-// meno i DDT Uscita dalla chiusura mese. Il negativo resta visibile in rosso: vuol
-// dire piu' DDT che pezzi prodotti, da controllare.
-function htmlDaFareDDT(etichetta,fonte,ddt){
-  var n=fonte-ddt;
+// Casella "DA FARE IN DDT" del Confronto Produzione: riferimento (il maggiore tra WA
+// Uscita e Imballo) meno i DDT Uscita del periodo. Il negativo resta visibile in rosso:
+// vuol dire piu' DDT che pezzi prodotti, da controllare. Se supera il saldo carico
+// (DDT Entrata − DDT Uscita di sempre) il numero e' limitato al saldo, con avviso;
+// con saldo negativo resta il valore pieno (sempre con avviso).
+function htmlDaFareDDT(a){
+  var n=a.daFareMostrato;
   var stile=n===0?'color:#888;':(n<0?'color:#C62828;':'color:#2E7D32;');
   return '<div style="font-size:18px;font-weight:bold;'+stile+'">'+(n===0?'✓ 0':n)+'</div>'
-    +'<div style="font-size:11px;color:#666;white-space:normal;">'+etichetta+' '+fonte+' – in DDT '+ddt+'</div>';
+    +(a.superaCarico?'<div><span class="badge badge-err" style="white-space:normal;" title="Da fare '+a.daFare+', ma il saldo carico è '+a.saldo+'">⚠ supera il carico ('+a.daFare+')</span></div>':'')
+    +'<div style="font-size:11px;color:#666;white-space:normal;">'+a.fonteEtich+' '+a.rif+' – in DDT (mese) '+a.ddt+'</div>';
 }
 
 function fmtDiffSegno(n){return (n>0?'+':(n<0?'−':''))+Math.abs(n);}
 
-// USA WA: a differenza di "USA IMBALLO" (solo evidenziazione locale, sopra), porta
-// davvero l'Imballo dell'articolo a uguagliare il WA Uscita aggiungendo solo la
-// differenza (WA − Imballo, stesse liste e stesso raggruppamento del Confronto, cioe'
-// dalla chiusura mese). La differenza si divide sulle righe WA partendo dalla piu'
-// recente, ognuna con la sua data; nota "Allineato a WA". Differenza 0 o negativa:
-// non scrive niente. Non tocca le righe Imballo esistenti ne' Verniciato/DDT/WA Uscita.
-async function usaWA(cod){
-  var btn=document.getElementById('su-btn-wa-'+cod);
-  if(btn){if(btn.disabled)return;}
-  sceltaUscitaToggle(cod,'wa');
-  function sblocca(){if(btn){btn.disabled=false;btn.textContent='USA WA';}}
-  if(btn){btn.disabled=true;btn.textContent='...';}
-  try{
-    var key=String(cod||'').trim().toLowerCase();
-    var wau=await apiGet('whatsapp_uscita');
-    var imb=await apiGet('imballo');
-    if(!wau||!imb){showMsg('msg-imballo2','Errore caricamento WA Uscita o Imballo.','err');sblocca();return;}
-    var righeWA=wau.filter(function(r){return r.codice_articolo&&r.codice_articolo.toString().trim().toLowerCase()===key;});
-    if(!righeWA.length){showMsg('msg-imballo2','Nessuna riga WA Uscita trovata per '+cod+'.','err');sblocca();return;}
-    var totWA=0,totImb=0;
-    righeWA.forEach(function(r){totWA+=Number(r.quantita)||0;});
-    imb.forEach(function(r){
-      if((r.codice_articolo||r.articolo||'').toString().trim().toLowerCase()===key)totImb+=Number(r.totale)||0;
-    });
-    var diff=totWA-totImb;
-    if(diff===0){alert('Imballo già uguale al WA ('+totWA+') per '+cod+'.');sblocca();return;}
-    if(diff<0){alert('Imballo '+totImb+' più alto del WA '+totWA+' per '+cod+' ('+fmtDiffSegno(diff)+'): controlla a mano, non aggiungo niente.');sblocca();return;}
-    // Dalla riga WA piu' recente alla piu' vecchia, finche' la differenza non e' coperta.
-    var dataRiga=function(r){return (r.data_inserimento||r.created_at||'').slice(0,10)||oggiISO();};
-    righeWA.sort(function(a,b){
-      var da=dataRiga(a),db=dataRiga(b);
-      if(da!==db)return da<db?1:-1;
-      return (Number(b.id)||0)-(Number(a.id)||0);
-    });
-    var daAggiungere=[],resto=diff;
-    for(var i=0;i<righeWA.length&&resto>0;i++){
-      var q=Number(righeWA[i].quantita)||0;
-      if(q<=0)continue;
-      var n=Math.min(q,resto);
-      daAggiungere.push({data:dataRiga(righeWA[i]),qty:n,desc:righeWA[i].descrizione_articolo||righeWA[i].descrizione||''});
-      resto-=n;
-    }
-    var elenco=daAggiungere.map(function(x){return '• '+x.qty+' pz il '+fmtData(x.data);}).join('\n');
-    if(!confirm(cod+': Imballo '+totImb+' → aggiungo '+diff+' per arrivare a WA '+totWA+'\n\n'+elenco+'\n\nConfermi?')){sblocca();return;}
-    var nCreate=0;
-    for(var j=0;j<daAggiungere.length;j++){
-      var x=daAggiungere[j];
-      var res=await apiPost('imballo',{codice_articolo:cod,articolo:x.desc,sequenza:String(x.qty),totale:x.qty,note:'Allineato a WA',data_inserimento:x.data});
-      if(res)nCreate++;
-    }
-    if(nCreate<daAggiungere.length)showMsg('msg-imballo2','Attenzione: salvate solo '+nCreate+' riga/e su '+daAggiungere.length+' per '+cod+'. Ricontrolla il Confronto prima di ripremere.','err');
-    else showMsg('msg-imballo2','✓ '+cod+': aggiunti '+diff+' pz in Imballo ('+nCreate+' riga/e) per arrivare a WA '+totWA+'.','ok');
-  }catch(e){
-    showMsg('msg-imballo2','Errore: '+e.message,'err');
-    sblocca();
-    return;
-  }
-  caricaImballo();
-  verificaVerniciatoImballo();
-}
+// GG/MM/AAAA da una data ISO (AAAA-MM-GG).
+function fmtDataGMA(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:String(iso||'');}
 
 async function verificaVerniciatoImballo(){
   var imb=await apiGet('imballo');
@@ -2858,29 +2770,50 @@ async function verificaVerniciatoImballo(){
   var isAz=getCliente()==='AZZURRA';
   var wau=isAz?await apiGet('whatsapp_uscita'):null;
   var ddtu=await apiGet('ddt_uscita');
+  var ddte=await apiGet('ddt_entrata');
   if(isAz&&!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
   var res=document.getElementById('imb2-verifica-res');
   if(!res){return;}
-  if(!imb||!vern||(isAz&&!wau)||!ddtu){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo, WA Uscita o DDT Uscita.</div>';return;}
+  if(!imb||!vern||(isAz&&!wau)||!ddtu||!ddte){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo, WA Uscita, DDT Entrata o DDT Uscita.</div>';return;}
 
-  // DDT Uscita dalla chiusura mese in poi (tutti se non c'e' chiusura), raggruppati
-  // sul codice A0 (AZZURRA: codici IA risolti via abbinamenti_azzurra) o B0 (BERGAMASCO).
-  var dataChiusura=localStorage.getItem('chiusura_'+getCliente())||'';
+  // Inizio periodo: WA, Imballo e Verniciato si svuotano a fine mese, quindi la riga
+  // piu' vecchia rimasta in una delle tre liste segna l'inizio del mese in corso.
+  // Liste tutte vuote: nessun periodo (nessun DDT Uscita conta come "del mese").
+  var inizio='';
+  function dataLista(r){return (r.data_inserimento||r.created_at||'').slice(0,10);}
+  [isAz?wau:[],imb,vern].forEach(function(arr){
+    arr.forEach(function(r){var d=dataLista(r);if(d&&(!inizio||d<inizio))inizio=d;});
+  });
+
+  // DDT Entrata/Uscita raggruppati sul codice A0 (AZZURRA: codici IA risolti via
+  // abbinamenti_azzurra) o B0 (BERGAMASCO). mapDDT = Uscita dal periodo; mapDDTUTot e
+  // mapDDTE = tutte le date, per il saldo carico.
   var mappaIA={};
   if(isAz)abzCache.forEach(function(r){
     var ia=(r.codice_ia||'').trim().toUpperCase(),a0=(r.codice_a0||'').trim().toUpperCase();
     if(ia&&a0)mappaIA[ia]=a0;
   });
-  var mapDDT={};
-  ddtu.forEach(function(r){
-    if(!r.codice_articolo)return;
-    var d=(r.data_ddt||r.created_at||'').slice(0,10);
-    if(dataChiusura&&d&&d<dataChiusura)return;
+  function codDDT(r){
     var c=r.codice_articolo.toString().trim().toUpperCase();
     if(isAz&&mappaIA[c])c=mappaIA[c];
+    return c;
+  }
+  function sommaDDT(m,c,r){
     var key=c.toLowerCase();
-    if(!mapDDT[key])mapDDT[key]={cod:c,desc:r.descrizione||'',tot:0};
-    mapDDT[key].tot+=Number(r.quantita_ddt)||0;
+    if(!m[key])m[key]={cod:c,desc:r.descrizione||'',tot:0};
+    m[key].tot+=Number(r.quantita_ddt)||0;
+  }
+  var mapDDT={},mapDDTUTot={},mapDDTE={};
+  ddtu.forEach(function(r){
+    if(!r.codice_articolo)return;
+    var c=codDDT(r);
+    sommaDDT(mapDDTUTot,c,r);
+    var d=(r.data_ddt||r.created_at||'').slice(0,10);
+    if(inizio&&d&&d>=inizio)sommaDDT(mapDDT,c,r);
+  });
+  ddte.forEach(function(r){
+    if(!r.codice_articolo)return;
+    sommaDDT(mapDDTE,codDDT(r),r);
   });
 
   var mapImb={};
@@ -2909,50 +2842,69 @@ async function verificaVerniciatoImballo(){
     });
   }
 
-  // Include ogni articolo con almeno un valore diverso da zero in una qualsiasi delle tre
-  // fonti (Verniciato, Imballo, WA Uscita) — copre anche gli articoli "bypass imballo"
-  // (WA Uscita valorizzato, Imballo a zero), non solo quelli con Verniciato valorizzato.
+  // Include ogni articolo con almeno un valore diverso da zero in una qualsiasi delle
+  // fonti del mese (Verniciato, Imballo, WA Uscita, DDT Uscita del periodo) — copre
+  // anche gli articoli "bypass imballo" (WA Uscita valorizzato, Imballo a zero).
   var keys={};
   Object.keys(mapVern).forEach(function(k){keys[k]=true;});
   Object.keys(mapImb).forEach(function(k){keys[k]=true;});
   if(isAz)Object.keys(mapWA).forEach(function(k){keys[k]=true;});
   Object.keys(mapDDT).forEach(function(k){keys[k]=true;});
+  // Anche i codici senza movimenti nel mese ma con saldo carico negativo.
+  var keysSaldo={};
+  Object.keys(mapDDTE).concat(Object.keys(mapDDTUTot)).forEach(function(k){
+    var s=(mapDDTE[k]?mapDDTE[k].tot:0)-(mapDDTUTot[k]?mapDDTUTot[k].tot:0);
+    if(s<0&&!keys[k]){keys[k]=true;keysSaldo[k]=true;}
+  });
   var list=Object.keys(keys).map(function(key){
     var v=mapVern[key],i=mapImb[key],w=mapWA[key],dd=mapDDT[key];
     var vTot=v?v.tot:0,iTot=i?i.tot:0,wTot=w?w.tot:0,dTot=dd?dd.tot:0;
+    var deTot=mapDDTE[key]?mapDDTE[key].tot:0,duTot=mapDDTUTot[key]?mapDDTUTot[key].tot:0;
     // BERGAMASCO: Vern≠Imb solo sulle righe con Imballo (senza Imballo i pezzi vanno
     // da Verniciato direttamente al DDT, non e' un'anomalia).
     var flagVernImb=isAz?vTot!==iTot:(iTot!==0&&vTot!==iTot);
     var flagBypass=isAz&&wTot>0&&iTot===0;
     var flagImbWau=isAz&&!flagBypass&&iTot>0&&wTot>0&&iTot!==wTot;
-    // Fonte della casella "DA FARE IN DDT" (sulle righe Imb≠WA decide il toggle).
-    var fonte;
-    if(isAz)fonte=flagImbWau?leggiSceltaUscita((v&&v.cod)||(i&&i.cod)||(w&&w.cod)||''):(wTot!==0?'wa':(iTot!==0?'imballo':'wa'));
-    else fonte=iTot!==0?'imballo':'vern';
-    var fonteVal=fonte==='wa'?wTot:(fonte==='imballo'?iTot:vTot);
-    var ddtNeg=fonteVal-dTot<0;
+    // Riferimento automatico: il maggiore tra WA Uscita e Imballo (a parita' WA).
+    // BERGAMASCO senza Imballo: Verniciato, che va direttamente al DDT.
+    var fonteEtich,rif;
+    if(wTot!==0&&wTot>=iTot){fonteEtich='WA';rif=wTot;}
+    else if(iTot!==0){fonteEtich='Imballo';rif=iTot;}
+    else if(!isAz&&vTot!==0){fonteEtich='Vern';rif=vTot;}
+    else {fonteEtich=isAz?'WA':'Imballo';rif=0;}
+    var daFare=rif-dTot;
+    var saldo=deTot-duTot;
+    var superaCarico=daFare>0&&daFare>saldo;
+    var daFareMostrato=superaCarico&&saldo>=0?saldo:daFare;
+    var ddtNeg=daFare<0;
     return {
-      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||(dd&&dd.cod)||'',
-      desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||(dd&&dd.desc)||'',
-      vern:vTot,imb:iTot,wau:wTot,ddt:dTot,riporto:v?v.riporto:0,fonte:fonte,
+      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||(dd&&dd.cod)||(mapDDTE[key]&&mapDDTE[key].cod)||(mapDDTUTot[key]&&mapDDTUTot[key].cod)||'',
+      desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||(dd&&dd.desc)||(mapDDTE[key]&&mapDDTE[key].desc)||(mapDDTUTot[key]&&mapDDTUTot[key].desc)||'',
+      soloSaldo:!!keysSaldo[key],
+      vern:vTot,imb:iTot,wau:wTot,ddt:dTot,riporto:v?v.riporto:0,
+      fonteEtich:fonteEtich,rif:rif,daFare:daFare,daFareMostrato:daFareMostrato,
+      saldo:saldo,ddtEntTot:deTot,ddtUscTot:duTot,superaCarico:superaCarico,
       flagVernImb:flagVernImb,flagBypass:flagBypass,flagImbWau:flagImbWau,ddtNeg:ddtNeg,
-      anomalo:flagVernImb||flagBypass||flagImbWau||ddtNeg
+      anomalo:flagVernImb||flagBypass||flagImbWau||ddtNeg||superaCarico||saldo<0
     };
-  }).filter(function(a){return a.vern!==0||a.imb!==0||a.wau!==0||a.ddt!==0;});
+  }).filter(function(a){return a.soloSaldo||a.vern!==0||a.imb!==0||a.wau!==0||a.ddt!==0;});
 
   list.sort(function(a,b){
     if(a.anomalo!==b.anomalo)return a.anomalo?-1:1;
     return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
   });
 
-  _verificaVernImbUltimoRis={isAz:isAz,list:list};
+  _verificaVernImbUltimoRis={isAz:isAz,list:list,inizio:inizio};
+
+  var periodoHtml='<div style="margin-bottom:8px;font-size:14px;font-weight:bold;color:#5B2C8D;">'
+    +(inizio?'Periodo dal '+fmtDataGMA(inizio):'Nessun periodo: WA, Imballo e Verniciato sono vuoti')+'</div>';
 
   if(!list.length&&!senzaCodiceWA.length){
-    res.innerHTML='<div class="ok-box">✅ Nessun articolo con movimenti da confrontare.</div>';return;
+    res.innerHTML=periodoHtml+'<div class="ok-box">✅ Nessun articolo con movimenti da confrontare.</div>';return;
   }
 
   var thWau=isAz?'<th>WA Uscita</th>':'';
-  var thStato='<th>Da fare in DDT</th><th>Stato</th>';
+  var thStato='<th>Da fare in DDT</th><th>Saldo carico</th><th>Stato</th>';
   var totV=0,totI=0,totW=0;
   var righeHtml=list.map(function(a){
     totV+=a.vern;totI+=a.imb;totW+=a.wau;
@@ -2967,31 +2919,17 @@ async function verificaVerniciatoImballo(){
       badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>'
         +'<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEsc+'\',\''+descEsc+'\','+a.wau+')">+ Imballo</button>';
     }
-    if(!badges&&!a.ddtNeg)badges='<span class="badge badge-ok">✓ OK</span>';
-    // Casella "DA FARE IN DDT" su ogni riga. Solo sulle righe "Imb≠WA" ha i due toggle
-    // per scegliere la fonte (WA o Imballo); la scelta resta in localStorage.
-    var celImb,celWau,celDaFare;
-    var etich={wa:'WA',imballo:'Imballo',vern:'Vern'}[a.fonte];
-    var fonteVal=a.fonte==='wa'?a.wau:(a.fonte==='imballo'?a.imb:a.vern);
-    if(isAz&&a.flagImbWau){
-      var scelta=a.fonte;
-      var imbHi=scelta==='imballo'?'background:#C6EFCE;font-weight:bold;':'';
-      var waHi=scelta==='wa'?'background:#C6EFCE;font-weight:bold;':'';
-      celImb='<td style="text-align:right;'+imbHi+'" id="su-imb-'+a.cod+'">'+a.imb+'</td>';
-      celWau='<td style="text-align:right;'+waHi+'" id="su-wa-'+a.cod+'">'+a.wau+'</td>';
-      celDaFare='<td style="text-align:right;background:#E8F5E9;white-space:normal;min-width:110px;">'
-        +'<div id="su-num-'+a.cod+'" data-imb="'+a.imb+'" data-wa="'+a.wau+'" data-ddt="'+a.ddt+'">'+htmlDaFareDDT(etich,fonteVal,a.ddt)+'</div>'
-        +'<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
-          +'<button id="su-btn-imb-'+a.cod+'" class="btn btn-sm '+(scelta==='imballo'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="sceltaUscitaToggle(\''+a.cod+'\',\'imballo\')">USA IMBALLO</button>'
-          +'<button id="su-btn-wa-'+a.cod+'" class="btn btn-sm '+(scelta==='wa'?'btn-green':'btn-gray')+'" style="width:auto;padding:8px 12px;font-size:13px;white-space:nowrap;" onclick="usaWA(\''+a.cod+'\')">USA WA</button>'
-        +'</div>'
+    if(!badges&&!a.ddtNeg&&!a.superaCarico&&a.saldo>=0)badges='<span class="badge badge-ok">✓ OK</span>';
+    // Il valore usato come riferimento e' evidenziato in verde.
+    var hiImb=a.fonteEtich==='Imballo'&&a.rif!==0?'background:#C6EFCE;font-weight:bold;':'';
+    var hiWa=a.fonteEtich==='WA'&&a.rif!==0?'background:#C6EFCE;font-weight:bold;':'';
+    var celImb='<td style="text-align:right;'+hiImb+'">'+a.imb+'</td>';
+    var celWau=isAz?('<td style="text-align:right;'+(hiWa||colWau)+'">'+a.wau+'</td>'):'';
+    var celDaFare='<td style="text-align:right;background:#E8F5E9;white-space:normal;min-width:110px;">'+htmlDaFareDDT(a)+'</td>';
+    var celSaldo='<td style="text-align:right;white-space:normal;min-width:90px;" title="DDT Entrata '+a.ddtEntTot+' − DDT Uscita '+a.ddtUscTot+' (tutte le date)">'
+      +'<div style="font-size:16px;font-weight:bold;'+(a.saldo<0?'color:#C62828;':'')+'">'+a.saldo+'</div>'
+      +(a.saldo<0?'<div style="font-size:11px;color:#C62828;">manca entrata?</div>':'')
       +'</td>';
-    } else {
-      celImb='<td style="text-align:right;">'+a.imb+'</td>';
-      celWau=isAz?('<td style="text-align:right;'+colWau+'">'+a.wau+'</td>'):'';
-      celDaFare='<td style="text-align:right;background:#E8F5E9;white-space:normal;min-width:110px;">'+htmlDaFareDDT(etich,fonteVal,a.ddt)+'</td>';
-    }
-    var celStato=celDaFare+'<td style="white-space:normal;">'+badges+'</td>';
     return '<tr>'
       +'<td><strong>'+(a.cod||'—')+'</strong></td>'
       +'<td>'+(a.desc||'')+'</td>'
@@ -3000,7 +2938,9 @@ async function verificaVerniciatoImballo(){
       +'</td>'
       +celImb
       +celWau
-      +celStato
+      +celDaFare
+      +celSaldo
+      +'<td style="white-space:normal;">'+badges+'</td>'
     +'</tr>';
   }).join('');
 
@@ -3017,12 +2957,13 @@ async function verificaVerniciatoImballo(){
       +senzaCodiceWA.map(function(r){var desc=r.testo_originale||r.testo_riga||r.descrizione||'';return '<div class="row-item" style="border-left-color:#E8A000;"><div class="row-qty" style="color:#E8A000;">'+(r.quantita||'?')+'</div><div class="row-info"><div class="rdesc">'+desc+'</div><div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+'</div></div></div>';}).join('')+'</div>';
   }
 
-  res.innerHTML=totHtml+tabellaHtml+senzaHtml;
+  res.innerHTML=periodoHtml+totHtml+tabellaHtml+senzaHtml;
 }
 
 function esportaVerificaVerniciatoImballoExcel(){
   if(!_verificaVernImbUltimoRis||!_verificaVernImbUltimoRis.list||!_verificaVernImbUltimoRis.list.length){alert('Nessun dato da esportare: premi prima VERIFICA TUTTO.');return;}
   var isAz=_verificaVernImbUltimoRis.isAz;
+  var periodo=_verificaVernImbUltimoRis.inizio?fmtDataGMA(_verificaVernImbUltimoRis.inizio):'';
   var righeExcel=_verificaVernImbUltimoRis.list.map(function(a){
     var riga={
       'Codice':a.cod,
@@ -3030,16 +2971,19 @@ function esportaVerificaVerniciatoImballoExcel(){
       'Verniciato':a.vern,
       'Imballo':a.imb
     };
-    if(isAz){
-      riga['WA Uscita']=a.wau;
-      var stato=[];
-      if(a.flagVernImb)stato.push('Vern≠Imb');
-      if(a.flagImbWau)stato.push('Imb≠WA');
-      if(a.flagBypass)stato.push('Bypass Imballo');
-      riga['Stato']=stato.length?stato.join(', '):'OK';
-    } else {
-      riga['Differenza']=a.vern-a.imb;
-    }
+    if(isAz)riga['WA Uscita']=a.wau;
+    riga['Riferimento']=a.fonteEtich+' '+a.rif;
+    riga['DDT Uscita (mese)']=a.ddt;
+    riga['Da fare in DDT']=a.daFareMostrato;
+    riga['Saldo carico']=a.saldo;
+    var stato=[];
+    if(a.flagVernImb)stato.push('Vern≠Imb '+fmtDiffSegno(a.vern-a.imb));
+    if(a.flagImbWau)stato.push('Imb≠WA '+fmtDiffSegno(a.imb-a.wau));
+    if(a.flagBypass)stato.push('Bypass Imballo');
+    if(a.superaCarico)stato.push('Supera il carico (da fare '+a.daFare+')');
+    if(a.saldo<0)stato.push('Manca entrata?');
+    riga['Stato']=stato.length?stato.join(', '):'OK';
+    riga['Periodo dal']=periodo;
     return riga;
   });
   var ws=XLSX.utils.json_to_sheet(righeExcel);
