@@ -870,31 +870,18 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <!-- ARTICOLI APERTI (solo AZZURRA): Entrata ≠ Uscita, codici diretti A0..., nessun abbinamenti_ber -->
     <div id="rc-aperti-azzurra" class="card">
       <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti AZZURRA</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:10px;">Per ogni codice A0 (codici IA convertiti con Abbinamenti AZZURRA): saldo iniziale + DDT Entrata − DDT Uscita. Tutta la storia, non solo il mese.</p>
-      <p id="rc-aperti-saldo-info" style="font-size:12px;color:#888;margin-bottom:6px;"></p>
-      <p id="rc-aperti-nova-info" style="font-size:12px;color:#888;margin-bottom:10px;"></p>
+      <p style="font-size:12px;color:#666;margin-bottom:10px;">Aperto = inevasi Nova caricati in Abbinamenti AZZURRA, codici IA convertiti in A0 e sommati per A0.</p>
       <p id="rc-aperti-senza-a0" style="display:none;font-size:12px;color:#8a5a00;background:#FFF2CC;border-radius:6px;padding:8px 10px;margin-bottom:10px;"></p>
       <button class="btn btn-blue btn-sm" style="margin-bottom:10px;" onclick="caricaArticoliApertiAzzurra()">↻ AGGIORNA</button>
       <button class="btn btn-green btn-sm" style="margin-bottom:10px;" onclick="esportaArticoliApertiExcel()">📥 Esporta Excel</button>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;">
-        <input type="date" id="rc-saldo-data" style="width:auto;margin:0;" title="Data dell'export inevasi Nova usato come saldo iniziale">
-        <button class="btn btn-orange btn-sm" style="margin:0;" onclick="sceltaFileSaldoAzzurra()">Imposta saldo iniziale da Nova</button>
-        <input type="file" id="rc-saldo-file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="leggiSaldoInizialeAzzurra(this)">
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;">
-        <button class="btn btn-teal btn-sm" style="margin:0;" onclick="document.getElementById('rc-nova-file-az').click()">Carica inevasi Nova (controllo)</button>
-        <input type="file" id="rc-nova-file-az" accept=".xlsx,.xls,.csv" style="display:none;" onchange="leggiControlloNova(this)">
-        <button class="btn btn-gray btn-sm rc-nova-solo-se" style="margin:0;display:none;" onclick="togliControlloNova()">Togli controllo</button>
-        <label class="rc-nova-solo-se" style="display:none;font-size:13px;margin:0;"><input type="checkbox" id="rc-solo-diff-az" style="width:auto;margin:0 4px 0 0;" onchange="renderApertiAzzurra()">Solo differenze</label>
-      </div>
       <div class="rc-table-scroll">
         <table class="rc-table">
           <thead id="rc-aperti-thead">
             <tr>
-              <th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Spedito</th><th>Aperto</th>
+              <th>Codice</th><th>Descrizione</th><th>Aperto</th>
             </tr>
           </thead>
-          <tbody id="rc-aperti-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+          <tbody id="rc-aperti-tbody"><tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -950,7 +937,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>Importa Inevasi Nova</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">File Excel Nova (con righe di metadati tipo "Dati origine"/"Ordinato per"/"Compressione"/"Range date"/"Filtro conto" da ignorare). Per ogni CodArt somma tutte le "Qtà Ine" del file e aggiorna solo la giacenza iniziale, non tocca l'abbinamento codice A0.</p>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">File Excel Nova (con righe di metadati tipo "Dati origine"/"Ordinato per"/"Compressione"/"Range date"/"Filtro conto" da ignorare). Per ogni CodArt somma tutte le "Qtà Ine" del file e aggiorna solo la giacenza iniziale, non tocca l'abbinamento codice A0. I codici con inevaso che non compaiono nel file vengono azzerati (con conferma).</p>
     <p id="abz-ultimo-import" style="font-size:12px;color:#888;margin-bottom:12px;"></p>
     <button type="button" class="pdf-drop" style="width:100%;border:none;background:#EEF4FF;" onclick="document.getElementById('abz-imp-giac-inp').click()">
       <p>Tocca qui per caricare Excel (.xlsx)</p>
@@ -1132,7 +1119,9 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div id="page-controllo-date" class="page">
   <div class="card">
     <h2>Controllo Date</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Verifica per ogni codice articolo se esiste una DDT Uscita con data precedente a tutte le DDT Entrata dello stesso codice (spedito prima di essere ricevuto).</p>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Saldo progressivo per codice (entrate − uscite fino a quella data, a parità di data prima le entrate): segnala le DDT Uscita del mese che portano il saldo sotto zero, cioè pezzi spediti prima di averli ricevuti.</p>
+    <label>Mese</label>
+    <input type="month" id="cd-mese" onchange="caricaControlloDate()">
     <button class="btn btn-blue btn-sm" onclick="caricaControlloDate()">↻ AGGIORNA</button>
     <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('cd-stampa',true)">STAMPA</button>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
@@ -1142,15 +1131,16 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div id="cd-stampa">
     <div class="card" id="cd-contatore"><div class="empty">Premi Aggiorna</div></div>
+    <div class="card rc-table-scroll" id="cd-storico" style="display:none;"></div>
     <div class="card" id="cd-non-abbinati" style="display:none;"></div>
     <div class="card rc-table-scroll">
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Codice</th><th>Descrizione</th><th>Data DDT Uscita</th><th>Numero DDT Uscita</th><th>Data DDT Entrata trovata</th><th>Giorni anticipo</th><th>Possibile corrispondenza</th><th>Stato</th>
+            <th>Codice</th><th>Descrizione</th><th>Data DDT Uscita</th><th>Numero DDT Uscita</th><th>Q.tà uscita</th><th>Pezzi mancanti</th><th>Copertura</th><th>Giorni anticipo</th><th>Possibile corrispondenza</th><th>Stato</th>
           </tr>
         </thead>
-        <tbody id="cd-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="cd-tbody"><tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -4239,18 +4229,15 @@ async function aggiornaConfronto(){
   renderRiepilogoCompleto();
 }
 
-// ── ARTICOLI APERTI AZZURRA: calcolati dai DDT dell'app (come BERGAMASCO) ──
-// Aperto = saldo iniziale (opzionale, da un export inevasi Nova, tabella
-// saldo_iniziale_azzurra) + DDT Entrata dopo la data del saldo − DDT Uscita dopo
-// la data del saldo. Senza saldo: tutte le entrate − tutte le uscite. Codici IA
-// convertiti nel codice A0 con Abbinamenti AZZURRA (sia entrata che uscita).
-// Il file inevasi Nova caricato come "controllo" serve solo per le colonne
-// Nova/Differenza: non modifica mai l'Aperto.
-var _apertiAzzurraUltimoRis=null; // righe mostrate (dopo il filtro "Solo differenze")
-var _apertiAzzurraTutte=[];       // tutte le righe aperte calcolate
-var _apertiAzzurraCtrl=false;     // controllo Nova caricato?
-var _apertiAzzurraSenzaA0=[];     // codici IA del controllo Nova senza codice A0 abbinato
+// ── ARTICOLI APERTI AZZURRA: inevasi Nova caricati in Abbinamenti AZZURRA ──
+// Aperto = giacenza_iniziale di abbinamenti_azzurra (ultimo import Inevasi Nova),
+// codici IA convertiti nel codice A0 e sommati per A0. Codice IA senza A0: resta
+// con il codice IA. La data mostrata e' quella dell'ultimo import (impostazioni_azzurra).
+// saldo_iniziale_azzurra non e' piu' usata qui (resta solo per le etichette MAG).
+var _apertiAzzurraUltimoRis=null; // righe mostrate
+var _apertiAzzurraSenzaA0=[];     // codici IA con inevaso ma senza codice A0 abbinato
 var _apertiAzzurraIAperA0={};     // A0 -> [codici IA abbinati]
+var _apertiAzzurraDataNova='';    // gg/mm dell'ultimo import Inevasi Nova
 
 // Inevaso Nova (Abbinamenti AZZURRA, campo giacenza_iniziale) sommato per codice A0: un A0
 // puo' avere piu' codici IA abbinati. Usata dalla pagina "Magazzino".
@@ -4265,7 +4252,7 @@ async function getGiacenzaNovaPerA0(){
   return mGiac;
 }
 
-// Controllo inevasi Nova: salvato solo su questo dispositivo, per cliente.
+// Controllo inevasi Nova (solo Articoli Aperti BERGAMASCO): salvato solo su questo dispositivo, per cliente.
 function leggiControlloNovaSalvato(){
   try{return JSON.parse(localStorage.getItem('controllo_nova_'+getCliente())||'null');}catch(e){return null;}
 }
@@ -4300,180 +4287,78 @@ function aggiornaUiControlloNova(ctrl,infoId){
   info.textContent='Controllo Nova caricato il '+fmtData(ctrl.caricato)+' (file '+(ctrl.file||'')+'): '+Object.keys(ctrl.somme).length+' codici, '+pz+' pz inevasi.';
 }
 
-function dataRigaDDT(r){return (r.data_ddt||r.created_at||'').slice(0,10);}
-
 async function caricaArticoliApertiAzzurra(){
   var box=document.getElementById('rc-aperti-azzurra');
   var tb=document.getElementById('rc-aperti-tbody');
   if(getCliente()!=='AZZURRA'){if(box)box.style.display='none';return;}
   if(box)box.style.display='';
-  if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
 
-  var ddte=await apiGetTutto('ddt_entrata');
-  var ddtu=await apiGetTutto('ddt_uscita');
   var abzIA=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
-  var saldo=await apiGet('saldo_iniziale_azzurra','order=id.asc&limit=5000');
-  if(!ddte||!ddtu||!abzIA){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
+  var imp=await apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('ultimo_import_inevasi_nova_AZZURRA')+'&select=valore&limit=1');
+  if(!abzIA){if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
 
-  // Codice IA -> A0 (Abbinamenti AZZURRA). Senza abbinamento si usa il codice cosi' com'e'.
-  var mappaIA={},iaNote={},iaPerA0={};
+  _apertiAzzurraDataNova='';
+  if(imp&&imp.length&&imp[0].valore){
+    var dt=new Date(imp[0].valore);
+    if(!isNaN(dt))_apertiAzzurraDataNova=('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2);
+  }
+
+  // Inevaso per codice IA -> somma per A0 (senza A0: codice IA cosi' com'e')
+  var mAperto={},descA0={},iaPerA0={},senzaA0=[];
   abzIA.forEach(function(r){
     var ia=(r.codice_ia||'').trim().toUpperCase();
     var a0=(r.codice_a0||'').trim().toUpperCase();
     if(!ia)return;
-    iaNote[ia]=r.descrizione_ia||'';
-    if(a0){mappaIA[ia]=a0;(iaPerA0[a0]=iaPerA0[a0]||[]).push(ia);}
+    if(a0)(iaPerA0[a0]=iaPerA0[a0]||[]).push(ia);
+    var q=Number(r.giacenza_iniziale)||0;
+    if(!q)return;
+    var k=a0||ia;
+    mAperto[k]=(mAperto[k]||0)+q;
+    if(!descA0[k]&&r.descrizione_ia)descA0[k]=r.descrizione_ia;
+    if(!a0)senzaA0.push({ia:ia,desc:r.descrizione_ia||'',ine:q});
   });
+  senzaA0.sort(function(a,b){return b.ine-a.ine;});
   _apertiAzzurraIAperA0=iaPerA0;
-  function a0Di(cod){var c=(cod||'').trim().toUpperCase();return mappaIA[c]||c;}
-
-  // Saldo iniziale (tutte le righe hanno la stessa data).
-  var dataSaldo='',mSaldo={};
-  (saldo||[]).forEach(function(r){
-    var k=(r.codice_a0||'').trim().toUpperCase();if(!k)return;
-    mSaldo[k]=(mSaldo[k]||0)+(Number(r.quantita)||0);
-    if(r.data&&(!dataSaldo||r.data>dataSaldo))dataSaldo=String(r.data).slice(0,10);
-  });
-  var saldoInfo=document.getElementById('rc-aperti-saldo-info');
-  if(saldoInfo){
-    if(saldo===null)saldoInfo.innerHTML='⚠️ Tabella <strong>saldo_iniziale_azzurra</strong> non trovata in Supabase: calcolo senza saldo iniziale.';
-    else if(!saldo.length)saldoInfo.textContent='Nessun saldo iniziale: Aperto = tutte le entrate − tutte le uscite.';
-    else{
-      var pzS=Object.keys(mSaldo).reduce(function(t,k){return t+mSaldo[k];},0);
-      saldoInfo.textContent='Saldo iniziale da Nova al '+fmtData(dataSaldo)+': '+Object.keys(mSaldo).length+' codici, '+pzS+' pz. DDT contati dal giorno dopo.';
-    }
-  }
-
-  var mE={},mU={};
-  function somma(m,r){
-    if(dataSaldo){var d=dataRigaDDT(r);if(d&&d<=dataSaldo)return;}
-    var k=a0Di(r.codice_articolo);if(!k)return;
-    if(!m[k])m[k]={tot:0,desc:''};
-    m[k].tot+=Number(r.quantita_ddt)||0;
-    if(!m[k].desc&&r.descrizione)m[k].desc=r.descrizione;
-  }
-  ddte.forEach(function(r){somma(mE,r);});
-  ddtu.forEach(function(r){somma(mU,r);});
-
-  // Controllo Nova: codici IA convertiti in A0 con gli abbinamenti attuali.
-  var ctrl=leggiControlloNovaSalvato();
-  var mNova={},senzaA0=[];
-  if(ctrl){
-    Object.keys(ctrl.somme).forEach(function(cod){
-      var c=cod.trim().toUpperCase(),q=Number(ctrl.somme[cod])||0;
-      if(iaNote.hasOwnProperty(c)&&!mappaIA[c]&&q!==0)senzaA0.push({ia:c,desc:iaNote[c]||(ctrl.descrizioni||{})[cod]||'',ine:q});
-      var k=a0Di(c);
-      mNova[k]=(mNova[k]||0)+q;
-    });
-    senzaA0.sort(function(a,b){return b.ine-a.ine;});
-  }
   _apertiAzzurraSenzaA0=senzaA0;
-  _apertiAzzurraCtrl=!!ctrl;
-  aggiornaUiControlloNova(ctrl,'rc-aperti-nova-info');
+
   var avv=document.getElementById('rc-aperti-senza-a0');
   if(avv){
     if(senzaA0.length){
       var pzSenza=senzaA0.reduce(function(t,r){return t+r.ine;},0);
       avv.style.display='';
-      avv.innerHTML='⚠️ <strong>'+senzaA0.length+' codici Azzurra ('+pzSenza+' pz)</strong> del controllo Nova non hanno un codice A0 abbinato: sono confrontati con il codice Azzurra. Abbinali in "Abbinamenti AZZURRA". L\'elenco è nel foglio "Senza codice A0" dell\'Excel.';
+      avv.innerHTML='⚠️ <strong>'+senzaA0.length+' codici Azzurra ('+pzSenza+' pz)</strong> con inevaso Nova non hanno un codice A0 abbinato: sono mostrati con il codice Azzurra. Abbinali in "Abbinamenti AZZURRA". L\'elenco è nel foglio "Senza codice A0" dell\'Excel.';
     } else {avv.style.display='none';avv.innerHTML='';}
   }
 
-  var codici={};
-  [mSaldo,mE,mU,mNova].forEach(function(m){Object.keys(m).forEach(function(k){codici[k]=true;});});
-  _apertiAzzurraTutte=Object.keys(codici).map(function(k){
-    var sal=mSaldo[k]||0;
-    var totE=sal+(mE[k]?mE[k].tot:0);
-    var sped=mU[k]?mU[k].tot:0;
-    var aperto=totE-sped;
-    var artInfo=(artCache||[]).find(function(a){return (a.codice_articolo||'').trim().toUpperCase()===k;});
-    var desc=(artInfo&&artInfo.descrizione)||(mE[k]&&mE[k].desc)||(mU[k]&&mU[k].desc)||'';
-    var nova=ctrl?(mNova[k]||0):null;
-    return {cod:k,desc:desc,saldo:sal,totE:totE,sped:sped,aperto:aperto,nova:nova,diff:ctrl?aperto-nova:null};
-  }).filter(function(r){return r.aperto!==0||(ctrl&&r.nova!==0);});
-  _apertiAzzurraTutte.sort(function(a,b){return Math.abs(b.aperto)-Math.abs(a.aperto)||a.cod.localeCompare(b.cod);});
+  var artDesc={};
+  (artCache||[]).forEach(function(a){var k=(a.codice_articolo||'').trim().toUpperCase();if(k&&!artDesc[k])artDesc[k]=a.descrizione||'';});
+  var righe=Object.keys(mAperto).filter(function(k){return mAperto[k]!==0;}).map(function(k){
+    return {cod:k,desc:artDesc[k]||descA0[k]||'',aperto:mAperto[k]};
+  });
+  righe.sort(function(a,b){return Math.abs(b.aperto)-Math.abs(a.aperto)||a.cod.localeCompare(b.cod);});
+  _apertiAzzurraUltimoRis=righe;
   renderApertiAzzurra();
 }
 
 function renderApertiAzzurra(){
   var tb=document.getElementById('rc-aperti-tbody');
   var th=document.getElementById('rc-aperti-thead');
-  var ctrl=_apertiAzzurraCtrl;
-  var chk=document.getElementById('rc-solo-diff-az');
-  var solo=ctrl&&chk&&chk.checked;
-  var righe=solo?_apertiAzzurraTutte.filter(function(r){return r.diff!==0;}):_apertiAzzurraTutte;
-  _apertiAzzurraUltimoRis=righe;
-  if(th)th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Tot. Entrata</th><th>Spedito</th><th>Aperto</th>'+(ctrl?'<th>Nova</th><th>Differenza</th>':'')+'</tr>';
+  var righe=_apertiAzzurraUltimoRis||[];
+  var dataLbl=_apertiAzzurraDataNova?'Nova al '+_apertiAzzurraDataNova:'Nova: nessun import';
+  if(th)th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Aperto<div style="font-size:9px;font-weight:normal;">'+dataLbl+'</div></th></tr>';
   if(!tb)return;
-  var nCol=ctrl?7:5;
   if(!righe.length){
-    tb.innerHTML='<tr><td colspan="'+nCol+'" style="text-align:center;padding:20px;color:#999;">'+(solo?'Nessuna differenza con Nova.':'Nessun articolo aperto.')+'</td></tr>';
+    tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Nessun articolo aperto.</td></tr>';
     return;
   }
   tb.innerHTML=righe.map(function(r){
-    var colNova='';
-    if(ctrl){
-      colNova='<td style="text-align:right;">'+r.nova+'</td>'
-        +'<td style="text-align:right;'+(r.diff!==0?'background:#FDECEA;color:#C00000;font-weight:bold;':'')+'">'+(r.diff>0?'+':'')+r.diff+'</td>';
-    }
     return '<tr>'
       +'<td><strong>'+r.cod+'</strong></td>'
       +'<td>'+(r.desc||'')+'</td>'
-      +'<td style="text-align:right;">'+r.totE+(r.saldo?'<div style="font-size:10px;color:#888;">di cui saldo '+r.saldo+'</div>':'')+'</td>'
-      +'<td style="text-align:right;">'+r.sped+'</td>'
       +'<td style="text-align:right;"><span class="badge '+(r.aperto>0?'badge-warn':(r.aperto<0?'badge-err':'badge-ok'))+'">'+r.aperto+'</span></td>'
-      +colNova
     +'</tr>';
   }).join('');
-}
-
-// Saldo iniziale AZZURRA: export inevasi Nova alla data scelta, codici IA -> A0,
-// salvato in saldo_iniziale_azzurra (sostituisce il saldo precedente).
-function sceltaFileSaldoAzzurra(){
-  var d=document.getElementById('rc-saldo-data').value;
-  if(!d){alert('Scegli prima la data dell\'export inevasi Nova.');return;}
-  document.getElementById('rc-saldo-file').click();
-}
-
-async function leggiSaldoInizialeAzzurra(input){
-  var file=input.files[0];if(!file)return;
-  var data=document.getElementById('rc-saldo-data').value;
-  try{
-    if(!data)throw new Error('Scegli la data dell\'export.');
-    var p=await leggiFileInevasiNova(file);
-    var abz=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
-    if(!abz)throw new Error('Abbinamenti AZZURRA non caricati.');
-    var mappaIA={},iaSet={};
-    abz.forEach(function(r){
-      var ia=(r.codice_ia||'').trim().toUpperCase(),a0=(r.codice_a0||'').trim().toUpperCase();
-      if(ia)iaSet[ia]=true;
-      if(ia&&a0)mappaIA[ia]=a0;
-    });
-    var perA0={},nSenzaA0=0;
-    Object.keys(p.somme).forEach(function(cod){
-      var c=cod.trim().toUpperCase();
-      if(iaSet[c]&&!mappaIA[c])nSenzaA0++;
-      var k=mappaIA[c]||c;
-      perA0[k]=(perA0[k]||0)+(Number(p.somme[cod])||0);
-    });
-    var righe=Object.keys(perA0).filter(function(k){return perA0[k]!==0;}).map(function(k){
-      return {codice_a0:k,quantita:perA0[k],data:data};
-    });
-    if(!righe.length)throw new Error('Nessuna quantità inevasa nel file.');
-    var vecchie=await apiGet('saldo_iniziale_azzurra','select=id&order=id.desc&limit=1');
-    if(vecchie===null)throw new Error('Tabella saldo_iniziale_azzurra non trovata in Supabase.');
-    var tot=righe.reduce(function(t,r){return t+r.quantita;},0);
-    if(!confirm('Impostare il saldo iniziale al '+fmtData(data)+'?\n'+righe.length+' codici A0, '+tot+' pz.'
-      +(nSenzaA0?'\n'+nSenzaA0+' codici IA senza codice A0 verranno salvati con il codice Nova.':'')
-      +(vecchie.length?'\nIl saldo iniziale attuale verrà sostituito.':'')))return;
-    // Prima inserisco il nuovo saldo, poi tolgo il vecchio: se l'inserimento fallisce, resta quello di prima.
-    var ris=await apiPost('saldo_iniziale_azzurra',righe);
-    if(!ris)throw new Error('Saldo non salvato.');
-    if(vecchie.length)await apiDel('saldo_iniziale_azzurra','id=lte.'+vecchie[0].id);
-    alert('✓ Saldo iniziale salvato: '+righe.length+' codici, '+tot+' pz al '+fmtData(data)+'.');
-  }catch(e){alert('Errore saldo iniziale: '+e.message);}
-  input.value='';
-  caricaArticoliApertiAzzurra();
 }
 
 // ── ARTICOLI APERTI BERGAMASCO ────────────────────────────────────────
@@ -4573,15 +4458,14 @@ function esportaApertiBerExcel(){
 
 function esportaArticoliApertiExcel(){
   if(!_apertiAzzurraUltimoRis||!_apertiAzzurraUltimoRis.length){alert('Nessun articolo aperto da esportare: premi prima AGGIORNA.');return;}
-  var ctrl=_apertiAzzurraCtrl;
+  var colAperto='Aperto ('+(_apertiAzzurraDataNova?'Nova al '+_apertiAzzurraDataNova:'Nova')+')';
   var righeExcel=_apertiAzzurraUltimoRis.map(function(r){
-    var o={'Codice':r.cod,'Descrizione':r.desc||'','Tot. Entrata':r.totE,'Spedito':r.sped,'Aperto':r.aperto};
-    if(ctrl){o['Nova']=r.nova;o['Differenza']=r.diff;}
-    o['Stato']=r.aperto<0?'verificare':(r.aperto>0?'da spedire/fatturare':'');
+    var o={'Codice':r.cod,'Descrizione':r.desc||''};
+    o[colAperto]=r.aperto;
     return o;
   });
   var ws=XLSX.utils.json_to_sheet(righeExcel);
-  ws['!cols']=ctrl?[{wch:16},{wch:50},{wch:12},{wch:10},{wch:10},{wch:10},{wch:11},{wch:20}]:[{wch:16},{wch:50},{wch:12},{wch:10},{wch:10},{wch:20}];
+  ws['!cols']=[{wch:16},{wch:50},{wch:18}];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Articoli Aperti');
 
@@ -4598,26 +4482,18 @@ function esportaArticoliApertiExcel(){
   wsCod['!cols']=[{wch:16},{wch:50},{wch:11},{wch:18}];
   XLSX.utils.book_append_sheet(wb,wsCod,'Codici A0 + Azzurra');
 
-  if(ctrl){
-    // Foglio "Senza codice A0": codici Azzurra del controllo Nova senza abbinamento A0.
-    var righeSenza=(_apertiAzzurraSenzaA0||[]).map(function(r){
-      return {'Codice Azzurra':r.ia,'Descrizione':r.desc,'Inevaso Nova':r.ine,'Codice A0 (da abbinare)':''};
-    });
-    if(!righeSenza.length)righeSenza=[{'Codice Azzurra':'Nessun codice senza abbinamento','Descrizione':'','Inevaso Nova':'','Codice A0 (da abbinare)':''}];
-    var wsSenza=XLSX.utils.json_to_sheet(righeSenza);
-    wsSenza['!cols']=[{wch:16},{wch:50},{wch:12},{wch:22}];
-    XLSX.utils.book_append_sheet(wb,wsSenza,'Senza codice A0');
-  }
+  // Foglio "Senza codice A0": codici Azzurra con inevaso Nova senza abbinamento A0.
+  var righeSenza=(_apertiAzzurraSenzaA0||[]).map(function(r){
+    return {'Codice Azzurra':r.ia,'Descrizione':r.desc,'Inevaso Nova':r.ine,'Codice A0 (da abbinare)':''};
+  });
+  if(!righeSenza.length)righeSenza=[{'Codice Azzurra':'Nessun codice senza abbinamento','Descrizione':'','Inevaso Nova':'','Codice A0 (da abbinare)':''}];
+  var wsSenza=XLSX.utils.json_to_sheet(righeSenza);
+  wsSenza['!cols']=[{wch:16},{wch:50},{wch:12},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,wsSenza,'Senza codice A0');
 
-  // Foglio "Riepilogo": totali Aperto app (e Nova, se il controllo e' caricato).
+  // Foglio "Riepilogo": totale Aperto (inevasi Nova) alla data dell'ultimo import.
   var totAperto=_apertiAzzurraUltimoRis.reduce(function(t,r){return t+(Number(r.aperto)||0);},0);
-  var aoa=[['Voce','Pezzi','Articoli'],['Aperto (app)',totAperto,_apertiAzzurraUltimoRis.length]];
-  if(ctrl){
-    var totNova=_apertiAzzurraUltimoRis.reduce(function(t,r){return t+(Number(r.nova)||0);},0);
-    var nDiff=_apertiAzzurraUltimoRis.filter(function(r){return r.diff!==0;}).length;
-    aoa.push(['Inevaso Nova (controllo)',totNova,'']);
-    aoa.push(['Differenza (Aperto app − Nova)',totAperto-totNova,nDiff]);
-  }
+  var aoa=[['Voce','Pezzi','Articoli'],[colAperto,totAperto,_apertiAzzurraUltimoRis.length]];
   var wsRiep=XLSX.utils.aoa_to_sheet(aoa);
   wsRiep['!cols']=[{wch:34},{wch:10},{wch:10}];
   XLSX.utils.book_append_sheet(wb,wsRiep,'Riepilogo');
@@ -4929,7 +4805,7 @@ function removeOkManualeBer(cod){
   renderRiepilogoCompletoBer();
 }
 
-// ── CONTROLLO DATE (Uscita spedita prima di qualsiasi Entrata) ────────
+// ── CONTROLLO DATE (saldo progressivo Entrata − Uscita per codice) ────
 var cdDatiTutti=null;
 var cdSoloAnomalie=true;
 
@@ -5005,30 +4881,40 @@ function cdSuggerisciCodiceSimile(codU,entrataCodiceStats){
 
 async function caricaControlloDate(){
   var tb=document.getElementById('cd-tbody');
-  if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
+  function msgTb(t){if(tb)tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">'+t+'</td></tr>';}
+  msgTb('Caricamento...');
+  var meseEl=document.getElementById('cd-mese');
+  if(meseEl&&!meseEl.value){var oggi=new Date();meseEl.value=oggi.getFullYear()+'-'+String(oggi.getMonth()+1).padStart(2,'0');}
+  var pm=((meseEl&&meseEl.value)||'').split('-');
+  if(pm.length!==2){msgTb('Scegli un mese');return;}
+  var inizioMese=new Date(parseInt(pm[0],10),parseInt(pm[1],10)-1,1);
+  var fineMese=new Date(parseInt(pm[0],10),parseInt(pm[1],10),1);
   var isBer=getCliente()==='BERGAMASCO';
-  var ddte=await apiGet('ddt_entrata');
-  var ddtu=await apiGet('ddt_uscita');
-  if(!ddte||!ddtu){if(tb)tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
-  var abb=isBer?await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000'):null;
+  var ddte=await apiGetTutto('ddt_entrata');
+  var ddtu=await apiGetTutto('ddt_uscita');
+  if(!ddte||!ddtu){msgTb('Errore connessione');return;}
+  var abb=isBer?await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc'):null;
+  if(!isBer&&!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
 
-  // Statistiche per codice_articolo distinto in ddt_entrata (per suggerimenti di codici simili/typo)
-  var entrataCodiceStats={};
-  ddte.forEach(function(r){
-    var codRaw=(r.codice_articolo||'').trim();
-    if(!codRaw)return;
-    var key=codRaw.toUpperCase();
-    if(!entrataCodiceStats[key])entrataCodiceStats[key]={cod:codRaw,count:0,ultimaData:null,ultimaDataStr:null};
-    entrataCodiceStats[key].count++;
-    var dP=parseDataIta(r.data_ddt);
-    if(dP&&(!entrataCodiceStats[key].ultimaData||dP.getTime()>entrataCodiceStats[key].ultimaData.getTime())){
-      entrataCodiceStats[key].ultimaData=dP;
-      entrataCodiceStats[key].ultimaDataStr=r.data_ddt;
-    }
+  // AZZURRA: codice IA (Nova) -> codice A0 da abbinamenti_azzurra, cosi' entrate e uscite
+  // dello stesso articolo finiscono nello stesso saldo anche se registrate con codici diversi
+  var iaToA0={};
+  if(!isBer)abzCache.forEach(function(a){
+    var ia=(a.codice_ia||'').trim().toUpperCase(),a0=(a.codice_a0||'').trim().toUpperCase();
+    if(ia&&a0)iaToA0[ia]=a0;
   });
+  function codAz(raw){var k=raw.toUpperCase();return iaToA0[k]||k;}
 
-  // BERGAMASCO: mappa B0 (ddt_uscita) -> lista codici BER (ddt_entrata) abbinati
-  var b0ToBers={};
+  // BERGAMASCO: mappa B0 (ddt_uscita) -> lista codici BER (ddt_entrata) abbinati.
+  // B0 e BER collegati (anche indirettamente, es. un BER usato da piu' B0) formano un
+  // unico gruppo con un unico saldo: si uniscono con union-find su chiavi 'U:'/'E:'.
+  var b0ToBers={},gruppoPadre={};
+  function gTrova(x){while(gruppoPadre[x]!==x)x=gruppoPadre[x];return x;}
+  function gUnisci(a,b){
+    if(!gruppoPadre[a])gruppoPadre[a]=a;
+    if(!gruppoPadre[b])gruppoPadre[b]=b;
+    var ra=gTrova(a),rb=gTrova(b);if(ra!==rb)gruppoPadre[rb]=ra;
+  }
   if(isBer&&abb){
     abb.forEach(function(r){
       var b0=(r.codice_b0||'').trim().toUpperCase();
@@ -5036,85 +4922,132 @@ async function caricaControlloDate(){
       if(!b0||!ber)return;
       if(!b0ToBers[b0])b0ToBers[b0]=[];
       if(b0ToBers[b0].indexOf(ber)<0)b0ToBers[b0].push(ber);
+      gUnisci('U:'+b0,'E:'+ber);
     });
   }
 
-  // Entrata raggruppata per chiave: codice diretto (AZZURRA) o codice BER (BERGAMASCO)
-  var entrataByKey={};
+  // Statistiche per codice distinto in ddt_entrata (per suggerimenti di codici simili/typo)
+  var entrataCodiceStats={};
+  var gruppi={};
+  function gruppo(k){if(!gruppi[k])gruppi[k]={entrate:[],uscite:[]};return gruppi[k];}
   ddte.forEach(function(r){
-    var dataR=parseDataIta(r.data_ddt);
-    var kRaw=(r.codice_articolo||'').trim();
-    if(!dataR||!kRaw)return;
-    var k=isBer?kRaw.toUpperCase():kRaw;
-    if(!entrataByKey[k])entrataByKey[k]=[];
-    entrataByKey[k].push({data:dataR,dataStr:r.data_ddt,numero:r.numero_ddt||''});
+    var codRaw=(r.codice_articolo||'').trim();
+    if(!codRaw)return;
+    var key=isBer?codRaw.toUpperCase():codAz(codRaw);
+    var dP=parseDataIta(r.data_ddt);
+    if(!entrataCodiceStats[key])entrataCodiceStats[key]={cod:key,count:0,ultimaData:null,ultimaDataStr:null};
+    entrataCodiceStats[key].count++;
+    if(dP&&(!entrataCodiceStats[key].ultimaData||dP.getTime()>entrataCodiceStats[key].ultimaData.getTime())){
+      entrataCodiceStats[key].ultimaData=dP;
+      entrataCodiceStats[key].ultimaDataStr=r.data_ddt;
+    }
+    var qta=Number(r.quantita_ddt)||0;
+    if(!dP||qta<=0)return;
+    var gk=isBer?(gruppoPadre['E:'+key]?gTrova('E:'+key):'E:'+key):key;
+    gruppo(gk).entrate.push({id:r.id||0,data:dP,dataStr:r.data_ddt,numero:r.numero_ddt||'',qta:qta,residuo:qta});
   });
 
-  var nonAbbinatiSet={};
-  var righe=[];
+  var artDesc={};
+  (artCache||[]).forEach(function(a){var k=(a.codice_articolo||'').trim().toUpperCase();if(k&&!artDesc[k])artDesc[k]=a.descrizione||'';});
 
+  var nonAbbinatiSet={};
   ddtu.forEach(function(r){
     var dataU=parseDataIta(r.data_ddt);
     var codRaw=(r.codice_articolo||'').trim();
-    if(!dataU||!codRaw)return;
-    var codU=isBer?codRaw.toUpperCase():codRaw;
-
-    var entrataKeys;
+    var qta=Number(r.quantita_ddt)||0;
+    if(!dataU||!codRaw||qta<=0)return;
+    var gk,codU,codSugg;
     if(isBer){
+      codU=codRaw.toUpperCase();
       var berCodes=b0ToBers[codU];
       if(!berCodes||!berCodes.length){
         // Nessun abbinamento trovato: NON è un'anomalia data, è un codice non verificabile
         if(!nonAbbinatiSet[codU])nonAbbinatiSet[codU]={cod:r.codice_articolo||codU,desc:r.descrizione||''};
         return;
       }
-      entrataKeys=berCodes;
+      gk=gTrova('U:'+codU);
+      codSugg=berCodes[0];
     } else {
-      entrataKeys=[codU];
+      codU=codAz(codRaw);
+      gk=codU;
+      codSugg=codU;
     }
+    var codLbl=codU+(codRaw.toUpperCase()!==codU&&!isBer?' (da '+codRaw+')':'');
+    gruppo(gk).uscite.push({
+      id:r.id||0,data:dataU,dataStr:r.data_ddt,numero:r.numero_ddt||'',qta:qta,
+      cod:codLbl,codBase:codU,codSugg:codSugg,
+      desc:r.descrizione||artDesc[codU]||''
+    });
+  });
 
-    var entrateTrovate=[];
-    entrataKeys.forEach(function(k){
-      (entrataByKey[k]||[]).forEach(function(e){entrateTrovate.push(e);});
+  var righe=[],storico=[];
+  function perData(a,b){return (a.data.getTime()-b.data.getTime())||(a.id-b.id);}
+  Object.keys(gruppi).forEach(function(gk){
+    var g=gruppi[gk];
+    if(!g.uscite.length)return;
+    g.entrate.sort(perData);
+    g.uscite.sort(perData);
+
+    // Copertura a saldo progressivo: ogni pezzo uscito viene coperto dalla prima entrata
+    // ancora disponibile in ordine di data. Equivale al saldo entrate − uscite: un'uscita
+    // coperta (anche in parte) da un'entrata con data successiva ha portato il saldo sotto zero.
+    var ie=0;
+    g.uscite.forEach(function(u){
+      var daCoprire=u.qta;u.coperture=[];
+      while(daCoprire>0&&ie<g.entrate.length){
+        var e=g.entrate[ie];
+        var presi=Math.min(daCoprire,e.residuo);
+        if(presi>0){u.coperture.push({qta:presi,e:e});e.residuo-=presi;daCoprire-=presi;}
+        if(e.residuo<=0)ie++;
+      }
+      if(daCoprire>0)u.coperture.push({qta:daCoprire,e:null});
     });
 
-    var haEntrataPrecedente=entrateTrovate.some(function(e){return e.data.getTime()<=dataU.getTime();});
-    var artInfo=(artCache||[]).find(function(a){return (a.codice_articolo||'').trim().toUpperCase()===codU;});
-    var desc=r.descrizione||(artInfo?artInfo.descrizione:'')||'';
-
-    if(!haEntrataPrecedente){
-      var successive=entrateTrovate.filter(function(e){return e.data.getTime()>dataU.getTime();}).sort(function(a,b){return a.data.getTime()-b.data.getTime();});
-      var entrataVicina=successive.length?successive[0]:null;
-      righe.push({
-        cod:r.codice_articolo||codU,desc:desc,
-        dataUscita:r.data_ddt,numeroUscita:r.numero_ddt||'',
-        dataEntrata:entrataVicina?entrataVicina.dataStr:null,
-        numeroEntrata:entrataVicina?entrataVicina.numero:null,
-        giorni:entrataVicina?cdDiffGiorni(dataU,entrataVicina.data):null,
-        suggerimento:entrataVicina?'':cdSuggerisciCodiceSimile(codU,entrataCodiceStats),
-        anomalia:true
-      });
-    } else {
-      var precedenti=entrateTrovate.filter(function(e){return e.data.getTime()<=dataU.getTime();}).sort(function(a,b){return b.data.getTime()-a.data.getTime();});
-      var entrataUsata=precedenti.length?precedenti[0]:null;
-      righe.push({
-        cod:r.codice_articolo||codU,desc:desc,
-        dataUscita:r.data_ddt,numeroUscita:r.numero_ddt||'',
-        dataEntrata:entrataUsata?entrataUsata.dataStr:null,
-        numeroEntrata:entrataUsata?entrataUsata.numero:null,
-        giorni:entrataUsata?cdDiffGiorni(entrataUsata.data,dataU):null,
-        suggerimento:'',
-        anomalia:false
-      });
+    // Storico: saldo negativo gia' a inizio mese (uscite precedenti non coperte da entrate precedenti)
+    var saldoInizio=0,usciteScoperte=[];
+    g.entrate.forEach(function(e){if(e.data<inizioMese)saldoInizio+=e.qta;});
+    g.uscite.forEach(function(u){
+      if(u.data>=inizioMese)return;
+      saldoInizio-=u.qta;
+      var parti=u.coperture.filter(function(c){return !c.e||c.e.data>=inizioMese;});
+      if(parti.length)usciteScoperte.push({u:u,parti:parti});
+    });
+    if(saldoInizio<0){
+      var codici=[],descr='';
+      g.uscite.forEach(function(u){if(codici.indexOf(u.codBase)<0)codici.push(u.codBase);if(!descr)descr=u.desc;});
+      storico.push({cod:codici.join(', '),desc:descr,saldoInizio:saldoInizio,usciteScoperte:usciteScoperte});
     }
+
+    g.uscite.forEach(function(u){
+      if(u.data<inizioMese||u.data>=fineMese)return;
+      var tardive=u.coperture.filter(function(c){return c.e&&c.e.data.getTime()>u.data.getTime();});
+      var mancanteQta=u.coperture.filter(function(c){return !c.e;}).reduce(function(s,c){return s+c.qta;},0);
+      var mancanti=mancanteQta+tardive.reduce(function(s,c){return s+c.qta;},0);
+      var ultima=u.coperture.length&&u.coperture[u.coperture.length-1].e;
+      righe.push({
+        cod:u.cod,desc:u.desc,dataUscita:u.dataStr,numeroUscita:u.numero,qta:u.qta,
+        mancanti:mancanti,mancanteQta:mancanteQta,
+        tardive:tardive.map(function(c){return {qta:c.qta,dataStr:c.e.dataStr,numero:c.e.numero};}),
+        entrataOk:mancanti?null:(ultima?{dataStr:ultima.dataStr,numero:ultima.numero}:null),
+        // Giorni fino all'entrata che completa la copertura (solo se non manca nulla)
+        giorni:(mancanti&&!mancanteQta&&tardive.length)?cdDiffGiorni(u.data,tardive[tardive.length-1].e.data):null,
+        suggerimento:mancanteQta?cdSuggerisciCodiceSimile(u.codSugg,entrataCodiceStats):'',
+        anomalia:mancanti>0,
+        _data:u.data
+      });
+    });
   });
 
   righe.sort(function(a,b){
     if(a.anomalia!==b.anomalia)return a.anomalia?-1:1;
-    var da=parseDataIta(a.dataUscita),db=parseDataIta(b.dataUscita);
-    return (da&&db)?da.getTime()-db.getTime():0;
+    return (a._data.getTime()-b._data.getTime())||String(a.cod).localeCompare(String(b.cod));
   });
+  storico.sort(function(a,b){return String(a.cod).localeCompare(String(b.cod));});
 
-  cdDatiTutti={righe:righe,nonAbbinati:Object.values(nonAbbinatiSet)};
+  cdDatiTutti={
+    righe:righe,storico:storico,nonAbbinati:Object.values(nonAbbinatiSet),
+    meseLbl:inizioMese.toLocaleDateString('it-IT',{month:'long',year:'numeric'})
+  };
   renderControlloDate();
 }
 
@@ -5131,22 +5064,66 @@ function renderControlloDate(){
   var tuttiRighe=cdDatiTutti.righe;
   var righe=tuttiRighe.filter(function(r){return cdSoloAnomalie?r.anomalia:true;});
   var nAnomalie=tuttiRighe.filter(function(r){return r.anomalia;}).length;
+  var storico=cdDatiTutti.storico||[];
 
   var cont=document.getElementById('cd-contatore');
   if(cont){
-    cont.innerHTML=nAnomalie>0
-      ?'<div class="warn-box">⚠️ <strong>'+nAnomalie+'</strong> anomalie trovate: DDT Uscita con data precedente a qualsiasi DDT Entrata dello stesso codice.</div>'
-      :'<div class="ok-box">✅ Nessuna anomalia trovata.</div>';
+    cont.innerHTML=(nAnomalie>0
+      ?'<div class="warn-box">⚠️ <strong>'+nAnomalie+'</strong> anomalie in '+cdDatiTutti.meseLbl+': DDT Uscita che portano il saldo sotto zero (pezzi spediti prima del carico).</div>'
+      :'<div class="ok-box">✅ Nessuna anomalia in '+cdDatiTutti.meseLbl+'.</div>')
+      +(storico.length?'<div class="warn-box">🕘 <strong>'+storico.length+'</strong> codici con saldo già negativo a inizio mese: vedi "Storico da verificare" (non contati nelle anomalie del mese).</div>':'');
+  }
+
+  var stBox=document.getElementById('cd-storico');
+  if(stBox){
+    if(!storico.length){stBox.style.display='none';stBox.innerHTML='';}
+    else{
+      stBox.style.display='block';
+      stBox.innerHTML='<h3 style="margin-bottom:8px;color:#7B4F00;">Storico da verificare</h3>'
+        +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Saldo già negativo il 1° del mese: uscite dei mesi precedenti non ancora coperte da entrate a quella data. Le entrate del mese coprono prima questo saldo.</p>'
+        +'<table class="rc-table"><thead><tr><th>Codice</th><th>Descrizione</th><th>Saldo a inizio mese</th><th>Uscite scoperte a inizio mese</th></tr></thead><tbody>'
+        +storico.map(function(s){
+          var det=s.usciteScoperte.map(function(x){
+            var scop=x.parti.reduce(function(t,c){return t+c.qta;},0);
+            var dove=x.parti.map(function(c){
+              return c.e?c.qta+' pz → '+fmtData(c.e.dataStr)+(c.e.numero?' ('+c.e.numero+')':'')
+                :'<strong style="color:#C00000;">'+c.qta+' pz ENTRATA MANCANTE</strong>';
+            }).join(', ');
+            return fmtData(x.u.dataStr)+' '+(x.u.numero||'')+': '+scop+' pz scoperti — '+dove;
+          }).join('<br>');
+          return '<tr style="background-color:#FFF3E0;">'
+            +'<td><strong>'+(s.cod||'—')+'</strong></td>'
+            +'<td>'+(s.desc||'')+'</td>'
+            +'<td><strong style="color:#C00000;">'+s.saldoInizio+'</strong></td>'
+            +'<td style="white-space:normal;">'+det+'</td>'
+          +'</tr>';
+        }).join('')
+        +'</tbody></table>';
+    }
   }
 
   var tb=document.getElementById('cd-tbody');
   if(tb){
     if(!righe.length){
-      tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
+      tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
     } else {
       tb.innerHTML=righe.map(function(r){
-        var badge=r.anomalia?'<span class="badge badge-err">⚠️ USCITA PRIMA DI ENTRATA</span>':'<span class="badge badge-ok">✓ Ok</span>';
-        var entrataLbl=r.dataEntrata?(fmtData(r.dataEntrata)+(r.numeroEntrata?' ('+r.numeroEntrata+')':'')):'<strong style="color:#C00000;">NESSUNA ENTRATA TROVATA</strong>';
+        var badge=!r.anomalia?'<span class="badge badge-ok">✓ Ok</span>'
+          :(r.mancanteQta?'<span class="badge badge-err">⚠️ ENTRATA MANCANTE</span>':'<span class="badge badge-err">⚠️ USCITA PRIMA DI ENTRATA</span>');
+        var copLbl;
+        if(!r.anomalia){
+          copLbl=r.entrataOk?'✓ Entrata '+fmtData(r.entrataOk.dataStr)+(r.entrataOk.numero?' ('+r.entrataOk.numero+')':''):'—';
+        } else {
+          var dettTardive=r.tardive.map(function(t){return t.qta+' pz → '+fmtData(t.dataStr)+(t.numero?' ('+t.numero+')':'');});
+          if(r.mancanteQta){
+            copLbl='<strong style="color:#C00000;">ENTRATA MANCANTE</strong> ('+r.mancanteQta+' pz)'
+              +(dettTardive.length?'<br><span style="font-size:9px;color:#555;">'+dettTardive.join('<br>')+'</span>':'');
+          } else {
+            var ultimaT=r.tardive[r.tardive.length-1];
+            copLbl='<strong>Sposta al '+fmtData(ultimaT.dataStr)+'</strong>'+(r.tardive.length===1&&ultimaT.numero?' ('+ultimaT.numero+')':'')
+              +(r.tardive.length>1?'<br><span style="font-size:9px;color:#555;">'+dettTardive.join('<br>')+'</span>':'');
+          }
+        }
         var giorniLbl=(r.giorni!==null&&r.giorni!==undefined)?r.giorni+' giorni':'—';
         var suggLbl=r.suggerimento?'<span style="color:#C55A11;">'+r.suggerimento+'</span>':'—';
         return '<tr style="'+(r.anomalia?'background-color:#fdecea;':'')+'">'
@@ -5154,7 +5131,9 @@ function renderControlloDate(){
           +'<td>'+(r.desc||'')+'</td>'
           +'<td>'+fmtData(r.dataUscita)+'</td>'
           +'<td>'+(r.numeroUscita||'—')+'</td>'
-          +'<td>'+entrataLbl+'</td>'
+          +'<td>'+r.qta+'</td>'
+          +'<td>'+(r.mancanti?'<strong style="color:#C00000;">'+r.mancanti+'</strong>':'0')+'</td>'
+          +'<td>'+copLbl+'</td>'
           +'<td>'+giorniLbl+'</td>'
           +'<td>'+suggLbl+'</td>'
           +'<td>'+badge+'</td>'
@@ -9036,7 +9015,23 @@ async function leggiImportInevasiNova(input){
     var esistentiSet={};
     abzCache.forEach(function(r){esistentiSet[(r.codice_ia||'').toUpperCase()]=true;});
 
+    // Codici con inevaso diverso da zero che non compaiono piu' nel file: evasi del tutto
+    // in Nova, vanno azzerati (altrimenti resterebbero aperti con il vecchio inevaso).
+    var daAzzerare=abzCache.filter(function(r){
+      var c=(r.codice_ia||'').trim().toUpperCase();
+      return c&&(Number(r.giacenza_iniziale)||0)!==0&&!somme.hasOwnProperty(c);
+    });
+    if(daAzzerare.length){
+      var elenco=daAzzerare.map(function(r){return (r.codice_ia||'').trim().toUpperCase()+' ('+r.giacenza_iniziale+')';}).join(', ');
+      if(!confirm(daAzzerare.length+' codici con inevaso non compaiono nel file e verranno azzerati:\n\n'+elenco+'\n\nConfermi l\'import?')){
+        showMsg('msg-abbinamenti-azzurra','Import annullato: nessun dato salvato.','err');
+        input.value='';
+        return;
+      }
+    }
+
     var nuoviArr=[],aggiornatiArr=[];
+    daAzzerare.forEach(function(r){aggiornatiArr.push({codice_ia:(r.codice_ia||'').trim().toUpperCase(),giacenza_iniziale:0});});
     Object.keys(somme).forEach(function(codU2){
       if(esistentiSet[codU2]){
         // Upsert con SOLO codice_ia+giacenza_iniziale: on conflict tocca solo questo
@@ -9057,7 +9052,7 @@ async function leggiImportInevasiNova(input){
     renderAbbinamentiAzzurra();
     await apiUpsert('impostazioni_azzurra',[{chiave:'ultimo_import_inevasi_nova_'+getCliente(),valore:new Date().toISOString()}],'chiave');
     await aggiornaLabelUltimoImportInevasiNova();
-    showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+aggiornatiArr.length+' inevasi aggiornati.','ok');
+    showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+(aggiornatiArr.length-daAzzerare.length)+' inevasi aggiornati, '+daAzzerare.length+' azzerati.','ok');
   }catch(e){showMsg('msg-abbinamenti-azzurra','Errore: '+e.message,'err');}
   input.value='';
 }
