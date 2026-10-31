@@ -1137,10 +1137,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Codice</th><th>Descrizione</th><th>Data DDT Uscita</th><th>Numero DDT Uscita</th><th>Q.tà uscita</th><th>Pezzi mancanti</th><th>Copertura</th><th>Giorni anticipo</th><th>Possibile corrispondenza</th><th>Stato</th>
+            <th>Tipo</th><th>Data</th><th>Numero DDT</th><th>Carico</th><th>Uscita</th><th>Saldo</th><th>Pezzi mancanti</th><th>Copertura</th><th>Giorni anticipo</th><th>Possibile corrispondenza</th><th>Stato</th>
           </tr>
         </thead>
-        <tbody id="cd-tbody"><tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
+        <tbody id="cd-tbody"><tr><td colspan="11" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -4881,7 +4881,7 @@ function cdSuggerisciCodiceSimile(codU,entrataCodiceStats){
 
 async function caricaControlloDate(){
   var tb=document.getElementById('cd-tbody');
-  function msgTb(t){if(tb)tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">'+t+'</td></tr>';}
+  function msgTb(t){if(tb)tb.innerHTML='<tr><td colspan="11" style="text-align:center;padding:20px;color:#999;">'+t+'</td></tr>';}
   msgTb('Caricamento...');
   var meseEl=document.getElementById('cd-mese');
   if(meseEl&&!meseEl.value){var oggi=new Date();meseEl.value=oggi.getFullYear()+'-'+String(oggi.getMonth()+1).padStart(2,'0');}
@@ -4981,7 +4981,7 @@ async function caricaControlloDate(){
     });
   });
 
-  var righe=[],storico=[];
+  var righe=[],storico=[],blocchi=[];
   function perData(a,b){return (a.data.getTime()-b.data.getTime())||(a.id-b.id);}
   Object.keys(gruppi).forEach(function(gk){
     var g=gruppi[gk];
@@ -5013,9 +5013,9 @@ async function caricaControlloDate(){
       var parti=u.coperture.filter(function(c){return !c.e||c.e.data>=inizioMese;});
       if(parti.length)usciteScoperte.push({u:u,parti:parti});
     });
+    var codici=[],descr='';
+    g.uscite.forEach(function(u){if(codici.indexOf(u.codBase)<0)codici.push(u.codBase);if(!descr)descr=u.desc;});
     if(saldoInizio<0){
-      var codici=[],descr='';
-      g.uscite.forEach(function(u){if(codici.indexOf(u.codBase)<0)codici.push(u.codBase);if(!descr)descr=u.desc;});
       storico.push({cod:codici.join(', '),desc:descr,saldoInizio:saldoInizio,usciteScoperte:usciteScoperte});
     }
 
@@ -5025,7 +5025,7 @@ async function caricaControlloDate(){
       var mancanteQta=u.coperture.filter(function(c){return !c.e;}).reduce(function(s,c){return s+c.qta;},0);
       var mancanti=mancanteQta+tardive.reduce(function(s,c){return s+c.qta;},0);
       var ultima=u.coperture.length&&u.coperture[u.coperture.length-1].e;
-      righe.push({
+      righe.push(u.riga={
         cod:u.cod,desc:u.desc,dataUscita:u.dataStr,numeroUscita:u.numero,qta:u.qta,
         mancanti:mancanti,mancanteQta:mancanteQta,
         tardive:tardive.map(function(c){return {qta:c.qta,dataStr:c.e.dataStr,numero:c.e.numero};}),
@@ -5033,20 +5033,34 @@ async function caricaControlloDate(){
         // Giorni fino all'entrata che completa la copertura (solo se non manca nulla)
         giorni:(mancanti&&!mancanteQta&&tardive.length)?cdDiffGiorni(u.data,tardive[tardive.length-1].e.data):null,
         suggerimento:mancanteQta?cdSuggerisciCodiceSimile(u.codSugg,entrataCodiceStats):'',
-        anomalia:mancanti>0,
-        _data:u.data
+        anomalia:mancanti>0
       });
+    });
+
+    // Blocco articolo: carichi e uscite del mese in ordine di data (a parita' di data prima
+    // i carichi, come nel saldo), con il saldo progressivo a partire dal saldo a inizio mese.
+    var usciteMese=g.uscite.filter(function(u){return u.riga;});
+    if(!usciteMese.length)return;
+    var movimenti=usciteMese.map(function(u){return {uscita:true,id:u.id,dataStr:u.dataStr,data:u.data,numero:u.numero,qta:u.qta,cod:u.cod,riga:u.riga};});
+    g.entrate.forEach(function(e){
+      if(e.data>=inizioMese&&e.data<fineMese)movimenti.push({uscita:false,id:e.id,dataStr:e.dataStr,data:e.data,numero:e.numero,qta:e.qta});
+    });
+    movimenti.sort(function(a,b){return (a.data.getTime()-b.data.getTime())||(a.uscita-b.uscita)||(a.id-b.id);});
+    var saldo=saldoInizio;
+    movimenti.forEach(function(m){saldo+=m.uscita?-m.qta:m.qta;m.saldo=saldo;});
+    blocchi.push({
+      cod:codici.join(', '),desc:descr,saldoInizio:saldoInizio,movimenti:movimenti,
+      nAnomalie:usciteMese.filter(function(u){return u.riga.anomalia;}).length
     });
   });
 
-  righe.sort(function(a,b){
-    if(a.anomalia!==b.anomalia)return a.anomalia?-1:1;
-    return (a._data.getTime()-b._data.getTime())||String(a.cod).localeCompare(String(b.cod));
+  blocchi.sort(function(a,b){
+    return String(a.desc||a.cod).localeCompare(String(b.desc||b.cod),'it')||String(a.cod).localeCompare(String(b.cod));
   });
   storico.sort(function(a,b){return String(a.cod).localeCompare(String(b.cod));});
 
   cdDatiTutti={
-    righe:righe,storico:storico,nonAbbinati:Object.values(nonAbbinatiSet),
+    righe:righe,blocchi:blocchi,storico:storico,nonAbbinati:Object.values(nonAbbinatiSet),
     meseLbl:inizioMese.toLocaleDateString('it-IT',{month:'long',year:'numeric'})
   };
   renderControlloDate();
@@ -5063,7 +5077,7 @@ function toggleControlloDate(soloAnomalie){
 function renderControlloDate(){
   if(!cdDatiTutti)return;
   var tuttiRighe=cdDatiTutti.righe;
-  var righe=tuttiRighe.filter(function(r){return cdSoloAnomalie?r.anomalia:true;});
+  var blocchi=cdDatiTutti.blocchi.filter(function(b){return cdSoloAnomalie?b.nAnomalie>0:true;});
   var nAnomalie=tuttiRighe.filter(function(r){return r.anomalia;}).length;
   var storico=cdDatiTutti.storico||[];
 
@@ -5105,10 +5119,23 @@ function renderControlloDate(){
 
   var tb=document.getElementById('cd-tbody');
   if(tb){
-    if(!righe.length){
-      tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
+    if(!blocchi.length){
+      tb.innerHTML='<tr><td colspan="11" style="text-align:center;padding:20px;color:#999;">Nessuna riga da mostrare</td></tr>';
     } else {
-      tb.innerHTML=righe.map(function(r){
+      function cellaSaldo(s){return s<0?'<strong style="color:#C00000;">'+s+'</strong>':'<strong>'+s+'</strong>';}
+      function rigaCarico(m){
+        return '<tr>'
+          +'<td>Carico</td>'
+          +'<td>'+fmtData(m.dataStr)+'</td>'
+          +'<td>'+(m.numero||'—')+'</td>'
+          +'<td>'+m.qta+'</td>'
+          +'<td>—</td>'
+          +'<td>'+cellaSaldo(m.saldo)+'</td>'
+          +'<td>—</td><td>—</td><td>—</td><td>—</td><td></td>'
+        +'</tr>';
+      }
+      function rigaUscita(m,codBlocco){
+        var r=m.riga;
         var badge=!r.anomalia?'<span class="badge badge-ok">✓ Ok</span>'
           :(r.mancanteQta?'<span class="badge badge-err">⚠️ ENTRATA MANCANTE</span>':'<span class="badge badge-err">⚠️ USCITA PRIMA DI ENTRATA</span>');
         var copLbl;
@@ -5128,17 +5155,26 @@ function renderControlloDate(){
         var giorniLbl=(r.giorni!==null&&r.giorni!==undefined)?r.giorni+' giorni':'—';
         var suggLbl=r.suggerimento?'<span style="color:#C55A11;">'+r.suggerimento+'</span>':'—';
         return '<tr style="'+(r.anomalia?'background-color:#fdecea;':'')+'">'
-          +'<td><strong>'+(r.cod||'—')+'</strong></td>'
-          +'<td>'+(r.desc||'')+'</td>'
+          +'<td>Uscita'+(r.cod!==codBlocco?'<br><span style="font-size:9px;color:#555;">'+r.cod+'</span>':'')+'</td>'
           +'<td>'+fmtData(r.dataUscita)+'</td>'
           +'<td>'+(r.numeroUscita||'—')+'</td>'
+          +'<td>—</td>'
           +'<td>'+r.qta+'</td>'
+          +'<td>'+cellaSaldo(m.saldo)+'</td>'
           +'<td>'+(r.mancanti?'<strong style="color:#C00000;">'+r.mancanti+'</strong>':'0')+'</td>'
           +'<td>'+copLbl+'</td>'
           +'<td>'+giorniLbl+'</td>'
           +'<td>'+suggLbl+'</td>'
           +'<td>'+badge+'</td>'
         +'</tr>';
+      }
+      tb.innerHTML=blocchi.map(function(b){
+        var intestazione='<tr style="background-color:'+(b.nAnomalie?'#F8CBAD':'#DDEBF7')+';">'
+          +'<td colspan="11" style="white-space:normal;"><strong>'+(b.cod||'—')+'</strong>'+(b.desc?' — '+b.desc:'')
+          +' &nbsp;·&nbsp; Saldo a inizio mese: '+cellaSaldo(b.saldoInizio)
+          +(b.nAnomalie?' &nbsp;·&nbsp; <strong style="color:#C00000;">⚠️ '+b.nAnomalie+(b.nAnomalie===1?' anomalia':' anomalie')+'</strong>':'')
+          +'</td></tr>';
+        return intestazione+b.movimenti.map(function(m){return m.uscita?rigaUscita(m,b.cod):rigaCarico(m);}).join('');
       }).join('');
     }
   }
