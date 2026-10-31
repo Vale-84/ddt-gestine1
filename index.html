@@ -1131,7 +1131,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div id="cd-stampa">
     <div class="card" id="cd-contatore"><div class="empty">Premi Aggiorna</div></div>
-    <div class="card rc-table-scroll" id="cd-storico" style="display:none;"></div>
+    <div class="card rc-table-scroll no-print" id="cd-storico" style="display:none;"></div>
     <div class="card" id="cd-non-abbinati" style="display:none;"></div>
     <div class="card rc-table-scroll">
       <table class="rc-table">
@@ -4963,6 +4963,7 @@ async function caricaControlloDate(){
       if(!berCodes||!berCodes.length){
         // Nessun abbinamento trovato: NON è un'anomalia data, è un codice non verificabile
         if(!nonAbbinatiSet[codU])nonAbbinatiSet[codU]={cod:r.codice_articolo||codU,desc:r.descrizione||''};
+        if(dataU>=inizioMese&&dataU<fineMese)nonAbbinatiSet[codU].nelMese=true;
         return;
       }
       gk=gTrova('U:'+codU);
@@ -5071,7 +5072,7 @@ function renderControlloDate(){
     cont.innerHTML=(nAnomalie>0
       ?'<div class="warn-box">⚠️ <strong>'+nAnomalie+'</strong> anomalie in '+cdDatiTutti.meseLbl+': DDT Uscita che portano il saldo sotto zero (pezzi spediti prima del carico).</div>'
       :'<div class="ok-box">✅ Nessuna anomalia in '+cdDatiTutti.meseLbl+'.</div>')
-      +(storico.length?'<div class="warn-box">🕘 <strong>'+storico.length+'</strong> codici con saldo già negativo a inizio mese: vedi "Storico da verificare" (non contati nelle anomalie del mese).</div>':'');
+      +(storico.length?'<div class="warn-box no-print">🕘 <strong>'+storico.length+'</strong> codici con saldo già negativo a inizio mese: vedi "Storico da verificare" (non contati nelle anomalie del mese).</div>':'');
   }
 
   var stBox=document.getElementById('cd-storico');
@@ -5148,9 +5149,11 @@ function renderControlloDate(){
     if(!na.length){naBox.style.display='none';naBox.innerHTML='';}
     else{
       naBox.style.display='block';
+      // A video tutti i codici; in stampa solo quelli con uscite nel mese scelto.
+      naBox.className='card'+(na.some(function(a){return a.nelMese;})?'':' no-print');
       naBox.innerHTML='<h3 style="margin-bottom:8px;color:#7B4F00;">Codici non abbinati (non verificabili)</h3>'
         +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Questi codici articolo di DDT Uscita non hanno una corrispondenza in Abbinamenti Bergamasco: non vengono segnalati come anomalia per evitare falsi positivi.</p>'
-        +na.map(function(a){return '<span class="badge" style="background:#FFF3E0;color:#7B4F00;margin:2px;">'+(a.cod||'?')+(a.desc?' - '+a.desc:'')+'</span>';}).join(' ');
+        +na.map(function(a){return '<span class="badge'+(a.nelMese?'':' no-print')+'" style="background:#FFF3E0;color:#7B4F00;margin:2px;">'+(a.cod||'?')+(a.desc?' - '+a.desc:'')+'</span>';}).join(' ');
     }
   }
 }
