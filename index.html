@@ -142,6 +142,18 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .ext-fatt-ddt td { background: #DDEBF7 !important; color: #1F4E79; font-weight: bold; font-size: 12px; }
 @media (max-width: 600px) { .ext-tab tr.ext-fatt-ddt td::before { display: none; } }
 .ext-ddt-tot { text-align: right; font-weight: bold; color: #217346; font-size: 15px; margin-bottom: 8px; }
+.ext-parziale { color: #C55A11 !important; }
+.ext-manca { display: inline-block; background: #FCE4D6; color: #C55A11; border: 1px solid #C55A11; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+.ext-filtro { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; margin-bottom: 10px; cursor: pointer; }
+.ext-filtro input { width: 20px; height: 20px; margin: 0; }
+.ext-gruppo { border: 1px solid #ddd; border-radius: 10px; padding: 8px; margin-bottom: 10px; }
+.ext-gruppo-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; font-size: 13px; margin-bottom: 6px; }
+.ext-gruppo-head b { color: #1F4E79; }
+.ext-gruppo-head .ext-ddt-tot { margin-bottom: 0; font-size: 14px; }
+.row-item.ext-senza { border-left-color: #C55A11; background: #FFF8F2; }
+.ext-prezzo-riga { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.ext-prezzo-riga input { width: 100px; margin: 0; padding: 8px; text-align: right; }
+.ext-prezzo-riga .btn { margin: 0; }
 @media (max-width: 600px) {
   .ext-tab thead { display: none; }
   .ext-tab tr { display: block; border-bottom: 2px solid #1F4E79; }
@@ -1231,6 +1243,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>Lavori inseriti</h2>
+    <label class="ext-filtro"><input type="checkbox" id="ext-solo-manc" onchange="renderExtra()"> Solo DDT con prezzi mancanti</label>
     <div id="ext-lista"><div class="empty">Caricamento...</div></div>
     <div class="ext-tot"><span id="ext-tot-label">Totale mese</span><span id="ext-tot">-</span></div>
   </div>
@@ -9148,26 +9161,75 @@ async function caricaExtra(){
   renderExtra();
 }
 
+// Riga da DDT (ha la quantità) ancora senza prezzo. Un prezzo 0 scritto a mano non è mancante
+function rigaSenzaPrezzoExtra(r){return r.quantita!=null&&r.prezzo_unitario==null;}
+// DDT = righe con stesso cliente e numero. '' = lavoro inserito a mano
+function chiaveDdtExtra(r){return r.numero_ddt?normTestoExtra(r.cliente)+'|'+normTestoExtra(r.numero_ddt):'';}
+function righeDdtExtra(r){var k=chiaveDdtExtra(r);return extraCache.filter(function(x){return chiaveDdtExtra(x)===k;});}
+function bollinoMancaExtra(n){return '<span class="ext-manca">'+(n==null?'prezzo mancante':n===1?'1 prezzo mancante':n+' prezzi mancanti')+'</span>';}
+// n = righe senza prezzo: il totale conta solo quelle con prezzo
+function htmlTotaleDdtExtra(tot,n){
+  return n?'<span class="ext-parziale">Totale parziale: '+fmtEuroExtra(tot)+'</span> '+bollinoMancaExtra(n):'Totale DDT: '+fmtEuroExtra(tot);
+}
+function htmlTestaDdtExtra(righe){
+  var r=righe[0],n=righe.filter(rigaSenzaPrezzoExtra).length;
+  var tot=righe.reduce(function(s,x){return s+(Number(x.importo)||0);},0);
+  return '<span><b>'+escAbb(r.cliente)+'</b> · DDT n. <b>'+escAbb(r.numero_ddt)+'</b> del '+escAbb(fmtData(r.data))+'</span>'
+    +'<span class="ext-ddt-tot">'+htmlTotaleDdtExtra(tot,n)+'</span>';
+}
+// inDdt: il cliente è già nell'intestazione del DDT
+function htmlRigaElencoExtra(r,inDdt){
+  var m=rigaSenzaPrezzoExtra(r);
+  return '<div class="row-item '+(m?'ext-senza':'verde')+'" id="ext-r-'+r.id+'">'
+    +'<div class="row-info">'+(inDdt?'':'<div class="rdesc"><b>'+escAbb(r.cliente)+'</b></div>')
+    +'<div class="rdesc">'+escAbb(r.descrizione)+'</div>'
+    +'<div class="rsub">'+escAbb(fmtData(r.data))+dettaglioRigaExtra(r)+'</div>'
+    +(m?'<div class="ext-prezzo-riga">'+bollinoMancaExtra()
+      +'<input type="text" id="ext-rp-'+r.id+'" inputmode="decimal" placeholder="Prezzo €" autocomplete="off"'
+      +' onkeydown="if(event.key===\'Enter\')salvaPrezzoRigaExtra('+r.id+')">'
+      +'<button class="btn btn-green btn-sm" id="ext-rb-'+r.id+'" onclick="salvaPrezzoRigaExtra('+r.id+')">SALVA</button></div>'
+      +'<div id="ext-rm-'+r.id+'"></div>':'')
+    +'</div>'
+    +'<div class="ext-imp">'+(r.importo==null?'-':fmtEuroExtra(r.importo))+'</div>'
+    +'<button class="edit-btn" title="Modifica" onclick="modificaExtra('+r.id+')">✎</button>'
+    +'<button class="del-btn" title="Elimina" onclick="eliminaExtra('+r.id+')">🗑</button>'
+    +'</div>';
+}
+function totaleMeseExtra(){
+  var mese=oggiLocaleExtra().slice(0,7),parziale=false;
+  var tot=extraCache.reduce(function(s,r){
+    if(String(r.data||'').slice(0,7)!==mese)return s;
+    if(rigaSenzaPrezzoExtra(r))parziale=true;
+    return s+(Number(r.importo)||0);
+  },0);
+  var nomeMese=new Date().toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  var lab=document.getElementById('ext-tot-label'),val=document.getElementById('ext-tot');
+  lab.textContent=(parziale?'Totale parziale ':'Totale ')+nomeMese;
+  val.textContent=fmtEuroExtra(tot);
+  lab.classList.toggle('ext-parziale',parziale);val.classList.toggle('ext-parziale',parziale);
+}
+
 function renderExtra(){
   var lista=document.getElementById('ext-lista');
-  if(!extraCache.length)lista.innerHTML='<div class="empty">Nessun lavoro inserito</div>';
-  else lista.innerHTML=extraCache.map(function(r){
-    return '<div class="row-item verde">'
-      +'<div class="row-info"><div class="rdesc"><b>'+escAbb(r.cliente)+'</b></div>'
-      +'<div class="rdesc">'+escAbb(r.descrizione)+'</div>'
-      +'<div class="rsub">'+escAbb(fmtData(r.data))+dettaglioRigaExtra(r)+'</div></div>'
-      +'<div class="ext-imp">'+fmtEuroExtra(r.importo)+'</div>'
-      +'<button class="edit-btn" title="Modifica" onclick="modificaExtra('+r.id+')">✎</button>'
-      +'<button class="del-btn" title="Elimina" onclick="eliminaExtra('+r.id+')">🗑</button>'
-      +'</div>';
+  var gruppi=[],perChiave={};
+  extraCache.forEach(function(r){
+    var k=chiaveDdtExtra(r);
+    if(!k){gruppi.push({righe:[r]});return;}
+    if(!perChiave[k]){perChiave[k]={ddt:true,righe:[]};gruppi.push(perChiave[k]);}
+    perChiave[k].righe.push(r);
+  });
+  var solo=document.getElementById('ext-solo-manc').checked;
+  if(solo)gruppi=gruppi.filter(function(g){return g.ddt&&g.righe.some(rigaSenzaPrezzoExtra);});
+  if(!gruppi.length)lista.innerHTML='<div class="empty">'+(solo?'Nessun DDT con prezzi mancanti':'Nessun lavoro inserito')+'</div>';
+  else lista.innerHTML=gruppi.map(function(g){
+    if(!g.ddt)return htmlRigaElencoExtra(g.righe[0],false);
+    var p=g.righe[0].id;
+    return '<div class="ext-gruppo"><div class="ext-gruppo-head" id="ext-gh-'+p+'">'+htmlTestaDdtExtra(g.righe)+'</div>'
+      +'<div id="ext-gm-'+p+'"></div>'
+      +g.righe.map(function(r){return htmlRigaElencoExtra(r,true);}).join('')+'</div>';
   }).join('');
 
-  // Totale del mese corrente
-  var mese=oggiLocaleExtra().slice(0,7);
-  var tot=extraCache.reduce(function(s,r){return String(r.data||'').slice(0,7)===mese?s+(Number(r.importo)||0):s;},0);
-  var nomeMese=new Date().toLocaleDateString('it-IT',{month:'long',year:'numeric'});
-  document.getElementById('ext-tot-label').textContent='Totale '+nomeMese;
-  document.getElementById('ext-tot').textContent=fmtEuroExtra(tot);
+  totaleMeseExtra();
 
   // Suggerimenti: clienti già inseriti in passato
   var visti={},opts=[];
@@ -9655,6 +9717,43 @@ async function caricaListinoExtra(){
   return mappaListinoExtra(tutte);
 }
 
+// Listino in cui scrivere una riga DDT ('' = AZZURRA/BERGAMASCO: non si toccano)
+function clienteListinoRigaExtra(cliente){
+  var c=clienteListinoFattExtra(cliente);
+  return c==='AZZURRA'||c==='BERGAMASCO'?'':c||normTestoExtra(cliente);
+}
+// PATCH che controlla le righe davvero cambiate: con RLS un PATCH rifiutato risponde comunque 200
+async function patchVerificatoExtra(t,f,b){
+  var c=getConfig();
+  try{
+    var r=await fetch(c.url+'/rest/v1/'+t+'?'+f,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'},body:JSON.stringify(b)});
+    if(!r.ok)throw new Error(await r.text());
+    return (await r.json()).length>0;
+  }catch(e){console.error(e);return false;}
+}
+// Prezzo mancante appena inserito → listino del cliente. Solo righe con codice vero e prezzo > 0.
+// Scrive solo nel listino: i DDT salvati hanno il loro prezzo e non cambiano. → testo per l'utente ('' = niente da dire)
+async function aggiornaListinoRigaExtra(cliente,codice,descrizione,prezzo){
+  var cl=clienteListinoRigaExtra(cliente);
+  if(!codiceVeroExtra(codice)||!cl||!(prezzo>0))return '';
+  var c=normCodiceExtra(codice);
+  var lista=await leggiTuttoFattExtra('listino','select=codice,cliente,prezzo&order=codice.asc,cliente.asc');
+  if(lista===null){alert('Prezzo salvato sul DDT, ma il listino non è stato aggiornato: errore di collegamento.');return '';}
+  var stessi=lista.filter(function(l){return normCodiceExtra(l.codice)===c;});
+  var mio=stessi.find(function(l){return normTestoExtra(l.cliente)===normTestoExtra(cl);});
+  if(!mio){
+    if(stessi.length){alert('Il codice '+c+' è già nel listino di '+stessi[0].cliente+': listino non modificato.');return '';}
+    var ok=await apiPost('listino',{codice:c,cliente:cl,descrizione:String(descrizione||'').split(' — ')[0].trim(),prezzo:prezzo});
+    return ok?'Codice '+c+' aggiunto al listino':'';
+  }
+  // Confronto a 2 decimali come Nova: 6,825 e 6,83 sono lo stesso prezzo
+  if(mio.prezzo!=null&&Math.round(arrot2Extra(mio.prezzo)*100)===Math.round(arrot2Extra(prezzo)*100))return '';
+  if(!confirm(c+' — Aggiornare il listino da '+(mio.prezzo==null?'nessun prezzo':przFattExtra(mio.prezzo))+' a '+przFattExtra(prezzo)+'?'))return '';
+  var fatto=await patchVerificatoExtra('listino','codice=eq.'+encodeURIComponent(mio.codice)+'&cliente=eq.'+encodeURIComponent(mio.cliente),{prezzo:prezzo,aggiornato:new Date().toISOString()});
+  if(!fatto){alert('Prezzo salvato sul DDT, ma il listino non è stato aggiornato: modifica rifiutata dal database.');return '';}
+  return 'Listino aggiornato: '+c;
+}
+
 async function leggiPdfExtra(input){
   var files=Array.prototype.slice.call(input.files||[]);
   if(!files.length)return;
@@ -9716,12 +9815,15 @@ async function leggiPdfExtra(input){
 // Righe con "*": 'nuovo' se mai fatto, 'cambiato' se diverso dall'ultimo prezzo
 function statoRigaPdfExtra(r){
   var rif=r.daListino?r.listino:(r.ultimo?Number(r.ultimo.prezzo_unitario):null);
-  if(rif==null)return 'nuovo';
-  if(!isNaN(r.prezzo)&&Math.round(r.prezzo*10000)!==Math.round(rif*10000))return 'cambiato';
+  if(rif==null||isNaN(r.prezzo))return 'nuovo';
+  if(Math.round(r.prezzo*10000)!==Math.round(rif*10000))return 'cambiato';
   return r.daListino?'listino':'';
 }
 
 function infoRigaPdfExtra(i,j){
+  return (isNaN(extraPdfDdts[i].righe[j].prezzo)?bollinoMancaExtra()+' ':'')+testoRigaPdfExtra(i,j);
+}
+function testoRigaPdfExtra(i,j){
   var r=extraPdfDdts[i].righe[j],st=statoRigaPdfExtra(r);
   var spunta='<label><input type="checkbox" '+(r.conferma?'checked ':'')+'onchange="extraPdfDdts['+i+'].righe['+j+'].conferma=this.checked"> Confermo il nuovo prezzo</label>';
   if(r.daListino){
@@ -9743,6 +9845,7 @@ function importoRigaExtra(r){return isNaN(r.prezzo)?NaN:Math.round(r.quantita*r.
 function totaleDdtPdfExtra(d){
   return d.righe.reduce(function(s,r){var v=importoRigaExtra(r);return isNaN(v)?s:s+v;},0);
 }
+function mancantiDdtPdfExtra(d){return d.righe.filter(function(r){return isNaN(r.prezzo);}).length;}
 
 function renderPdfExtra(){
   var ant=document.getElementById('ext-pdf-anteprima');
@@ -9750,7 +9853,8 @@ function renderPdfExtra(){
     var head='<div class="ext-ddt-head"><b>'+escAbb(d.cliente||'Cliente non letto')+'</b><br>'
       +'DDT n. <b>'+escAbb(d.numero||'?')+'</b> del <b>'+escAbb(d.data?fmtData(d.data):(d.dataTesto||'?'))+'</b>'
       +'<br><span style="color:#999;font-size:11px;">'+escAbb(d.file)+'</span></div>';
-    if(d.salvato)return '<div class="ext-ddt"><div class="ok-box" style="margin-top:0;">✅ DDT '+escAbb(d.numero)+' di '+escAbb(d.cliente)+' salvato ('+d.righe.length+' righe, '+fmtEuroExtra(totaleDdtPdfExtra(d))+')</div></div>';
+    var manc=mancantiDdtPdfExtra(d);
+    if(d.salvato)return '<div class="ext-ddt"><div class="ok-box" style="margin-top:0;">✅ DDT '+escAbb(d.numero)+' di '+escAbb(d.cliente)+' salvato ('+d.righe.length+' righe, '+(manc?'totale parziale ':'')+fmtEuroExtra(totaleDdtPdfExtra(d))+')'+(manc?' '+bollinoMancaExtra(manc):'')+'</div></div>';
     var avvisi=[];
     if(d.escluso)avvisi.push('Cliente gestito nei DDT uscita: non viene salvato qui (altrimenti si conta due volte)');
     if(d.duplicato)avvisi.push('DDT già caricato');
@@ -9772,7 +9876,7 @@ function renderPdfExtra(){
     return '<div class="ext-ddt">'+head
       +avvisi.map(function(a){return '<div class="ext-avviso">⛔ '+escAbb(a)+'</div>';}).join('')
       +(d.righe.length?'<table class="ext-tab"><thead><tr><th>Descrizione</th><th style="text-align:right;">Quantità</th><th style="text-align:right;">Prezzo unit. €</th><th style="text-align:right;">Importo</th></tr></thead><tbody>'+righe+'</tbody></table>'
-        +'<div class="ext-ddt-tot">Totale DDT: <span id="ext-ptot-'+i+'">'+fmtEuroExtra(totaleDdtPdfExtra(d))+'</span></div>':'')
+        +'<div class="ext-ddt-tot" id="ext-ptot-'+i+'">'+htmlTotaleDdtExtra(totaleDdtPdfExtra(d),manc)+'</div>':'')
       +'<div id="msg-ext-pdf-'+i+'"></div>'
       +(bloccato?'':'<button class="btn btn-green" onclick="salvaPdfExtra('+i+')">SALVA DDT '+escAbb(d.numero)+'</button>')
       +'<button class="btn btn-gray btn-sm" onclick="scartaPdfExtra('+i+')">'+(bloccato?'CHIUDI':'SCARTA')+'</button>'
@@ -9784,12 +9888,13 @@ function renderPdfExtra(){
 function prezzoPdfExtra(i,j,val){
   var d=extraPdfDdts[i],r=d.righe[j];
   r.prezzo=parseImportoExtra(val);
+  r.prezzoErrato=String(val).trim()!==''&&isNaN(r.prezzo); // vuoto = prezzo mancante, testo sbagliato = da correggere
   r.conferma=false;
   document.getElementById('ext-pr-'+i+'-'+j).className=statoRigaPdfExtra(r);
   document.getElementById('ext-pi-'+i+'-'+j).innerHTML=infoRigaPdfExtra(i,j);
   var imp=importoRigaExtra(r);
   document.getElementById('ext-pimp-'+i+'-'+j).textContent=isNaN(imp)?'-':fmtEuroExtra(imp);
-  document.getElementById('ext-ptot-'+i).textContent=fmtEuroExtra(totaleDdtPdfExtra(d));
+  document.getElementById('ext-ptot-'+i).innerHTML=htmlTotaleDdtExtra(totaleDdtPdfExtra(d),mancantiDdtPdfExtra(d));
 }
 
 function scartaPdfExtra(i){
@@ -9802,7 +9907,7 @@ async function salvaPdfExtra(i){
   var msgId='msg-ext-pdf-'+i;
   for(var j=0;j<d.righe.length;j++){
     var r=d.righe[j];
-    if(isNaN(r.prezzo)||r.prezzo<0){showMsg(msgId,'Inserisci il prezzo per: '+escAbb(r.descrizione),'err');return;}
+    if(r.prezzoErrato||r.prezzo<0){showMsg(msgId,'Prezzo non valido per: '+escAbb(r.descrizione),'err');return;}
     if(statoRigaPdfExtra(r)==='cambiato'&&!r.conferma){showMsg(msgId,'Spunta la conferma del nuovo prezzo per: '+escAbb(r.descrizione),'err');return;}
   }
   // Controllo sul database: il DDT potrebbe essere stato caricato nel frattempo
@@ -9810,15 +9915,46 @@ async function salvaPdfExtra(i){
   if(esist===null){showMsg(msgId,'Errore di collegamento, riprova','err');return;}
   if(esist){d.duplicato=true;renderPdfExtra();return;}
   var righe=d.righe.map(function(r){
+    var senza=isNaN(r.prezzo); // prezzo mancante: NULL, mai 0
     return{data:d.data,cliente:d.cliente,descrizione:descCompletaExtra(r),numero_ddt:d.numero,codice_articolo:normCodiceExtra(r.codice)||null,
-      quantita:r.quantita,prezzo_unitario:Math.round(r.prezzo*10000)/10000,importo:importoRigaExtra(r)};
+      quantita:r.quantita,prezzo_unitario:senza?null:Math.round(r.prezzo*10000)/10000,importo:senza?null:importoRigaExtra(r)};
   });
   var ok=await apiPost('lavori_extra',righe);
   if(!ok)return;
   d.salvato=true;
   renderPdfExtra();
-  showMsg('msg-ext-pdf','DDT '+escAbb(d.numero)+' salvato!','ok');
+  // Righe con codice vero arrivate senza prezzo dal listino e riempite a mano in anteprima
+  var note=[];
+  for(var k=0;k<d.righe.length;k++){
+    var x=d.righe[k];
+    if(!x.daListino||x.listino!=null||isNaN(x.prezzo))continue;
+    var nota=await aggiornaListinoRigaExtra(d.cliente,x.codice,x.descrizione,Math.round(x.prezzo*10000)/10000);
+    if(nota)note.push(nota);
+  }
+  showMsg('msg-ext-pdf','DDT '+escAbb(d.numero)+' salvato!'+(note.length?' '+escAbb(note.join(' · ')):''),'ok');
   caricaExtra();
+}
+
+// Prezzo mancante inserito sulla riga: aggiorna solo riga, intestazione del DDT e totale del mese
+async function salvaPrezzoRigaExtra(id){
+  var r=extraCache.find(function(x){return x.id===id;});
+  var inp=document.getElementById('ext-rp-'+id),btn=document.getElementById('ext-rb-'+id);
+  if(!r||!inp||btn.disabled)return;
+  var p=parseImportoExtra(inp.value);
+  if(isNaN(p)||p<0){showMsg('ext-rm-'+id,'Prezzo non valido (es. 1,35)','err');return;}
+  var pu=Math.round(p*10000)/10000,imp=importoRigaExtra({quantita:Number(r.quantita),prezzo:pu});
+  btn.disabled=true;
+  var ok=await patchVerificatoExtra('lavori_extra','id=eq.'+encodeURIComponent(id),{prezzo_unitario:pu,importo:imp});
+  btn.disabled=false;
+  if(!ok){showMsg('ext-rm-'+id,'Errore nel salvataggio, riprova','err');return;}
+  r.prezzo_unitario=pu;r.importo=imp;
+  document.getElementById('ext-r-'+id).outerHTML=htmlRigaElencoExtra(r,!!r.numero_ddt);
+  var righe=r.numero_ddt?righeDdtExtra(r):[],primo=righe.length?righe[0].id:null;
+  var testa=document.getElementById('ext-gh-'+primo);
+  if(testa)testa.innerHTML=htmlTestaDdtExtra(righe);
+  totaleMeseExtra();
+  var nota=await aggiornaListinoRigaExtra(r.cliente,r.codice_articolo,r.descrizione,pu);
+  if(nota)showMsg(primo!=null?'ext-gm-'+primo:'msg-extra',escAbb(nota),'ok');
 }
 
 // ── EXTRA: controllo fattura PDF prima dell'invio allo SDI (sola lettura, non salva niente) ──
@@ -10068,18 +10204,21 @@ async function salvaExtra(){
   var b={data:data,cliente:cliente,descrizione:descrizione};
   if(id&&qpAttiviExtra()){
     var q=parseImportoExtra(document.getElementById('ext-qta').value);
-    var pu=parseImportoExtra(document.getElementById('ext-prezzo-u').value);
-    if(isNaN(q)||isNaN(pu)){showMsg('msg-extra','Quantità o prezzo unitario non validi (es. 360 e 1,35)','err');return;}
-    b.quantita=q;b.prezzo_unitario=Math.round(pu*10000)/10000;importo=q*pu;
+    var testoPu=document.getElementById('ext-prezzo-u').value.trim();
+    var pu=testoPu?parseImportoExtra(testoPu):null; // vuoto = prezzo mancante
+    if(isNaN(q)||(testoPu&&isNaN(pu))){showMsg('msg-extra','Quantità o prezzo unitario non validi (es. 360 e 1,35)','err');return;}
+    b.quantita=q;b.prezzo_unitario=testoPu?Math.round(pu*10000)/10000:null;importo=testoPu?q*pu:null;
   }
-  if(isNaN(importo)){showMsg('msg-extra','Importo non valido (es. 25,50)','err');return;}
-  b.importo=Math.round(importo*100)/100;
+  if(importo!==null&&isNaN(importo)){showMsg('msg-extra','Importo non valido (es. 25,50)','err');return;}
+  b.importo=importo===null?null:Math.round(importo*100)/100;
   var btn=document.getElementById('ext-salva');btn.disabled=true;
   try{
     if(id){
       var ok=await apiPatch('lavori_extra','id=eq.'+encodeURIComponent(id),b);
       if(!ok){showMsg('msg-extra','Errore durante la modifica','err');return;}
-      showMsg('msg-extra','Lavoro modificato!','ok');
+      var prima=extraCache.find(function(x){return String(x.id)===String(id);}),nota='';
+      if(prima&&prima.prezzo_unitario==null&&b.prezzo_unitario!=null)nota=await aggiornaListinoRigaExtra(cliente,prima.codice_articolo,descrizione,b.prezzo_unitario);
+      showMsg('msg-extra','Lavoro modificato!'+(nota?' '+escAbb(nota):''),'ok');
     }else{
       var r=await apiPost('lavori_extra',b);
       if(!r)return;
@@ -10097,11 +10236,11 @@ function modificaExtra(id){
   document.getElementById('ext-cliente').value=r.cliente||'';
   document.getElementById('ext-desc').value=r.descrizione||'';
   document.getElementById('ext-importo').value=r.importo==null?'':String(r.importo).replace('.',',');
-  var qp=r.quantita!=null&&r.prezzo_unitario!=null;
+  var qp=r.quantita!=null; // anche senza prezzo: si può aggiungere da qui
   mostraQtaPrezzoExtra(qp);
   if(qp){
     document.getElementById('ext-qta').value=String(r.quantita).replace('.',',');
-    document.getElementById('ext-prezzo-u').value=String(r.prezzo_unitario).replace('.',',');
+    document.getElementById('ext-prezzo-u').value=r.prezzo_unitario==null?'':String(r.prezzo_unitario).replace('.',',');
     ricalcolaImportoExtra();
   }
   document.getElementById('ext-titolo').textContent='Modifica lavoro extra';
@@ -10112,7 +10251,7 @@ function modificaExtra(id){
 
 async function eliminaExtra(id){
   var r=extraCache.find(function(x){return x.id===id;});if(!r)return;
-  if(!confirm('Eliminare il lavoro di '+r.cliente+' del '+fmtData(r.data)+' ('+fmtEuroExtra(r.importo)+')?'))return;
+  if(!confirm('Eliminare il lavoro di '+r.cliente+' del '+fmtData(r.data)+' ('+(r.importo==null?'prezzo mancante':fmtEuroExtra(r.importo))+')?'))return;
   await apiDel('lavori_extra','id=eq.'+encodeURIComponent(id));
   if(String(document.getElementById('ext-id').value)===String(id))resetFormExtra();
   showMsg('msg-extra','Lavoro eliminato','ok');

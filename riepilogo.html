@@ -245,7 +245,8 @@ async function carica(){
       var g=norm(r.cliente).indexOf('FOPPA')>=0?'FOPPA':'ALTRI';
       nuove.push({fonte:'extra',data:String(r.data).slice(0,10),gruppo:g,cliente:r.cliente||'',descrizione:r.descrizione||'',
         codice:String(r.codice_articolo||'').toUpperCase().replace(/\s+/g,''),
-        numero_ddt:r.numero_ddt,quantita:r.quantita,prezzo_unitario:r.prezzo_unitario,importo:Number(r.importo)||0});
+        numero_ddt:r.numero_ddt,quantita:r.quantita,prezzo_unitario:r.prezzo_unitario,importo:Number(r.importo)||0,
+        pezzi:Number(r.quantita)||0,senzaPrezzo:r.quantita!=null&&r.prezzo_unitario==null});
     });
     righe=nuove;
     ultimoCarico=Date.now();
@@ -298,11 +299,11 @@ function disegna(){
     +'<div class="tot-val">'+euro(cur.totale)+'</div>'
     +(cmp?'<div class="cmp '+cls+'">'+cmp+'</div>':'')+'</div>';
 
-  // Righe DDT senza prezzo nel listino
+  // Righe DDT senza prezzo nel listino e righe lavori_extra ancora senza prezzo
   var np=rr.filter(function(r){return r.senzaPrezzo;});
   if(np.length){
     var perCod={},ord=[];
-    np.forEach(function(r){var k=r.gruppo+'|'+r.codice;if(!perCod[k]){perCod[k]={codice:r.codice||'(senza codice)',gruppo:r.gruppo,desc:r.descrizione,pezzi:0};ord.push(k);}perCod[k].pezzi+=r.pezzi;});
+    np.forEach(function(r){var k=r.gruppo+'|'+r.codice+(r.fonte==='extra'?'|'+r.descrizione:'');if(!perCod[k]){perCod[k]={codice:r.codice||'(senza codice)',gruppo:r.gruppo,desc:r.descrizione,pezzi:0};ord.push(k);}perCod[k].pezzi+=r.pezzi;});
     h+='<div class="avviso"><b>⚠ '+np.length+' righe senza prezzo — fatturato incompleto</b>'
       +ord.map(function(k){var c=perCod[k];return '<div class="r"><span><b style="display:inline;color:inherit;margin:0;font-size:inherit;">'+esc(c.codice)+'</b> · '+esc(c.gruppo)+'<br><span style="font-size:12px;">'+esc(c.desc)+'</span></span><span style="white-space:nowrap;">'+num(c.pezzi)+' pz</span></div>';}).join('')
       +'</div>';
@@ -400,6 +401,7 @@ function dettaglioArticoli(rr){
     var k=r.chiave||r.codice||'?';
     if(!art[k]){art[k]={codice:r.codice,desc:r.descrizione,pezzi:0,importo:0,senzaPrezzo:r.senzaPrezzo,prezzo:r.prezzo};ord.push(k);}
     art[k].pezzi+=r.pezzi;art[k].importo+=r.importo;
+    if(r.senzaPrezzo)art[k].senzaPrezzo=true;
     if(art[k].prezzo==null||r.prezzo==null||Math.round(art[k].prezzo*10000)!==Math.round(r.prezzo*10000))art[k].prezzo=null; // prezzi diversi nel periodo: non si mostra
   });
   var lista=ord.map(function(k){return art[k];}).sort(function(a,b){
@@ -418,7 +420,7 @@ function articoloFoppa(r){
   var desc=String(r.descrizione||'').split(' — ')[0];
   var vero=r.codice&&r.codice!=='*';
   return {codice:vero?r.codice:'*',chiave:vero?r.codice:'*|'+norm(desc),descrizione:desc,
-    pezzi:Number(r.quantita)||0,importo:r.importo,prezzo:r.prezzo_unitario,senzaPrezzo:false};
+    pezzi:Number(r.quantita)||0,importo:r.importo,prezzo:r.prezzo_unitario,senzaPrezzo:!!r.senzaPrezzo};
 }
 
 // Altri clienti: raggruppati per cliente con il totale, sotto le righe
@@ -439,7 +441,7 @@ function dettaglioAltri(rr){
         if(r.quantita!=null&&r.prezzo_unitario!=null)sub.push(num(r.quantita)+' × '+prezzo(r.prezzo_unitario));
         else if(r.quantita!=null)sub.push(num(r.quantita)+' pz');
         return '<div class="riga"><div class="i"><div class="d">'+esc(r.descrizione)+'</div><div class="s">'+sub.join(' · ')+'</div></div>'
-          +'<div class="v">'+euro(r.importo)+'</div></div>';
+          +(r.fonte==='extra'&&r.senzaPrezzo?'<div class="v np">⚠ senza prezzo</div>':'<div class="v">'+euro(r.importo)+'</div>')+'</div>';
       }).join('')+'</div>';
   }).join('');
 }
