@@ -550,7 +550,11 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
       <div class="card" id="imb2-verifica-card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#5B2C8D;margin:0;">Confronto Produzione</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <label class="no-print" style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px;white-space:nowrap;" title="Conta solo le righe e i DDT Uscita fino a questo giorno compreso (vuoto = tutto)">Fino al giorno
+              <input type="date" id="imb2-verifica-fino" style="width:auto;margin:0;padding:6px;" onchange="impostaFinoGiorno(this.value);verificaVerniciatoImballo()">
+              <button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" title="Togli il filtro" onclick="impostaFinoGiorno('');verificaVerniciatoImballo()">✕</button>
+            </label>
             <button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="esportaVerificaVerniciatoImballoExcel()">📥 ESPORTA EXCEL</button>
             <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('imb2-verifica-card')">STAMPA</button>
           </div>
@@ -785,6 +789,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <div id="page-riepilogo-wa" class="page">
   <div class="card">
     <h2>Entrate e Uscite WA</h2>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;" title="Conta solo le righe fino a questo giorno compreso (vuoto = tutto)">Fino al giorno
+      <input type="date" id="rwa-fino" style="width:auto;margin:0;padding:6px;" onchange="impostaFinoGiorno(this.value);caricaRiepilogoWA()">
+      <button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" title="Togli il filtro" onclick="impostaFinoGiorno('');caricaRiepilogoWA()">✕</button>
+    </label>
     <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoWA()">AGGIORNA</button>
     <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('rwa-stampa')">🖨️ Stampa</button>
   </div>
@@ -1028,17 +1036,26 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <!-- MODAL ANTEPRIMA RIPORTI CHIUDI MESE -->
 <div class="modal" id="modal-riporti">
   <div class="modal-box" style="max-width:640px;">
-    <h3 style="color:#1F6B75;">Chiudi mese — riporti Verniciato</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:10px;">Residuo = Verniciato del mese − il più alto tra Imballo e WA Uscita. Correggi o togli le quantità (0 = nessun riporto), poi conferma.</p>
-    <label>Mese che chiudi</label>
-    <input type="month" id="riporti-mese" onchange="aggiornaInfoRiporti()">
+    <h3 style="color:#1F6B75;">Chiudi mese — fino al giorno</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Si chiudono (archivio + tolte dalla lista di lavoro) solo le righe di WA Entrata, WA Uscita, Imballo e Verniciato con data fino al giorno scelto, compreso. Le righe con data successiva restano.</p>
+    <label>Chiudi fino al giorno (compreso)</label>
+    <input type="date" id="riporti-fino" onchange="aggiornaAnteprimaCM()">
     <p id="riporti-info" style="font-size:12px;color:#888;margin:4px 0 10px;"></p>
+    <div class="rc-table-scroll" style="margin-bottom:12px;">
+      <table class="rc-table">
+        <thead><tr><th>Tabella</th><th>Righe chiuse</th><th>Righe che restano</th></tr></thead>
+        <tbody id="riporti-conteggi"></tbody>
+      </table>
+    </div>
+    <h3 style="color:#1F6B75;font-size:15px;margin-bottom:4px;">Riporti Verniciato</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">Residuo = Verniciato − il più alto tra Imballo e WA Uscita, contando solo le righe fino al giorno scelto. Correggi o togli le quantità (0 = nessun riporto). Se cambi il giorno le quantità vengono ricalcolate.</p>
     <div class="rc-table-scroll">
       <table class="rc-table">
         <thead><tr><th>Codice</th><th>Descrizione</th><th>Riporto</th><th></th></tr></thead>
         <tbody id="riporti-tbody"></tbody>
       </table>
     </div>
+    <p id="riporti-tot" style="font-size:13px;font-weight:bold;color:#1F6B75;margin:8px 0 0;"></p>
     <br>
     <button class="btn btn-teal" style="padding:12px 20px;font-size:15px;" onclick="confermaChiudiMese()">CONFERMA E CHIUDI MESE</button>
     <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="document.getElementById('modal-riporti').style.display='none'">ANNULLA</button>
@@ -1356,7 +1373,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <input type="date" id="cfg-data-chiusura" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:10px;">
     <button class="btn btn-blue" onclick="salvaCfgDataChiusura()">SALVA DATA</button>
   </div>
-  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella WA, Imballo e Verniciato. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button></div>
+  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Archivia e toglie le righe di WA, Imballo e Verniciato fino al giorno che scegli; quelle successive restano. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button></div>
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
@@ -1972,6 +1989,62 @@ function showPage(name,el){
 // ── HELPERS ──────────────────────────────────────────────────────────
 function oggiISO(){return new Date().toISOString().split('T')[0];}
 function fmtData(s){if(!s)return'';var d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('it-IT');}
+
+// ── DATA RIGA (WA Entrata/Uscita, Imballo, Verniciato) ─────────────────
+// Data di una riga: quella scelta nel modulo (data_inserimento), o il giorno di
+// salvataggio se manca.
+function dataRigaLav(r){return String((r&&(r.data_inserimento||r.created_at))||'').slice(0,10);}
+// true se la riga ha data fino al giorno 'fino' compreso (fino vuoto = sempre true).
+function rigaFino(r,fino){if(!fino)return true;var d=dataRigaLav(r);return !!d&&d<=fino;}
+function giornoDopoISO(iso){var d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}
+function fineMeseScorsoISO(){var o=new Date();var d=new Date(o.getFullYear(),o.getMonth(),0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+// Filtro "fino al giorno" condiviso tra Confronto Produzione e Riepilogo WA (solo in
+// memoria, si azzera ricaricando la pagina): e' anche la proposta di Chiudi Mese.
+var _finoGiorno='';
+function impostaFinoGiorno(v){
+  _finoGiorno=v||'';
+  ['imb2-verifica-fino','rwa-fino'].forEach(function(id){var el=document.getElementById(id);if(el)el.value=_finoGiorno;});
+}
+
+// Data di una riga gia' salvata, cliccabile per cambiarla. Si salva quando si esce
+// dal campo o con Invio (Esc annulla): non a ogni cambio, perche' scrivendo la data
+// a mano il campo passa per date intermedie (es. anno 0002).
+function htmlDataModificabile(table,r){
+  return '<span style="cursor:pointer;text-decoration:underline dotted;" title="Clicca per modificare la data" onclick="event.stopPropagation();mostraEditDataRiga(this,\''+table+'\','+r.id+',\''+dataRigaLav(r)+'\')">'+fmtData(r.data_inserimento||r.created_at)+'</span>';
+}
+function mostraEditDataRiga(el,table,id,valoreAttuale){
+  var input=document.createElement('input');
+  input.type='date';
+  input.value=valoreAttuale||'';
+  input.style.cssText='display:inline-block;width:auto;margin-bottom:0;font-size:12px;padding:2px 4px;';
+  var finito=false;
+  async function chiudi(){
+    if(finito)return;finito=true;
+    var v=input.value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v===valoreAttuale){input.replaceWith(el);return;}
+    if(!(await apiPatch(table,'id=eq.'+id,{data_inserimento:v}))){alert('Errore: data non salvata.');input.replaceWith(el);return;}
+    ricaricaDopoDataRiga(table);
+  }
+  input.onblur=chiudi;
+  input.onkeydown=function(e){
+    if(e.key==='Enter'){e.preventDefault();chiudi();}
+    else if(e.key==='Escape'){input.value=valoreAttuale;chiudi();}
+  };
+  input.onclick=function(e){e.stopPropagation();};
+  el.replaceWith(input);
+  input.focus();
+}
+function ricaricaDopoDataRiga(table){
+  if(table==='whatsapp_righe')caricaEntrate();
+  else if(table==='whatsapp_uscita')caricaUscite();
+  else if(table==='imballo')caricaImballo();
+  else if(table==='verniciato'){
+    caricaVerniciato();
+    if(document.getElementById('vernp-lista'))caricaVerniciatoP();
+    if(document.getElementById('imb2-vern-lista'))caricaVerniciato2();
+  }
+}
 function iconaModalita(m){
   if(m==='testo_libero')return '✍️';
   if(m==='manuale')return '✋';
@@ -2105,7 +2178,7 @@ async function caricaEntrate(){
     return '<div class="row-item'+(isLibE?' libero':'')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="e" value="'+r.id+'" onchange="aggiornaStatoElimina(\'e\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+htmlDataModificabile('whatsapp_righe',r)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">✕</button></div>';
@@ -2647,7 +2720,7 @@ async function caricaUscite(){
     return '<div class="row-item'+(isLibU?' libero':' teal')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="u" value="'+r.id+'" onchange="aggiornaStatoElimina(\'u\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+fmtData(r.data_inserimento||r.created_at)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+htmlDataModificabile('whatsapp_uscita',r)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +imbBtnU
@@ -2778,6 +2851,18 @@ async function verificaVerniciatoImballo(){
   if(!res){return;}
   if(!imb||!vern||(isAz&&!wau)||!ddtu||!ddte){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo, WA Uscita, DDT Entrata o DDT Uscita.</div>';return;}
 
+  // Filtro "Fino al giorno" (vuoto = tutto): per controllare il mese da chiudere senza
+  // le righe del mese nuovo. Vale per le liste e per tutti i DDT (anche il saldo carico).
+  var elFino=document.getElementById('imb2-verifica-fino');
+  if(elFino&&elFino.value!==_finoGiorno)elFino.value=_finoGiorno;
+  var fino=_finoGiorno;
+  function ddtFino(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !fino||!d||d<=fino;}
+  imb=imb.filter(function(r){return rigaFino(r,fino);});
+  vern=vern.filter(function(r){return rigaFino(r,fino);});
+  if(isAz)wau=wau.filter(function(r){return rigaFino(r,fino);});
+  ddtu=ddtu.filter(ddtFino);
+  ddte=ddte.filter(ddtFino);
+
   // Inizio periodo: WA, Imballo e Verniciato si svuotano a fine mese, quindi la riga
   // piu' vecchia rimasta in una delle tre liste segna l'inizio del mese in corso.
   // Liste tutte vuote: nessun periodo (nessun DDT Uscita conta come "del mese").
@@ -2896,10 +2981,11 @@ async function verificaVerniciatoImballo(){
     return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
   });
 
-  _verificaVernImbUltimoRis={isAz:isAz,list:list,inizio:inizio};
+  _verificaVernImbUltimoRis={isAz:isAz,list:list,inizio:inizio,fino:fino};
 
   var periodoHtml='<div style="margin-bottom:8px;font-size:14px;font-weight:bold;color:#5B2C8D;">'
-    +(inizio?'Periodo dal '+fmtDataGMA(inizio):'Nessun periodo: WA, Imballo e Verniciato sono vuoti')+'</div>';
+    +(inizio?'Periodo dal '+fmtDataGMA(inizio)+(fino?' al '+fmtDataGMA(fino):''):'Nessun periodo: WA, Imballo e Verniciato sono vuoti'+(fino?' fino al '+fmtDataGMA(fino):''))+'</div>'
+    +(fino?'<div style="margin-bottom:8px;font-size:12px;color:#C55A11;">Filtro attivo: righe e DDT dopo il '+fmtDataGMA(fino)+' non contati.</div>':'');
 
   if(!list.length&&!senzaCodiceWA.length){
     res.innerHTML=periodoHtml+'<div class="ok-box">✅ Nessun articolo con movimenti da confrontare.</div>';return;
@@ -2986,6 +3072,7 @@ function esportaVerificaVerniciatoImballoExcel(){
     if(a.saldo<0)stato.push('Manca entrata?');
     riga['Stato']=stato.length?stato.join(', '):'OK';
     riga['Periodo dal']=periodo;
+    if(_verificaVernImbUltimoRis.fino)riga['Fino al']=fmtDataGMA(_verificaVernImbUltimoRis.fino);
     return riga;
   });
   var ws=XLSX.utils.json_to_sheet(righeExcel);
@@ -3061,12 +3148,11 @@ async function salvaVerniciato(){
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   if(!qty){showMsg('msg-verniciato','Quantità non valida!','err');return;}
   // Unione stesso articolo stesso giorno
-  var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
   var dataSel=(document.getElementById('vern-date')&&document.getElementById('vern-date').value)?document.getElementById('vern-date').value:oggiISO();
+  var esistenti=await apiGet('verniciato','data_inserimento=eq.'+dataSel+'&order=id.desc&limit=1000');
   if(esistenti){
     var dup=esistenti.find(function(r){
-      var dataR=(r.created_at||'').slice(0,10);
-      return dataR===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
+      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+qty;
@@ -3107,7 +3193,7 @@ async function caricaVerniciato(){
     var righeHtml=a.righe.map(function(r){
       var seqStr=r.sequenza||String(r.quantita||0);
       return '<div class="rsub" style="padding:3px 0;display:flex;align-items:center;gap:6px;">'
-        +'<span>'+badgeRiporto(r)+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'+badgeOperatore(r)+'</span>'
+        +'<span>'+badgeRiporto(r)+seqStr+' = <strong>'+r.quantita+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+htmlDataModificabile('verniciato',r)+'</span>'+badgeOperatore(r)+'</span>'
         +'<button class="edit-btn" title="Modifica" style="margin-left:auto;" onclick="apriModaleVern('+r.id+',\''+String(r.descrizione||a.desc).replace(/'/g,"\\'")+'\',\''+seqStr.replace(/'/g,"\\'")+'\',\''+(r.note||'').replace(/'/g,"\\'")+'\',\'verniciato\',\'Modifica verniciato\')">✎</button>'
         +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'verniciato\','+r.id+',caricaVerniciato)">✕</button>'
       +'</div>';
@@ -3175,11 +3261,11 @@ async function salvaVerniciatoP(){
   if(!cod){showMsg('msg-verniciato-p','Seleziona un articolo!','err');return;}
   if(!seq){showMsg('msg-verniciato-p','Inserisci la quantità!','err');return;}
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
-  var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
   var dataSel=(document.getElementById('vernp-date')&&document.getElementById('vernp-date').value)?document.getElementById('vernp-date').value:oggiISO();
+  var esistenti=await apiGet('verniciato','data_inserimento=eq.'+dataSel+'&order=id.desc&limit=1000');
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
+      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -3220,7 +3306,7 @@ async function caricaVerniciatoP(){
   };
   l.innerHTML=d.map(function(r){
     var seqStr=r.sequenza||String(r.quantita||0);
-    var data=fmtData(r.data_inserimento||r.created_at);
+    var data=htmlDataModificabile('verniciato',r);
     var done=!!spunte[r.id];
     var col=done?'#217346':'#C55A11';
     var check=done
@@ -3253,11 +3339,11 @@ async function salvaVerniciato2(){
   if(!cod){showMsg('msg-verniciato2','Seleziona un articolo!','err');return;}
   if(!seq){showMsg('msg-verniciato2','Inserisci la quantità!','err');return;}
   var qty=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
-  var esistenti=await apiGet('verniciato','order=created_at.desc&limit=200');
   var dataSel=(document.getElementById('imb2-vern-date')&&document.getElementById('imb2-vern-date').value)?document.getElementById('imb2-vern-date').value:oggiISO();
+  var esistenti=await apiGet('verniciato','data_inserimento=eq.'+dataSel+'&order=id.desc&limit=1000');
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return (r.created_at||'').slice(0,10)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
+      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -3298,7 +3384,7 @@ async function caricaVerniciato2(){
   };
   l.innerHTML=d.map(function(r){
     var seqStr=r.sequenza||String(r.quantita||0);
-    var data=fmtData(r.data_inserimento||r.created_at);
+    var data=htmlDataModificabile('verniciato',r);
     var done=!!spunte[r.id];
     var col=done?'#217346':'#C55A11';
     var check=done
@@ -4016,18 +4102,29 @@ async function verificaDisponibilitaSost(){
 
 async function caricaRiepilogoWA(){await caricaRwa();}
 async function caricaRwa(){
-  var we=await apiGet('whatsapp_righe','order=created_at.desc&limit=500');
-  var wu=await apiGet('whatsapp_uscita','order=created_at.desc&limit=500');
+  // Tutte le righe (a pagine), poi filtro "Fino al giorno" se impostato.
+  var we=await apiGetTutto('whatsapp_righe');
+  var wu=await apiGetTutto('whatsapp_uscita');
   var lE=document.getElementById('rwa-entrate');
   var lU=document.getElementById('rwa-uscite');
   if(!we||!wu){if(lE)lE.innerHTML='<div class="empty">Errore connessione</div>';return;}
+  var elFino=document.getElementById('rwa-fino');
+  if(elFino&&elFino.value!==_finoGiorno)elFino.value=_finoGiorno;
+  var fino=_finoGiorno;
+  we=we.filter(function(r){return rigaFino(r,fino);});
+  wu=wu.filter(function(r){return rigaFino(r,fino);});
   var infoStampa=document.getElementById('rwa-info-stampa');
   if(infoStampa){
     var tutteDate=we.concat(wu).map(function(r){return (r.data_inserimento||r.created_at||'').slice(0,10);}).filter(Boolean).sort();
     var periodo=tutteDate.length?('dal '+fmtData(tutteDate[0])+' al '+fmtData(tutteDate[tutteDate.length-1])):'nessun dato';
-    infoStampa.textContent='Cliente: '+getCliente()+' — Periodo: '+periodo;
+    infoStampa.textContent='Cliente: '+getCliente()+' — Periodo: '+periodo+(fino?' (filtro: fino al '+fmtData(fino)+')':'');
   }
-  if(we.length===0&&wu.length===0){if(lE)lE.innerHTML='<div class="empty">Nessun dato trovato</div>';return;}
+  if(we.length===0&&wu.length===0){
+    if(lE)lE.innerHTML='<div class="empty">Nessun dato trovato</div>';
+    if(lU)lU.innerHTML='<div class="empty">Nessun dato trovato</div>';
+    ['rwa-tot-e','rwa-tot-u'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
+    return;
+  }
   function iconeGruppo(modSet){
     return Object.keys(modSet).map(iconaModalita).join('');
   }
@@ -7420,7 +7517,7 @@ async function caricaImballo(){
   var html=Object.values(map).map(function(a){
     var righe=a.righe.map(function(r){
       return '<div class="rsub" style="padding:4px 0;display:flex;align-items:center;gap:8px;">'
-        +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+fmtData(r.data_inserimento||r.created_at)+'</span>'+badgeOperatore(r)
+        +r.sequenza+' = <strong>'+r.totale+' pz</strong>'+(r.note?' ('+r.note+')':'')+' <span style="color:#aaa;font-size:10px;">'+htmlDataModificabile('imballo',r)+'</span>'+badgeOperatore(r)
         +'<span style="margin-left:auto;display:flex;gap:4px;">'
           +'<button class="edit-btn" title="Modifica" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||a.desc).replace(/'/g,"\\'")+'\',\''+String(r.sequenza||'').replace(/'/g,"\\'")+'\',\''+String(r.note||'').replace(/'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✎</button>'
           +'<button class="del-btn" title="Elimina" onclick="eliminaRigaImb('+r.id+')">✕</button>'
@@ -7450,7 +7547,7 @@ async function caricaImballo(){
     var dSorted=d.slice().sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
     l2.innerHTML=dSorted.map(function(r){
       var seqStr=r.sequenza||String(r.totale||0);
-      var data=fmtData(r.data_inserimento||r.created_at);
+      var data=htmlDataModificabile('imballo',r);
       var done=!!spunte[r.id];
       var col=done?'#217346':'#5B2C8D';
       var check=done
@@ -7926,18 +8023,100 @@ function salvaCfgDataChiusura(){
 }
 
 // ── AZZERA TUTTO ──────────────────────────────────────────────────────
-// Chiudi Mese in due passi: prima anteprima dei riporti Verniciato (residuo =
-// Verniciato del mese − max(Imballo, WA Uscita), solo se > 0, modificabile), poi
-// confermaChiudiMese() salva i riporti, archivia e azzera come prima.
-var _riportiCM=[];
+// Chiudi Mese "fino al giorno": si chiudono solo le righe di WA Entrata/Uscita, Imballo
+// e Verniciato con data fino al giorno scelto, compreso; quelle successive restano.
+// Due passi: chiudiMese() mostra l'anteprima (righe chiuse e che restano per tabella,
+// riporti Verniciato = residuo Verniciato − max(Imballo, WA Uscita) sulle sole righe
+// chiuse, se > 0, modificabile); confermaChiudiMese() crea i riporti al giorno dopo,
+// archivia le righe chiuse e le toglie dalla lista di lavoro.
+var _riportiCM=[],_datiCM=null;
 var MESI_IT=['GENNAIO','FEBBRAIO','MARZO','APRILE','MAGGIO','GIUGNO','LUGLIO','AGOSTO','SETTEMBRE','OTTOBRE','NOVEMBRE','DICEMBRE'];
+var TABELLE_CM=[
+  {t:'whatsapp_righe',nome:'WA Entrata',qta:'quantita'},
+  {t:'whatsapp_uscita',nome:'WA Uscita',qta:'quantita'},
+  {t:'imballo',nome:'Imballo',qta:'totale'},
+  {t:'verniciato',nome:'Verniciato',qta:'quantita'}
+];
+
+async function caricaDatiCM(){
+  var dati={};
+  for(var i=0;i<TABELLE_CM.length;i++){
+    var d=await apiGetTutto(TABELLE_CM[i].t);
+    if(!d)return null;
+    dati[TABELLE_CM[i].t]=d;
+  }
+  return dati;
+}
+
+// Per ogni tabella: righe chiuse (data fino al giorno compreso) e righe che restano.
+function divisioneCM(dati,fino){
+  var out={};
+  TABELLE_CM.forEach(function(x){
+    var chiuse=[],restano=[];
+    dati[x.t].forEach(function(r){(rigaFino(r,fino)?chiuse:restano).push(r);});
+    out[x.t]={chiuse:chiuse,restano:restano};
+  });
+  return out;
+}
+
+function pezziCM(righe,campo){return righe.reduce(function(a,r){return a+(Number(r[campo])||0);},0);}
+
+function chiusuraSel(){
+  var fino=document.getElementById('riporti-fino').value||'';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fino))return null;
+  var p=fino.split('-');
+  return {fino:fino,etichetta:MESI_IT[Number(p[1])-1]+' '+p[0],dataNuovo:giornoDopoISO(fino)};
+}
 
 async function chiudiMese(){
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
-  var wu=await apiGet('whatsapp_uscita');
-  if(!vern||!imb||!wu){alert('Errore caricamento Verniciato, Imballo o WA Uscita: riprova.');return;}
+  var dati=await caricaDatiCM();
+  if(!dati){alert('Errore caricamento WA, Imballo o Verniciato: riprova.');return;}
+  _datiCM=dati;
+  document.getElementById('riporti-fino').value=_finoGiorno||fineMeseScorsoISO();
+  aggiornaAnteprimaCM();
+  document.getElementById('modal-riporti').style.display='flex';
+}
+
+function aggiornaAnteprimaCM(){
+  var s=chiusuraSel();
+  var info=document.getElementById('riporti-info');
+  var tc=document.getElementById('riporti-conteggi');
+  var tb=document.getElementById('riporti-tbody');
+  if(!s||!_datiCM){info.textContent='Scegli il giorno.';tc.innerHTML='';tb.innerHTML='';_riportiCM=[];aggiornaTotRiporti();return;}
+  var div=divisioneCM(_datiCM,s.fino);
+  info.innerHTML='Si chiude fino al <strong>'+fmtDataGMA(s.fino)+'</strong> compreso. Riporti con nota "RIPORTO DA '+s.etichetta+'" e data '+fmtDataGMA(s.dataNuovo)+'.'
+    +(s.fino>=oggiISO()?'<br><span style="color:#C62828;">⚠ Il giorno scelto è oggi o nel futuro: si chiudono anche le righe di oggi.</span>':'');
+  tc.innerHTML=TABELLE_CM.map(function(x){
+    var d=div[x.t];
+    return '<tr><td><strong>'+x.nome+'</strong></td>'
+      +'<td>'+d.chiuse.length+' <span style="color:#888;">('+pezziCM(d.chiuse,x.qta)+' pz)</span></td>'
+      +'<td>'+d.restano.length+' <span style="color:#888;">('+pezziCM(d.restano,x.qta)+' pz)</span></td></tr>';
+  }).join('');
+  _riportiCM=calcolaRiportiCM(div.verniciato.chiuse,div.imballo.chiuse,div.whatsapp_uscita.chiuse);
+  tb.innerHTML=_riportiCM.length?_riportiCM.map(function(a,i){
+    return '<tr id="riporti-tr-'+i+'"><td><strong>'+(a.cod||'—')+'</strong></td><td>'+a.desc+'</td>'
+      +'<td><input type="number" min="0" step="1" id="riporti-qta-'+i+'" value="'+a.qta+'" style="width:80px;margin:0;" oninput="aggiornaTotRiporti()"></td>'
+      +'<td><button class="del-btn" title="Togli" onclick="document.getElementById(\'riporti-qta-'+i+'\').value=0;document.getElementById(\'riporti-tr-'+i+'\').style.opacity=0.4;aggiornaTotRiporti();">✕</button></td></tr>';
+  }).join(''):'<tr><td colspan="4" style="text-align:center;padding:14px;color:#999;">Nessun residuo da riportare.</td></tr>';
+  aggiornaTotRiporti();
+}
+
+// Riporti come sono ora nella finestra (quantita' corrette a mano), solo quelli > 0.
+function riportiDaModale(){
+  return _riportiCM.map(function(a,i){
+    var el=document.getElementById('riporti-qta-'+i);
+    return {cod:a.cod,desc:a.desc,qta:el?(Number(el.value)||0):0};
+  }).filter(function(a){return a.qta>0;});
+}
+
+function aggiornaTotRiporti(){
+  var r=riportiDaModale();
+  var el=document.getElementById('riporti-tot');
+  if(el)el.textContent=r.length?('Totale riporti: '+r.length+' articoli, '+pezziCM(r,'qta')+' pz'):'Nessun riporto.';
+}
+
+function calcolaRiportiCM(vern,imb,wu){
   function chiave(cod,desc){return (cod||desc||'').toString().trim().toLowerCase();}
   var m={};
   function voce(k,cod,desc){
@@ -7949,38 +8128,9 @@ async function chiudiMese(){
   vern.forEach(function(r){var k=chiave(r.codice_articolo,r.descrizione);if(k)voce(k,r.codice_articolo,r.descrizione).vern+=Number(r.quantita)||0;});
   imb.forEach(function(r){var k=chiave(r.codice_articolo,r.articolo);if(k)voce(k,r.codice_articolo,r.articolo).imb+=Number(r.totale)||0;});
   wu.forEach(function(r){var d=r.descrizione_articolo||r.descrizione;var k=chiave(r.codice_articolo,d);if(k)voce(k,r.codice_articolo,d).wa+=Number(r.quantita)||0;});
-  _riportiCM=Object.keys(m).map(function(k){
+  return Object.keys(m).map(function(k){
     var a=m[k];return {cod:a.cod,desc:a.desc,qta:a.vern-Math.max(a.imb,a.wa)};
   }).filter(function(a){return a.qta>0;}).sort(function(a,b){return (a.cod||a.desc).localeCompare(b.cod||b.desc);});
-
-  // Mese chiuso proposto: il mese scorso se siamo nei primi 15 giorni, altrimenti quello in corso.
-  var oggi=new Date();
-  var mc=new Date(oggi.getFullYear(),oggi.getMonth()-(oggi.getDate()<=15?1:0),1);
-  document.getElementById('riporti-mese').value=mc.getFullYear()+'-'+String(mc.getMonth()+1).padStart(2,'0');
-  aggiornaInfoRiporti();
-  var tb=document.getElementById('riporti-tbody');
-  tb.innerHTML=_riportiCM.length?_riportiCM.map(function(a,i){
-    return '<tr id="riporti-tr-'+i+'"><td><strong>'+(a.cod||'—')+'</strong></td><td>'+a.desc+'</td>'
-      +'<td><input type="number" min="0" step="1" id="riporti-qta-'+i+'" value="'+a.qta+'" style="width:80px;margin:0;"></td>'
-      +'<td><button class="del-btn" title="Togli" onclick="document.getElementById(\'riporti-qta-'+i+'\').value=0;document.getElementById(\'riporti-tr-'+i+'\').style.opacity=0.4;">✕</button></td></tr>';
-  }).join(''):'<tr><td colspan="4" style="text-align:center;padding:14px;color:#999;">Nessun residuo da riportare.</td></tr>';
-  document.getElementById('modal-riporti').style.display='flex';
-}
-
-function meseRiportiSel(){
-  var v=document.getElementById('riporti-mese').value||'';
-  var p=v.split('-');if(p.length!==2)return null;
-  var anno=Number(p[0]),mese=Number(p[1])-1;
-  var nuovo=new Date(anno,mese+1,1);
-  return {
-    etichetta:MESI_IT[mese]+' '+anno,
-    dataNuovo:nuovo.getFullYear()+'-'+String(nuovo.getMonth()+1).padStart(2,'0')+'-01'
-  };
-}
-
-function aggiornaInfoRiporti(){
-  var s=meseRiportiSel();
-  document.getElementById('riporti-info').textContent=s?('Nota: "RIPORTO DA '+s.etichetta+'" — data riga: '+fmtData(s.dataNuovo)):'Scegli il mese.';
 }
 
 // Riga Verniciato creata da Chiudi Mese (vedi chiudiMese): nota "RIPORTO DA ...".
@@ -7988,12 +8138,22 @@ function isRiportoVern(r){return /^RIPORTO DA /i.test((r&&r.note)||'');}
 function badgeRiporto(r){return isRiportoVern(r)?'<span class="badge" style="background:#EDE7F6;color:#4527A0;margin-right:4px;">RIPORTO</span>':'';}
 
 async function confermaChiudiMese(){
-  var s=meseRiportiSel();if(!s){alert('Scegli il mese che chiudi.');return;}
-  var riporti=_riportiCM.map(function(a,i){
-    var el=document.getElementById('riporti-qta-'+i);
-    return {cod:a.cod,desc:a.desc,qta:el?(Number(el.value)||0):0};
-  }).filter(function(a){return a.qta>0;});
-  if(!confirm('Chiudere il mese '+s.etichetta+'? '+riporti.length+' riporto/i Verniciato verranno creati al '+fmtData(s.dataNuovo)+'. WA entrate/uscite, Imballo e Verniciato verranno poi cancellati dalla lista di lavoro (restano salvati in archivio per il Confronto). I DDT restano.'))return;
+  var s=chiusuraSel();if(!s){alert('Scegli il giorno fino a cui chiudere.');return;}
+  var riporti=riportiDaModale();
+  // Dati riletti adesso: se nel frattempo qualcuno ha inserito righe, la conferma
+  // mostra (e chiude) i numeri aggiornati.
+  var dati=await caricaDatiCM();
+  if(!dati){alert('Errore caricamento WA, Imballo o Verniciato: mese NON chiuso, riprova.');return;}
+  var div=divisioneCM(dati,s.fino);
+  var testoTab=TABELLE_CM.map(function(x){
+    var d=div[x.t];
+    return '• '+x.nome+': '+d.chiuse.length+' chiuse ('+pezziCM(d.chiuse,x.qta)+' pz), '+d.restano.length+' restano ('+pezziCM(d.restano,x.qta)+' pz)';
+  }).join('\n');
+  var testoRip=riporti.slice(0,15).map(function(a){return '• '+(a.cod||a.desc)+': '+a.qta+' pz';}).join('\n')
+    +(riporti.length>15?'\n… e altri '+(riporti.length-15):'')||'• nessuno';
+  if(!confirm('Chiudere fino al '+fmtDataGMA(s.fino)+' compreso?\n\n'+testoTab
+    +'\n\nRiporti Verniciato al '+fmtDataGMA(s.dataNuovo)+' ('+riporti.length+' articoli, '+pezziCM(riporti,'qta')+' pz):\n'+testoRip
+    +'\n\nLe righe chiuse vanno in archivio (restano nel Confronto) e spariscono dalla lista di lavoro. Le righe dopo il '+fmtDataGMA(s.fino)+' restano. I DDT restano.'))return;
   document.getElementById('modal-riporti').style.display='none';
   var nota='RIPORTO DA '+s.etichetta;
   var idsRiporto=[];
@@ -8008,57 +8168,80 @@ async function confermaChiudiMese(){
     }
     idsRiporto.push(res[0].id);
   }
-  await eseguiChiudiMese(idsRiporto);
+  await eseguiChiudiMese(s,div,idsRiporto);
 }
 
-async function eseguiChiudiMese(idsRiporto){
+// Inserisce righe in archivio a blocchi da 500 (ogni richiesta e' tutto o niente).
+async function archiviaBlocchi(righe){
+  var c=getConfig(),ids=[];
+  for(var i=0;i<righe.length;i+=500){
+    try{
+      var r=await fetch(c.url+'/rest/v1/archivio?select=id',{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'},body:JSON.stringify(righe.slice(i,i+500))});
+      if(!r.ok)throw new Error(await r.text());
+      (await r.json()).forEach(function(x){ids.push(x.id);});
+    }catch(e){console.error(e);return {ids:ids,errore:e.message};}
+  }
+  return {ids:ids,errore:null};
+}
+
+// Cancella le righe con questi id (solo del cliente attivo), a blocchi da 200.
+async function cancellaPerId(t,ids){
+  var c=getConfig(),cl=getCliente();
+  for(var i=0;i<ids.length;i+=200){
+    var r=await fetch(c.url+'/rest/v1/'+t+'?cliente=eq.'+encodeURIComponent(cl)+'&id=in.('+ids.slice(i,i+200).join(',')+')',{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+    if(!r.ok)throw new Error(await r.text());
+  }
+}
+
+async function eseguiChiudiMese(s,div,idsRiporto){
   var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
   var cl=getCliente();
-  // Archive WA entrate
-  var we=await apiGet('whatsapp_righe');
-  if(we&&we.length){
-    for(var i=0;i<we.length;i++){
-      var r=we[i];
-      await apiPost('archivio',{tabella_origine:'whatsapp_righe',descrizione:r.descrizione||r.testo_riga,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
+  var notaCM='Chiusura mese - '+new Date().toLocaleDateString('it-IT');
+  var adesso=new Date().toISOString();
+  function nn(v){return v===undefined?null:v;}
+  // Stesse colonne per tutte le righe di una tabella (richiesto dall'inserimento a blocchi).
+  // data_inserimento = data originale della riga.
+  function versoArchivio(t,r){
+    var a={tabella_origine:t,codice_articolo:nn(r.codice_articolo),data_inserimento:dataRigaLav(r)||null,cliente:cl,created_at:adesso};
+    if(t==='imballo'){a.descrizione=nn(r.articolo);a.sequenza=nn(r.sequenza);a.totale=nn(r.totale);a.note=notaCM;}
+    // I riporti tengono "RIPORTO DA ..." in nota: il Confronto cumulativo li esclude (doppioni).
+    else if(t==='verniciato'){a.descrizione=nn(r.descrizione);a.quantita=nn(r.quantita);a.note=(isRiportoVern(r)?r.note+' - ':'')+notaCM;}
+    else{a.descrizione=nn(r.descrizione||r.testo_riga);a.quantita=nn(r.quantita);a.note=notaCM;}
+    return a;
+  }
+  // 1. Archivio, tutto o niente: se un blocco non va tolgo quanto gia' archiviato e i
+  //    riporti appena creati, e non cancello niente.
+  var archIds=[],daTogliere={},nChiuse=0,nRestano=0;
+  for(var i=0;i<TABELLE_CM.length;i++){
+    var x=TABELLE_CM[i];
+    var righe=div[x.t].chiuse.filter(function(r){return idsRiporto.indexOf(r.id)<0;});
+    daTogliere[x.t]=righe.map(function(r){return r.id;});
+    nChiuse+=righe.length;nRestano+=div[x.t].restano.length;
+    if(!righe.length)continue;
+    var ris=await archiviaBlocchi(righe.map(function(r){return versoArchivio(x.t,r);}));
+    archIds=archIds.concat(ris.ids);
+    if(ris.errore){
+      try{await cancellaPerId('archivio',archIds);}catch(e){console.error(e);}
+      for(var k=0;k<idsRiporto.length;k++)await apiDel('verniciato','id=eq.'+idsRiporto[k]);
+      showMsg('msg-cfg','Errore nell\'archiviare '+x.nome+': mese NON chiuso, niente è stato cancellato. ('+ris.errore+')','err');
+      return;
     }
   }
-  // Archive WA uscite
-  var wu=await apiGet('whatsapp_uscita');
-  if(wu&&wu.length){
-    for(var i=0;i<wu.length;i++){
-      var r=wu[i];
-      await apiPost('archivio',{tabella_origine:'whatsapp_uscita',descrizione:r.descrizione||r.testo_riga,codice_articolo:r.codice_articolo,quantita:r.quantita,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
-    }
+  // 2. Tolgo dalla lista di lavoro solo le righe appena archiviate (per id): quelle dopo
+  //    il giorno scelto, o inserite nel frattempo, restano.
+  var errDel=[];
+  for(var j=0;j<TABELLE_CM.length;j++){
+    try{await cancellaPerId(TABELLE_CM[j].t,daTogliere[TABELLE_CM[j].t]);}
+    catch(e){errDel.push(TABELLE_CM[j].nome+' ('+e.message+')');}
   }
-  // Archive Verniciato
-  var vernCM=await apiGet('verniciato');
-  if(vernCM&&vernCM.length){
-    for(var i=0;i<vernCM.length;i++){
-      var r=vernCM[i];
-      if(idsRiporto.indexOf(r.id)>=0)continue;
-      // I riporti tengono "RIPORTO DA ..." in nota: il Confronto cumulativo li esclude (doppioni).
-      await apiPost('archivio',{tabella_origine:'verniciato',descrizione:r.descrizione,codice_articolo:r.codice_articolo,quantita:r.quantita,note:(isRiportoVern(r)?r.note+' - ':'')+'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
-    }
+  localStorage.setItem('chiusura_'+cl,s.dataNuovo);
+  localStorage.removeItem('scelta_uscita_'+cl);
+  impostaFinoGiorno('');
+  if(errDel.length){
+    showMsg('msg-cfg','⚠ Righe archiviate, ma errore nel toglierle dalla lista di lavoro per: '+errDel.join(', ')+'. NON rifare Chiudi Mese: le righe rimaste sarebbero archiviate due volte. Controlla le liste.','err');
+    return;
   }
-  // Archive Imballo
-  var imbCM=await apiGet('imballo');
-  if(imbCM&&imbCM.length){
-    for(var i=0;i<imbCM.length;i++){
-      var r=imbCM[i];
-      await apiPost('archivio',{tabella_origine:'imballo',descrizione:r.articolo,codice_articolo:r.codice_articolo,sequenza:r.sequenza,totale:r.totale,note:'Chiusura mese - '+new Date().toLocaleDateString('it-IT')});
-    }
-  }
-  // Delete WA, imballo, verniciato (NOT DDT)
-  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato'];
-  try{
-    for(var i=0;i<tables.length;i++){
-      var escludi=(tables[i]==='verniciato'&&idsRiporto.length)?'&id=not.in.('+idsRiporto.join(',')+')':'';
-      await fetch(cfg.url+'/rest/v1/'+tables[i]+'?cliente=eq.'+encodeURIComponent(cl)+escludi,{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});
-    }
-    localStorage.setItem('chiusura_'+cl, new Date().toISOString().slice(0,10));
-    localStorage.removeItem('scelta_uscita_'+cl);
-    showMsg('msg-cfg','✓ Mese chiuso! WA, Verniciato e Imballo salvati in archivio'+(idsRiporto.length?(', '+idsRiporto.length+' riporto/i Verniciato creati'):'')+'. DDT e Confronto restano con lo storico completo.','ok');
-  }catch(e){showMsg('msg-cfg','Errore: '+e.message,'err');}
+  showMsg('msg-cfg','✓ Chiuso fino al '+fmtDataGMA(s.fino)+': '+nChiuse+' righe archiviate e tolte dalla lista di lavoro, '+nRestano+' righe successive restano'+(idsRiporto.length?(', '+idsRiporto.length+' riporto/i Verniciato creati al '+fmtDataGMA(s.dataNuovo)):'')+'. DDT e Confronto restano con lo storico completo.','ok');
 }
 
 async function azzeraTutto(){
