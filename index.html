@@ -1775,6 +1775,9 @@ async function apiGet(t,p){
   try{var r=await fetch(c.url+'/rest/v1/'+t+'?'+params,{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
   if(!r.ok)throw new Error(await r.text());return await r.json();}catch(e){console.error(e);return null;}
 }
+// Stesso ordine predefinito di apiGet (piu' recenti prima), con id come spareggio: le pagine
+// restano stabili e chi sceglie "la prima descrizione" continua a vedere quella piu' recente.
+var ORDINE_COME_APIGET='order=created_at.desc.nullslast,id.desc';
 // Come apiGet ma legge TUTTE le righe a pagine da 1000 (Supabase ne restituisce al massimo 1000
 // per richiesta). Ordine per id: le pagine restano stabili anche con created_at vuoto.
 async function apiGetTutto(t,p){
@@ -1894,7 +1897,7 @@ async function apiUpsert(t,arr,onConflictCol){
 
 async function testConn(){var d=await apiGet('whatsapp_righe');if(d!==null){showMsg('msg-cfg','OK! '+d.length+' righe.','ok');document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Connesso</span>';}}
 
-async function caricaArticoli(){var d=await apiGet('articoli','order=descrizione.asc&limit=500');if(d)artCache=d;}
+async function caricaArticoli(){var d=await apiGetTutto('articoli','order=descrizione.asc,id.asc');if(d)artCache=d;}
 
 async function salvaArticolo(){
   var codice=document.getElementById('new-art-code').value.trim();
@@ -2781,7 +2784,7 @@ document.addEventListener('click',function(e){
 });
 
 async function mostraConfronto(){
-  var imb=await apiGet('imballo');var wau=await apiGet('whatsapp_uscita');if(!imb||!wau)return;
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);var wau=await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET);if(!imb||!wau)return;
   var tI=imb.reduce(function(a,r){return a+(r.totale||0);},0);
   var tW=wau.reduce(function(a,r){return a+(r.quantita||0);},0);
   var box=document.getElementById('u-confronto');var res=document.getElementById('u-confronto-res');
@@ -2792,8 +2795,8 @@ async function mostraConfronto(){
 }
 
 async function verificaWAImballo(){
-  var imb=await apiGet('imballo');
-  var wau=await apiGet('whatsapp_uscita');
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var wau=await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET);
   var res=document.getElementById('imb2-verifica-res');
   if(!res){return;}
   if(!imb||!wau){res.innerHTML='<div class="warn-box">Errore caricamento dati WA o Imballo.</div>';return;}
@@ -2864,13 +2867,13 @@ function fmtDiffSegno(n){return (n>0?'+':(n<0?'−':''))+Math.abs(n);}
 function fmtDataGMA(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:String(iso||'');}
 
 async function verificaVerniciatoImballo(){
-  var imb=await apiGet('imballo');
-  var vern=await apiGet('verniciato');
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
   var isAz=getCliente()==='AZZURRA';
-  var wau=isAz?await apiGet('whatsapp_uscita'):null;
-  var ddtu=await apiGet('ddt_uscita');
-  var ddte=await apiGet('ddt_entrata');
-  if(isAz&&!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
+  var wau=isAz?await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET):null;
+  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
+  var ddte=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  if(isAz&&!abzCache.length){var dAbz=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');if(dAbz)abzCache=dAbz;}
   var res=document.getElementById('imb2-verifica-res');
   if(!res){return;}
   if(!imb||!vern||(isAz&&!wau)||!ddtu||!ddte){res.innerHTML='<div class="warn-box">Errore caricamento dati Verniciato, Imballo, WA Uscita, DDT Entrata o DDT Uscita.</div>';return;}
@@ -3502,13 +3505,13 @@ async function svuotaVerniciato2(){
 
 // ── RIEPILOGO BERGAMASCO NUOVO ────────────────────────────────────────
 async function caricaRiepilogoBerNew(){
-  var ent=await apiGet('ddt_entrata');
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
-  var usc=await apiGet('ddt_uscita');
-  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
+  var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   var scartiDB=await apiGet('scarti_ber');
-  var artB0=await apiGet('articoli','codice_articolo=like.B0*&select=codice_articolo,descrizione&limit=5000');
+  var artB0=await apiGetTutto('articoli','codice_articolo=like.B0*&select=codice_articolo,descrizione&order=id.asc');
   if(!ent||!vern||!imb||!usc)return;
   var descArtB0={};
   (artB0||[]).forEach(function(a){var k=(a.codice_articolo||'').trim().toUpperCase();if(k&&a.descrizione)descArtB0[k]=a.descrizione;});
@@ -3772,8 +3775,8 @@ var scartoBer={};
 var _verificaVernImbUltimoRis=null;
 
 async function caricaRiepilogoBer(){
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
   var scartiDB=await apiGet('scarti_ber');
   if(!vern||!imb)return;
   // Carica scarti dal database
@@ -4102,10 +4105,10 @@ async function verificaDisponibilitaSost(){
   // quello che resta è pronto ma non ancora spedito. Se per un codice non c'è verniciato
   // registrato, si usa l'Entrata-Uscita (ddt_entrata/ddt_uscita) come stima al suo posto,
   // dato che verniciato dovrebbe normalmente coincidere con l'entrata.
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
-  var ent=await apiGet('ddt_entrata');
-  var usc=await apiGet('ddt_uscita');
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   var scartiDB=await apiGet('scarti_ber');
   var sost=await apiGet(tabSost(),'evaso=eq.false');
   if(!vern||!imb||!ent||!usc||!sost){res.innerHTML='<div class="warn-box">Errore caricamento dati.</div>';return;}
@@ -4317,19 +4320,21 @@ async function aggiornaConfronto(){
   if(isBer){if(elVerificaPdfRis)elVerificaPdfRis.style.display='none';await aggiornaConfrrontoBer();return;}
   caricaArticoliApertiAzzurra();
 
-  var we=await apiGet('whatsapp_righe');
-  var wu=await apiGet('whatsapp_uscita');
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
-  var ddte=await apiGet('ddt_entrata');
-  var ddtu=await apiGet('ddt_uscita');
+  var we=await apiGetTutto('whatsapp_righe',ORDINE_COME_APIGET);
+  var wu=await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET);
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var ddte=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   if(!we||!wu||!vern||!imb||!ddte||!ddtu)return;
 
   // Confronto cumulativo dall'inizio: alle liste di lavoro attuali aggiungiamo anche
   // quanto archiviato dalle chiusure mese precedenti (WA, Verniciato, Imballo), cosi'
   // il totale non riparte mai da zero e resta sempre confrontabile con i DDT (che non
   // vengono mai cancellati). Nessun filtro per data: e' un conto dall'inizio ad oggi.
-  var arch=await apiGet('archivio','order=created_at.desc&limit=5000&cliente=eq.'+encodeURIComponent(getCliente()))||[];
+  // Archivio a pagine: per AZZURRA supera le 1000 righe (con apiGet se ne leggevano solo 1000).
+  var arch=await apiGetTutto('archivio','order=created_at.desc.nullslast,id.desc&cliente=eq.'+encodeURIComponent(getCliente()));
+  if(!arch)return;
   we=we.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_righe';}));
   wu=wu.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}));
   vern=vern.concat(arch.filter(function(r){return r.tabella_origine==='verniciato';}));
@@ -4425,7 +4430,7 @@ var _apertiAzzurraDataNova='';    // gg/mm dell'ultimo import Inevasi Nova
 // Inevaso Nova (Abbinamenti AZZURRA, campo giacenza_iniziale) sommato per codice A0: un A0
 // puo' avere piu' codici IA abbinati. Usata dalla pagina "Magazzino".
 async function getGiacenzaNovaPerA0(){
-  var abz=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
+  var abz=await apiGetTutto('abbinamenti_azzurra','order=id.asc');
   var mGiac={};
   (abz||[]).forEach(function(r){
     var k=(r.codice_a0||'').trim().toUpperCase();
@@ -4477,7 +4482,7 @@ async function caricaArticoliApertiAzzurra(){
   if(box)box.style.display='';
   if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
 
-  var abzIA=await apiGet('abbinamenti_azzurra','order=id.asc&limit=5000');
+  var abzIA=await apiGetTutto('abbinamenti_azzurra','order=id.asc');
   var imp=await apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('ultimo_import_inevasi_nova_AZZURRA')+'&select=valore&limit=1');
   if(!abzIA){if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
 
@@ -4550,9 +4555,9 @@ async function caricaApertiBer(){
   var tb=document.getElementById('rc-aperti-ber-tbody');
   if(getCliente()!=='BERGAMASCO')return;
   if(tb)tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
-  var ent=await apiGet('ddt_entrata');
-  var usc=await apiGet('ddt_uscita');
-  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
+  var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   if(!ent||!usc){if(tb)tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   var fifo=calcolaFifoBer(ent,usc,abb);
   var mE={};
@@ -4962,11 +4967,11 @@ var rcDatiBer=null;
 var rcFiltroBer='tutti';
 
 async function aggiornaConfrrontoBer(){
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
-  var ddte=await apiGet('ddt_entrata');
-  var ddtu=await apiGet('ddt_uscita');
-  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var ddte=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
+  var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   if(!vern||!imb||!ddte||!ddtu)return;
 
   var dataChiusuraBer=localStorage.getItem('chiusura_'+getCliente())||'';
@@ -5279,7 +5284,7 @@ async function caricaControlloDate(){
   var ddtu=await apiGetTutto('ddt_uscita');
   if(!ddte||!ddtu){msgTb('Errore connessione');return;}
   var abb=isBer?await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc'):null;
-  if(!isBer&&!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
+  if(!isBer&&!abzCache.length){var dAbz=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');if(dAbz)abzCache=dAbz;}
 
   // AZZURRA: codice IA (Nova) -> codice A0 da abbinamenti_azzurra, cosi' entrate e uscite
   // dello stesso articolo finiscono nello stesso saldo anche se registrate con codici diversi
@@ -5744,7 +5749,7 @@ var _deUltimaLista=[];
 // codice A0 servono TUTTI i codici IA collegati, non la somma giacenza). Condivisa tra
 // il badge "Codice IA (Nova)" in DDT Entrata e "Copia per Nova".
 async function getMappaA0IA(){
-  if(!abzCache.length){var dAbz=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');if(dAbz)abzCache=dAbz;}
+  if(!abzCache.length){var dAbz=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');if(dAbz)abzCache=dAbz;}
   var mIA={};
   abzCache.forEach(function(r){
     var k=(r.codice_a0||'').trim().toUpperCase();
@@ -5765,7 +5770,7 @@ async function caricaDDTE(){
   if(bulkE)bulkE.style.display='';
   var verificaPdfCard=document.getElementById('entrata-verifica-pdf-nova-card');
   if(verificaPdfCard)verificaPdfCard.style.display=getCliente()==='AZZURRA'?'':'none';
-  var d=await apiGet('ddt_entrata','order=data_ddt.desc.nullslast,id.desc&limit=5000');if(!d)return;
+  var d=await apiGetTutto('ddt_entrata','order=data_ddt.desc.nullslast,id.desc');if(!d)return;
   _deUltimaLista=d;
   if(document.getElementById('st-de'))document.getElementById('st-de').textContent=d.length;
   var l=document.getElementById('de-lista');
@@ -6020,7 +6025,7 @@ async function collegaSostituzioneDE(r,id,checked){
 async function sincronizzaRiparazioniDaEntrata(){
   var res=document.getElementById('sost-sync-res');
   if(res)res.innerHTML='<div style="padding:10px;color:#C55A11;">Controllo DDT Entrata...</div>';
-  var ent=await apiGet('ddt_entrata');
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
   var esist=await apiGet(tabSost(),'select=note&limit=5000');
   if(!ent||!esist){if(res)res.innerHTML='<div class="msg msg-err">Errore connessione (se parla di colonne mancanti, esegui prima l\'SQL).</div>';return;}
   var gia={};esist.forEach(function(e){var m=(e.note||'').match(/\[de:(\d+)\]/);if(m)gia[m[1]]=true;});
@@ -6055,7 +6060,7 @@ async function caricaRiparazioniDaFare(){
     if(!mE[k])mE[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',qtyEnt:0};
     mE[k].qtyEnt+=Number(r.quantita_ddt)||0;
   });
-  var ddtu=await apiGet('ddt_uscita');
+  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   if(dataChiusuraAz&&ddtu){
     ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;});
   }
@@ -6369,7 +6374,7 @@ async function caricaDDTU(){
   if(pdfMultiCard)pdfMultiCard.style.display=getCliente()==='AZZURRA'?'':'none';
   var pdfMultiBerCard=document.getElementById('bergamasco-pdf-multi-card');
   if(pdfMultiBerCard)pdfMultiBerCard.style.display=getCliente()==='BERGAMASCO'?'':'none';
-  var d=await apiGet('ddt_uscita','order=data_ddt.desc.nullslast,id.desc&limit=5000');if(!d)return;
+  var d=await apiGetTutto('ddt_uscita','order=data_ddt.desc.nullslast,id.desc');if(!d)return;
   if(document.getElementById('st-du'))document.getElementById('st-du').textContent=d.length;
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
@@ -6391,7 +6396,7 @@ async function eliminaSelezionatiDDTU(){
 }
 
 async function rimuoviDoppioniDDTUscita(){
-  var d=await apiGet('ddt_uscita');
+  var d=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   if(!d||!d.length){alert('Nessun record DDT Uscita.');return;}
   var gruppi={};
   d.forEach(function(r){
@@ -6429,7 +6434,7 @@ async function rimuoviDoppioniDDTUscita(){
 }
 
 async function rimuoviDoppioniDDTEntrata(){
-  var d=await apiGet('ddt_entrata');
+  var d=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
   if(!d||!d.length){alert('Nessun record DDT Entrata.');return;}
   var gruppi={};
   d.forEach(function(r){
@@ -6773,7 +6778,7 @@ async function confrontaPdfConApp(ddts){
 
   // 3. Stessa fonte/aggregazione già usata in aggiornaConfronto per la colonna "DDT Usc."
   //    (ddt_uscita, quantita_ddt sommata per codice_articolo), filtrata sul periodo del PDF
-  var ddtu=await apiGet('ddt_uscita');
+  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   if(!ddtu){status.innerHTML='<div class="msg msg-err">Errore caricamento dati DDT Uscita dell\'app.</div>';return false;}
   var ddtuPeriodo=ddtu.filter(function(r){
     var d=(r.data_ddt||r.created_at||'').slice(0,10);
@@ -8016,8 +8021,8 @@ async function caricaCtxMag(usc){
   var res=await Promise.all([
     // La lista DDT Uscita passata (max 1000 righe) si riusa solo se e' sicuramente completa
     apiGetTutto('ddt_entrata'),usc&&usc.length<1000?Promise.resolve(usc):apiGetTutto('ddt_uscita'),
-    apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000'),
-    cl==='AZZURRA'?apiGet('abbinamenti_azzurra','order=id.asc&limit=5000'):Promise.resolve([]),
+    apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc'),
+    cl==='AZZURRA'?apiGetTutto('abbinamenti_azzurra','order=id.asc'):Promise.resolve([]),
     cl==='AZZURRA'?apiGet('saldo_iniziale_azzurra','order=id.asc&limit=5000'):Promise.resolve([])
   ]);
   if(!res[0]||!res[1])return null;
@@ -8113,9 +8118,9 @@ async function aggiornaMagForm(p){
 }
 
 async function caricaMagazzino(){
-  var ent=await apiGet('ddt_entrata');var usc=await apiGet('ddt_uscita');
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   if(!ent||!usc)return;
-  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
+  var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   magCache=calcolaGiacenzeMag(ent,usc,abb,getCliente());
   if(getCliente()!=='AZZURRA'){
     var lblG=document.getElementById('mag-tot-gia');
@@ -8208,11 +8213,11 @@ async function selDettaglioArt(cod,desc){
   card.style.display='block';
   res.innerHTML='<div class="empty">Caricamento...</div>';
   var codUp=cod.toUpperCase();
-  var ent=await apiGet('ddt_entrata');
-  var usc=await apiGet('ddt_uscita');
-  var vern=await apiGet('verniciato');
-  var imb=await apiGet('imballo');
-  var abb=await apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc&limit=5000');
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   // se il codice e' un finito (B0), trova il grezzo (BER) abbinato; se e' un grezzo (BER), trova TUTTI i finiti (B0) abbinati
   var altCodes=[];
   if(abb&&abb.length){
@@ -9002,7 +9007,7 @@ async function aggiornaLabelUltimoImportInevasiNova(){
 async function caricaAbbinamentiAzzurra(){
   var tb=document.getElementById('abz-tbody');
   if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
-  var d=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+  var d=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');
   if(!d){if(tb)tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
   abzCache=d;
   _abzSuggCache={};
@@ -9214,9 +9219,9 @@ async function caricaAbbinamentiBer(){
   var tb=document.getElementById('abb-tbody');
   if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Caricamento...</td></tr>';
   var ris=await Promise.all([
-    apiGet('abbinamenti_ber','codice_ber=not.like.*-V&order=codice_ber.asc,codice_b0.asc&limit=5000'),
-    apiGet('articoli','codice_articolo=like.B0*&order=codice_articolo.asc&limit=5000'),
-    apiGet('articoli','codice_articolo=like.BER*&select=codice_articolo,descrizione&limit=5000'),
+    apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=codice_ber.asc,codice_b0.asc,id.asc'),
+    apiGetTutto('articoli','codice_articolo=like.B0*&order=codice_articolo.asc,id.asc'),
+    apiGetTutto('articoli','codice_articolo=like.BER*&select=codice_articolo,descrizione&order=id.asc'),
     apiGet('ddt_entrata','codice_articolo=like.BER*&select=codice_articolo,descrizione,data_ddt&order=data_ddt.desc.nullslast,id.desc&limit=5000')
   ]);
   if(!ris[0]){if(tb)tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">Errore connessione</td></tr>';return;}
@@ -9454,7 +9459,7 @@ async function leggiImportCodiciIA(input){
       if(!cod)continue;
       righeFile[cod.toUpperCase()]={codice_ia:cod,descrizione_ia:String(row[idxDesc]||'').trim()};
     }
-    var dFresh=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    var dFresh=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');
     if(dFresh)abzCache=dFresh;
     var esistentiSet={};
     abzCache.forEach(function(r){esistentiSet[(r.codice_ia||'').toUpperCase()]=true;});
@@ -9474,7 +9479,7 @@ async function leggiImportCodiciIA(input){
     var risAggiornati=await apiUpsert('abbinamenti_azzurra',aggiornatiArr,'codice_ia');
     if(risNuovi===null||risAggiornati===null)throw new Error('Import interrotto per un errore di connessione.');
 
-    var dRicaricata=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    var dRicaricata=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');
     if(dRicaricata)abzCache=dRicaricata;
     _abzSuggCache={};
     renderAbbinamentiAzzurra();
@@ -9528,7 +9533,7 @@ async function leggiImportInevasiNova(input){
     // quali codici esistono gia', invece di fidarmi di una cache locale potenzialmente
     // disallineata (era questo disallineamento a causare il POST su un codice_ia gia'
     // esistente e l'errore 23505 di violazione unique).
-    var dFresh=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    var dFresh=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');
     if(dFresh)abzCache=dFresh;
     var esistentiSet={};
     abzCache.forEach(function(r){esistentiSet[(r.codice_ia||'').toUpperCase()]=true;});
@@ -9564,7 +9569,7 @@ async function leggiImportInevasiNova(input){
     var risAggiornati=await apiUpsert('abbinamenti_azzurra',aggiornatiArr,'codice_ia');
     if(risNuovi===null||risAggiornati===null)throw new Error('Import interrotto per un errore di connessione.');
 
-    var dRicaricata=await apiGet('abbinamenti_azzurra','order=codice_ia.asc&limit=5000');
+    var dRicaricata=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');
     if(dRicaricata)abzCache=dRicaricata;
     _abzSuggCache={};
     renderAbbinamentiAzzurra();
