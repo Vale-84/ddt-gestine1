@@ -632,6 +632,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
       <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
       <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciDuplicatiVerniciato()">UNISCI</button>
+      <button class="btn btn-purple btn-sm" id="btn-unisci-data-vern" style="flex:1;display:none;" onclick="unisciVerniciatoPerData()">UNISCI PER DATA</button>
       <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaVerniciatoExcel()">📥 ESPORTA EXCEL</button>
       <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('vernp-lista-stampa')">STAMPA</button>
     </div>
@@ -1475,7 +1476,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 <!-- MODAL UNISCI IMBALLO PER DATA -->
 <div class="modal" id="modal-unisci-imballo-data">
   <div class="modal-box" style="max-width:640px;">
-    <h3 style="color:#5B2C8D;">Unisci Imballo per data</h3>
+    <h3 style="color:#5B2C8D;" id="uipd-titolo">Unisci Imballo per data</h3>
     <label>Data</label><input type="date" id="uipd-data">
     <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;margin-top:10px;"><input type="checkbox" id="uipd-sel-all" checked onchange="toggleSelAllUnisciImballo(this.checked)" style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;"> Seleziona tutto</label>
     <div id="uipd-lista" style="margin:10px 0;max-height:50vh;overflow-y:auto;"></div>
@@ -8362,22 +8363,40 @@ async function esportaImballoExcel(){
 // ── UNISCI PER DATA (Imballo): un CSV TDDDT con una sola riga per codice selezionato,
 // tutte le date forzate alla data scelta dall'utente — utile per registrare in un colpo
 // solo su Nova un riepilogo imballi senza doverli splittare per data di inserimento reale.
+// Stessa funzione anche per il Verniciato BERGAMASCO: le righe "RIPORTO DA ..." restano
+// gruppi separati (non spuntati di partenza) e righe CSV separate, con anteprima OK/Annulla
+// prima di scaricare. L'Imballo resta com'era (nessuna anteprima, nessun riporto).
 var _uipdCache=[];
+var UIPD_CFG={
+  imballo:{tab:'imballo',qty:'totale',desc:'articolo',titolo:'Unisci Imballo per data',vuoto:'Nessuna riga Imballo da esportare!',file:'imballo_unito',riporto:false,anteprima:false},
+  verniciato:{tab:'verniciato',qty:'quantita',desc:'descrizione',titolo:'Unisci Verniciato per data',vuoto:'Nessuna riga Verniciato da esportare!',file:'verniciato_unito',riporto:true,anteprima:true}
+};
+var _uipdCfg=UIPD_CFG.imballo;
 
-async function unisciImballoPerData(){
-  var imb=await apiGet('imballo');
-  if(!imb||!imb.length){alert('Nessuna riga Imballo da esportare!');return;}
+function unisciImballoPerData(){return apriUnisciPerData('imballo');}
+function unisciVerniciatoPerData(){
+  if(getCliente()!=='BERGAMASCO'){alert('Unisci per data del Verniciato è solo per BERGAMASCO.');return;}
+  return apriUnisciPerData('verniciato');
+}
+
+async function apriUnisciPerData(tab){
+  var cfg=UIPD_CFG[tab];
+  var imb=await apiGet(cfg.tab);
+  if(!imb||!imb.length){alert(cfg.vuoto);return;}
+  _uipdCfg=cfg;
+  var titEl=document.getElementById('uipd-titolo');if(titEl)titEl.textContent=cfg.titolo;
 
   // Raggruppo per codice+data (non solo codice): cosi' lo stesso articolo su date diverse
   // resta su righe separate nella lista, con la propria data ben visibile per selezionare
   // bene cosa unire. La somma resta quella di sempre, mA solo tra righe della STESSA data.
   var map={},ordine=[];
   imb.forEach(function(r){
-    var cod=(r.codice_articolo||'').trim()||(r.articolo||'').trim()||'?';
+    var cod=(r.codice_articolo||'').trim()||(r[cfg.desc]||'').trim()||'?';
     var data=(r.data_inserimento||r.created_at||'').slice(0,10);
-    var k=cod+'||'+data;
-    if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:r.articolo||'',data:data,tot:0};ordine.push(k);}
-    map[k].tot+=Number(r.totale)||0;
+    var rip=cfg.riporto&&isRiportoVern(r);
+    var k=cod+'||'+data+(rip?'||riporto':'');
+    if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:r[cfg.desc]||'',data:data,tot:0,riporto:rip};ordine.push(k);}
+    map[k].tot+=Number(r[cfg.qty])||0;
   });
   // Ordino per data decrescente (piu' recente in cima); a parita' di data l'ordine tra
   // articoli resta quello di prima comparsa (Array.sort e' stabile).
@@ -8385,12 +8404,13 @@ async function unisciImballoPerData(){
   _uipdCache=ordine.map(function(k){return map[k];});
 
   var dataEl=document.getElementById('uipd-data');if(dataEl)dataEl.value=oggiISO();
-  var selAll=document.getElementById('uipd-sel-all');if(selAll)selAll.checked=true;
+  var haRiporti=_uipdCache.some(function(r){return r.riporto;});
+  var selAll=document.getElementById('uipd-sel-all');if(selAll)selAll.checked=!haRiporti;
   var lista=document.getElementById('uipd-lista');
   lista.innerHTML=_uipdCache.map(function(r,idx){
     return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">'
-      +'<input type="checkbox" class="uipd-chk" value="'+idx+'" checked style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;">'
-      +'<span>'+fmtData(r.data)+' — '+(r.cod||'—')+' — '+(r.desc||'')+': '+r.tot+' pz</span>'
+      +'<input type="checkbox" class="uipd-chk" value="'+idx+'"'+(r.riporto?'':' checked')+' style="width:18px;height:18px;flex-shrink:0;margin:0;padding:0;border:none;">'
+      +'<span>'+(r.riporto?'<span class="badge" style="background:#EDE7F6;color:#4527A0;margin-right:4px;">RIPORTO</span>':'')+fmtData(r.data)+' — '+(r.cod||'—')+' — '+(r.desc||'')+': '+r.tot+' pz</span>'
     +'</label>';
   }).join('');
   document.getElementById('modal-unisci-imballo-data').style.display='flex';
@@ -8423,11 +8443,19 @@ function generaCsvUnisciImballo(){
   // mantenuto; descrizione della prima riga trovata per quel codice.
   var mappaFinale={},ordineFinale=[];
   selezionati.forEach(function(r){
-    var chiave=(r.cod||'').trim().toUpperCase()||(r.desc||'').trim().toUpperCase()||'?';
-    if(!mappaFinale[chiave]){mappaFinale[chiave]={cod:r.cod,desc:r.desc,tot:0};ordineFinale.push(chiave);}
+    var chiave=((r.cod||'').trim().toUpperCase()||(r.desc||'').trim().toUpperCase()||'?')+(r.riporto?'||riporto':'');
+    if(!mappaFinale[chiave]){mappaFinale[chiave]={cod:r.cod,desc:r.desc,tot:0,riporto:!!r.riporto};ordineFinale.push(chiave);}
     mappaFinale[chiave].tot+=Number(r.tot)||0;
   });
   var righeFinali=ordineFinale.map(function(k){return mappaFinale[k];});
+
+  if(_uipdCfg.anteprima){
+    var dataGMA=fmtDataGMA(dataScelta);
+    var testo='Righe del CSV per Nova ('+righeFinali.length+'), tutte con data '+dataGMA+':\n\n'
+      +righeFinali.map(function(r){return (r.riporto?'[RIPORTO] ':'')+(r.cod||'—')+' '+(r.desc||'')+'  –  '+r.tot+' pz';}).join('\n')
+      +'\n\nOK per scaricare il CSV, Annulla per tornare all\'elenco.';
+    if(!confirm(testo))return;
+  }
 
   var anno=new Date().getFullYear();
   var bom='﻿';
@@ -8450,7 +8478,7 @@ function generaCsvUnisciImballo(){
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
   var a2=document.createElement('a');a2.href=url;
-  a2.download='TDDDT'+anno+'_imballo_unito_'+dataScelta.replace(/-/g,'')+'.csv';
+  a2.download='TDDDT'+anno+'_'+_uipdCfg.file+'_'+dataScelta.replace(/-/g,'')+'.csv';
   document.body.appendChild(a2);a2.click();document.body.removeChild(a2);URL.revokeObjectURL(url);
   chiudiModaleUnisciImballo();
 }
@@ -10498,6 +10526,8 @@ var TIPI_ELEMENTO_AZ={AN:'ANTE',AS:'ASTE',CO:'COPERCHI',DO:'DONDOLI',FA:'FASCION
 function aggiornaBtnModuloVern(){
   var b=document.getElementById('btn-modulo-vern');
   if(b)b.style.display=getCliente()==='AZZURRA'?'':'none';
+  var u=document.getElementById('btn-unisci-data-vern');
+  if(u)u.style.display=getCliente()==='BERGAMASCO'?'':'none';
 }
 document.getElementById('cliente-sel').addEventListener('change',aggiornaBtnModuloVern);
 window.addEventListener('load',function(){setTimeout(aggiornaBtnModuloVern,0);});
