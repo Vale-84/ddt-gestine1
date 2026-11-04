@@ -875,6 +875,29 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     </div>
   </div>
 
+  <!-- CONTROLLO INEVASI NOVA – BERGAMASCO (solo controllo: nessun salvataggio) -->
+  <div class="card" id="rc-inevasi-ber" style="display:none;border:2px solid #1F6B75;">
+    <h2 style="color:#1F6B75;">CONTROLLO INEVASI NOVA – BERGAMASCO</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Confronta gli inevasi del report Nova con la giacenza della scheda Magazzino (stesso calcolo e stessi abbinamenti). È solo un controllo: non salva niente e non modifica giacenze o articoli.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">
+      <button class="btn btn-teal btn-sm" style="width:auto;margin:0;padding:10px 14px;" onclick="document.getElementById('rc-inevasi-ber-file').click()">CARICA REPORT INEVASI NOVA</button>
+      <input type="file" id="rc-inevasi-ber-file" accept=".xlsx,.xls,.ods" style="display:none;" onchange="caricaReportInevasiBer(this)">
+      <button class="btn btn-green btn-sm" style="width:auto;margin:0;padding:10px 14px;" onclick="esportaInevasiBerExcel()">ESPORTA EXCEL</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:0;">CONSIDERA DDT DAL
+        <input type="date" id="rc-inevasi-ber-dal" style="width:auto;margin:0;" onchange="renderInevasiBer()">
+      </label>
+    </div>
+    <div id="rc-inevasi-ber-status" style="font-size:12px;color:#888;margin-bottom:8px;">Nessun report caricato.</div>
+    <div id="rc-inevasi-ber-riepilogo"></div>
+    <div class="rc-table-scroll">
+      <table class="rc-table">
+        <thead><tr><th>Codice Nova</th><th>Descrizione</th><th>Inevasi Nova</th><th>Giacenza app</th><th>Differenza<br><span style="font-weight:normal;font-size:11px;">(app − Nova)</span></th><th>Stato</th></tr></thead>
+        <tbody id="rc-inevasi-ber-tbody"></tbody>
+      </table>
+    </div>
+    <div id="rc-inevasi-ber-esclusi" style="font-size:12px;color:#555;margin-top:8px;"></div>
+  </div>
+
   <div id="confronto-stampa">
     <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
     <!-- TABELLA AZZURRA -->
@@ -4287,6 +4310,9 @@ async function aggiornaConfronto(){
   var elApertiBer=document.getElementById('rc-aperti-ber');
   if(elApertiBer)elApertiBer.style.display=isBer?'':'none';
   if(isBer)caricaApertiBer();
+  var elInevasiBer=document.getElementById('rc-inevasi-ber');
+  if(elInevasiBer)elInevasiBer.style.display=isBer?'':'none';
+  if(isBer)preparaInevasiBer();
   if(elVerificaPdf)elVerificaPdf.style.display=isBer?'none':'';
   if(isBer){if(elVerificaPdfRis)elVerificaPdfRis.style.display='none';await aggiornaConfrrontoBer();return;}
   caricaArticoliApertiAzzurra();
@@ -4611,6 +4637,208 @@ function esportaApertiBerExcel(){
   var oggi=new Date();
   var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
   XLSX.writeFile(wb,'aperti_bergamasco_'+dataStr+'.xlsx');
+}
+
+// ── CONTROLLO INEVASI NOVA – BERGAMASCO ───────────────────────────────
+// Solo controllo in memoria: il report Nova (inevasi per DDT) viene sommato per CodArt e
+// confrontato con la giacenza della scheda Magazzino (calcolaGiacenzeMag + abbinamenti_ber,
+// stessa logica). Non scrive nulla su Supabase. La colonna GiacData del report e' ignorata.
+var _inevBer={righe:null,file:'',info:null,app:null,dalDefault:'',ultimo:null};
+var INEV_BER_STATI={
+  na:{ord:0,lbl:'NON ABBINATO',bg:'#FDECEA',col:'#C00000'},
+  diverso:{ord:1,lbl:'DIVERSO',bg:'#FFE8CC',col:'#B85C00'},
+  soloapp:{ord:2,lbl:'SOLO APP',bg:'#FFF8C4',col:'#7B6A00'},
+  ok:{ord:3,lbl:'OK',bg:'#E2EFDA',col:'#375623'}
+};
+
+// Data di una cella del report -> 'yyyy-mm-dd' ('' se non riconosciuta)
+function _inevBerData(v){
+  if(v===null||v===undefined||v==='')return '';
+  function iso(y,m,d){return y+'-'+('0'+m).slice(-2)+'-'+('0'+d).slice(-2);}
+  if(typeof v==='number'){var p=XLSX.SSF.parse_date_code(v);return p&&p.y?iso(p.y,p.m,p.d):'';}
+  if(v instanceof Date)return isNaN(v)?'':iso(v.getFullYear(),v.getMonth()+1,v.getDate());
+  var s=String(v).trim(),m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return iso(+m[1],+m[2],+m[3]);
+  if((m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){var y=+m[3];if(y<100)y+=2000;return iso(y,+m[2],+m[1]);}
+  return '';
+}
+
+// Carica dall'app (senza salvare nulla) la giacenza Magazzino BERGAMASCO e la data del primo DDT Entrata
+async function preparaInevasiBer(){
+  if(getCliente()!=='BERGAMASCO')return;
+  var st=document.getElementById('rc-inevasi-ber-status');
+  var res=await Promise.all([
+    apiGetTutto('ddt_entrata'),apiGetTutto('ddt_uscita'),
+    apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc')
+  ]);
+  if(getCliente()!=='BERGAMASCO')return;
+  var ent=res[0],usc=res[1],abb=res[2];
+  if(!ent||!usc||!abb){if(st)st.innerHTML='<span style="color:#C00000;">Errore di connessione: giacenze non caricate.</span>';return;}
+  var primaData='';
+  ent.forEach(function(r){
+    var d=String(r.data_ddt||r.created_at||'').slice(0,10);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&(!primaData||d<primaData))primaData=d;
+  });
+  _inevBer.app={mag:calcolaGiacenzeMag(ent,usc,abb,'BERGAMASCO'),primaData:primaData};
+  var inp=document.getElementById('rc-inevasi-ber-dal');
+  if(inp&&(!inp.value||inp.value===_inevBer.dalDefault))inp.value=primaData;
+  _inevBer.dalDefault=primaData;
+  renderInevasiBer();
+}
+
+async function caricaReportInevasiBer(input){
+  var file=input.files[0];if(!file)return;
+  var st=document.getElementById('rc-inevasi-ber-status');
+  try{
+    var wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});
+    var hi=-1,iCod=-1,iIne=-1,iData=-1,iDesc=-1;
+    for(var i=0;i<Math.min(rows.length,60);i++){
+      var up=(rows[i]||[]).map(function(x){return String(x).trim().toUpperCase();});
+      var ic=up.indexOf('CODART');
+      var ii=up.findIndex(function(c){return /^QT/.test(c)&&/INE/.test(c);});
+      if(ic>=0&&ii>=0){
+        hi=i;iCod=ic;iIne=ii;
+        iData=up.findIndex(function(c){return /^DATA\s*DOC/.test(c);}); // GiacData ignorata
+        iDesc=up.findIndex(function(c){return c==='DESCRIZIONE';});
+        if(iDesc<0)iDesc=up.findIndex(function(c){return /^DESCR/.test(c);});
+        break;
+      }
+    }
+    if(hi<0)throw new Error('Riga di intestazione con "CodArt" e "Qtà Ine" non trovata nel file');
+    var righe=[],qtaNonValida=[];
+    for(var r=hi+1;r<rows.length;r++){
+      var row=rows[r]||[];
+      var cod=String(row[iCod]==null?'':row[iCod]).trim().toUpperCase();
+      var raw=row[iIne];
+      if(!cod||raw===''||raw===null||raw===undefined)continue; // solo righe con CodArt e Qtà Ine compilati
+      var q=typeof raw==='number'?raw:parseFloat(String(raw).trim().replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));
+      if(isNaN(q)){qtaNonValida.push(cod+' ("'+raw+'")');continue;}
+      righe.push({cod:cod,desc:iDesc>=0?String(row[iDesc]||'').trim():'',data:iData>=0?_inevBerData(row[iData]):'',qta:q});
+    }
+    if(!righe.length)throw new Error('Nessuna riga con CodArt e Qtà Ine compilati');
+    _inevBer.righe=righe;_inevBer.file=file.name;
+    _inevBer.info={haData:iData>=0,qtaNonValida:qtaNonValida};
+  }catch(e){
+    alert('Errore lettura report inevasi Nova: '+e.message);
+    input.value='';return;
+  }
+  input.value='';
+  if(!_inevBer.app){if(st)st.textContent='Caricamento giacenze Magazzino...';await preparaInevasiBer();}
+  else renderInevasiBer();
+}
+
+function renderInevasiBer(){
+  var st=document.getElementById('rc-inevasi-ber-status');
+  var tb=document.getElementById('rc-inevasi-ber-tbody');
+  var riep=document.getElementById('rc-inevasi-ber-riepilogo');
+  var escl=document.getElementById('rc-inevasi-ber-esclusi');
+  if(!tb||getCliente()!=='BERGAMASCO')return;
+  if(!_inevBer.righe){
+    _inevBer.ultimo=null;
+    if(st)st.textContent='Nessun report caricato.'+(_inevBer.app&&_inevBer.app.primaData?' Primo DDT Entrata in app: '+fmtDataGMA(_inevBer.app.primaData)+'.':'');
+    tb.innerHTML='';riep.innerHTML='';escl.innerHTML='';return;
+  }
+  if(!_inevBer.app){if(st)st.textContent='Caricamento giacenze Magazzino...';return;}
+  var dal=(document.getElementById('rc-inevasi-ber-dal')||{}).value||'';
+  var info=_inevBer.info||{};
+
+  // 1. Filtro data e somma per CodArt
+  var nova={},nEscl=0,pzEscl=0,nSenzaData=0,pzSenzaData=0;
+  _inevBer.righe.forEach(function(r){
+    if(dal&&r.data&&r.data<dal){nEscl++;pzEscl+=r.qta;return;}
+    if(info.haData&&!r.data){nSenzaData++;pzSenzaData+=r.qta;}
+    if(!nova[r.cod])nova[r.cod]={cod:r.cod,desc:r.desc,qta:0};
+    if(!nova[r.cod].desc&&r.desc)nova[r.cod].desc=r.desc;
+    nova[r.cod].qta+=r.qta;
+  });
+
+  // 2. Abbinamento con le righe della scheda Magazzino: codice uguale (BER o codice non
+  // abbinato), altrimenti codice B0 abbinato a un BER (cod_b0s della riga Magazzino).
+  var mag=_inevBer.app.mag,byCod={},byB0={};
+  mag.forEach(function(a){
+    byCod[(a.cod||'').toUpperCase()]=a;
+    (a.cod_b0s||[]).forEach(function(b0){(byB0[b0]=byB0[b0]||[]).push(a);});
+  });
+  var gruppi={},usati={};
+  Object.keys(nova).forEach(function(c){
+    var n=nova[c];
+    var app=byCod[c]?[byCod[c]]:(byB0[c]||[]);
+    var key=app.length?'A:'+app.map(function(a){return a.cod;}).sort().join('|'):'N:'+c;
+    if(!gruppi[key])gruppi[key]={codNova:[],desc:'',nova:0,app:app};
+    var g=gruppi[key];
+    g.codNova.push(c);g.nova+=n.qta;
+    if(!g.desc&&n.desc)g.desc=n.desc;
+    app.forEach(function(a){usati[a.cod]=true;});
+  });
+  var out=Object.keys(gruppi).map(function(k){
+    var g=gruppi[k];
+    var gia=g.app.reduce(function(t,a){return t+(Number(a.gia)||0);},0);
+    var codApp=g.app.map(function(a){return a.cod;});
+    var stato=!g.app.length?'na':(gia===g.nova?'ok':'diverso');
+    return {codNova:g.codNova.sort().join(', '),codApp:codApp.join(', '),
+      desc:g.desc||(g.app[0]&&g.app[0].desc)||'',nova:g.nova,gia:g.app.length?gia:null,
+      diff:g.app.length?gia-g.nova:null,stato:stato};
+  });
+  mag.forEach(function(a){
+    if(usati[a.cod]||!(Number(a.gia)>0))return;
+    out.push({codNova:'',codApp:a.cod,desc:a.desc||'',nova:0,gia:a.gia,diff:a.gia,stato:'soloapp'});
+  });
+  out.sort(function(a,b){
+    return INEV_BER_STATI[a.stato].ord-INEV_BER_STATI[b.stato].ord
+      ||Math.abs(b.diff==null?b.nova:b.diff)-Math.abs(a.diff==null?a.nova:a.diff)
+      ||(a.codNova||a.codApp).localeCompare(b.codNova||b.codApp);
+  });
+  _inevBer.ultimo={righe:out,dal:dal};
+
+  // 3. Riepilogo
+  var cnt={na:0,diverso:0,soloapp:0,ok:0};
+  out.forEach(function(r){cnt[r.stato]++;});
+  if(st)st.textContent='Report: '+_inevBer.file+' — '+_inevBer.righe.length+' righe lette. Primo DDT Entrata in app: '+(_inevBer.app.primaData?fmtDataGMA(_inevBer.app.primaData):'nessuno')+'.';
+  riep.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">'
+    +['na','diverso','soloapp','ok'].map(function(s){
+      var d=INEV_BER_STATI[s];
+      return '<span style="padding:6px 10px;border-radius:6px;background:'+d.bg+';color:'+d.col+';font-weight:bold;font-size:13px;">'+d.lbl+': '+cnt[s]+'</span>';
+    }).join('')
+    +'<span style="padding:6px 10px;font-size:13px;color:#555;">Totale articoli: '+out.length+'</span></div>';
+
+  // 4. Tabella
+  tb.innerHTML=out.length?out.map(function(r){
+    var d=INEV_BER_STATI[r.stato];
+    var sub=(r.codApp&&r.codApp!==r.codNova)?'<div style="font-size:11px;color:#666;">'+(r.codNova?'app: ':'codice app: ')+escAbb(r.codApp)+'</div>':'';
+    return '<tr style="background:'+d.bg+';">'
+      +'<td><strong>'+(r.codNova?escAbb(r.codNova):'—')+'</strong>'+sub+'</td>'
+      +'<td>'+escAbb(r.desc)+'</td>'
+      +'<td style="text-align:right;">'+(r.codNova?r.nova:'—')+'</td>'
+      +'<td style="text-align:right;">'+(r.gia==null?'—':r.gia)+'</td>'
+      +'<td style="text-align:right;font-weight:bold;">'+(r.diff==null?'—':(r.diff>0?'+':'')+r.diff)+'</td>'
+      +'<td><span style="color:'+d.col+';font-weight:bold;white-space:nowrap;">'+d.lbl+'</span></td></tr>';
+  }).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo da confrontare.</td></tr>';
+
+  // 5. Righe escluse / non considerate
+  var note=[];
+  if(!info.haData)note.push('⚠ Colonna DataDocum non trovata nel report: filtro per data non applicato.');
+  else note.push('Righe escluse perché con DataDocum precedente al '+(dal?fmtDataGMA(dal):'—')+': <strong>'+nEscl+'</strong> righe, <strong>'+pzEscl+'</strong> pezzi.');
+  if(nSenzaData)note.push('⚠ '+nSenzaData+' righe ('+pzSenzaData+' pz) senza DataDocum leggibile: incluse nel confronto.');
+  if(info.qtaNonValida&&info.qtaNonValida.length)note.push('⚠ '+info.qtaNonValida.length+' righe con Qtà Ine non numerica, non sommate: '+escAbb(info.qtaNonValida.join(', ')));
+  escl.innerHTML=note.join('<br>');
+}
+
+function esportaInevasiBerExcel(){
+  if(!_inevBer.ultimo){alert('Carica prima il report inevasi Nova.');return;}
+  var righe=_inevBer.ultimo.righe.map(function(r){
+    return {'Codice Nova':r.codNova,'Descrizione':r.desc||'','Inevasi Nova':r.codNova?r.nova:'',
+      'Giacenza app':r.gia==null?'':r.gia,'Differenza (app - Nova)':r.diff==null?'':r.diff,
+      'Stato':INEV_BER_STATI[r.stato].lbl,'Codice app':r.codApp||''};
+  });
+  if(!righe.length)righe=[{'Codice Nova':'Nessun articolo'}];
+  var ws=XLSX.utils.json_to_sheet(righe);
+  ws['!cols']=[{wch:16},{wch:45},{wch:12},{wch:12},{wch:20},{wch:14},{wch:20}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Inevasi Nova BER');
+  var oggi=new Date();
+  var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
+  XLSX.writeFile(wb,'controllo_inevasi_nova_bergamasco_'+dataStr+'.xlsx');
 }
 
 function esportaArticoliApertiExcel(){
