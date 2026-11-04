@@ -3005,7 +3005,7 @@ async function verificaVerniciatoImballo(){
       var codEsc=String(a.cod||'').replace(/'/g,"\\'");
       var descEsc=String(a.desc||'').replace(/'/g,"\\'");
       badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>'
-        +'<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEsc+'\',\''+descEsc+'\','+a.wau+')">+ Imballo</button>';
+        +'<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEsc+'\',\''+descEsc+'\')">+ Imballo</button>';
     }
     if(!badges&&!a.ddtNeg&&!a.superaCarico&&a.saldo>=0)badges='<span class="badge badge-ok">✓ OK</span>';
     // Il valore usato come riferimento e' evidenziato in verde.
@@ -3083,17 +3083,63 @@ function esportaVerificaVerniciatoImballoExcel(){
   XLSX.writeFile(wb,'confronto_produzione_'+dataStr+'.xlsx');
 }
 
-async function aggiungiBypassAImballo(cod, desc, qty){
+// Bypass Imballo: una riga Imballo per ogni riga WA Uscita dell'articolo (stesso cliente,
+// fino al giorno del filtro se impostato), con stessa data e quantita'. Niente doppioni:
+// 1) la nota "Bypass da WA Uscita #id" lega la riga Imballo alla riga WA di origine;
+// 2) le righe Imballo senza legame (a mano o bypass vecchio) coprono una riga WA con
+//    stessa data e quantita', una per una, guardando tutto l'Imballo (senza filtro data).
+var BYPASS_NOTA='Bypass da WA Uscita #';
+var _bypassInCorso=false;
+async function aggiungiBypassAImballo(cod, desc){
   if(!cod){alert('Codice articolo mancante, non posso aggiungerlo a Imballo.');return;}
-  var dataScelta=prompt('Data da assegnare in Imballo (formato AAAA-MM-GG):', oggiISO());
-  if(!dataScelta)return;
-  dataScelta=dataScelta.trim();
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(dataScelta)){alert('Formato data non valido, usa AAAA-MM-GG (es. 2026-09-02).');return;}
-  if(!confirm('Aggiungere '+qty+' pz di '+cod+' a Imballo con data '+dataScelta+'?'))return;
-  var r=await apiPost('imballo',{codice_articolo:cod,articolo:desc,sequenza:String(qty),totale:qty,note:'Da Confronto Produzione (bypass WA Uscita)',data_inserimento:dataScelta});
-  if(!r)return;
-  caricaImballo();
-  verificaVerniciatoImballo();
+  if(_bypassInCorso)return;
+  _bypassInCorso=true;
+  try{
+    var wau=await apiGet('whatsapp_uscita');
+    var imb=await apiGet('imballo');
+    if(!wau||!imb){alert('Errore caricamento WA Uscita o Imballo.');return;}
+    var key=String(cod).trim().toLowerCase();
+    var fino=_finoGiorno;
+    var righeWA=wau.filter(function(r){
+      return r.codice_articolo&&String(r.codice_articolo).trim().toLowerCase()===key&&rigaFino(r,fino);
+    }).sort(function(a,b){return dataRigaLav(a).localeCompare(dataRigaLav(b));});
+    var righeImb=imb.filter(function(r){
+      return String(r.codice_articolo||r.articolo||'').trim().toLowerCase()===key;
+    });
+    var idLegati={},libere=[];
+    righeImb.forEach(function(r){
+      var n=String(r.note||''),p=n.indexOf(BYPASS_NOTA);
+      if(p>=0){var id=n.slice(p+BYPASS_NOTA.length).split(/\s/)[0];if(id){idLegati[id]=true;return;}}
+      libere.push({data:dataRigaLav(r),qty:Number(r.totale)||0,usata:false});
+    });
+    var daCreare=[],saltate=[],senzaData=[];
+    righeWA.forEach(function(r){
+      var q=Number(r.quantita)||0,d=dataRigaLav(r);
+      if(q<=0)return;
+      if(!d){senzaData.push(r);return;}
+      if(idLegati[String(r.id)]){saltate.push({data:d,qty:q});return;}
+      var lib=libere.find(function(x){return !x.usata&&x.data===d&&x.qty===q;});
+      if(lib){lib.usata=true;saltate.push({data:d,qty:q});return;}
+      daCreare.push({wa:r,data:d,qty:q});
+    });
+    function elenco(arr){return arr.map(function(x){return '  '+fmtDataGMA(x.data)+'  –  '+x.qty+' pz';}).join('\n');}
+    var testo='Bypass Imballo – '+cod+(desc?' '+desc:'')+(fino?'\n(WA Uscita fino al '+fmtDataGMA(fino)+')':'')+'\n';
+    if(saltate.length)testo+='\nGià in Imballo, salto ('+saltate.length+'):\n'+elenco(saltate)+'\n';
+    if(senzaData.length)testo+='\nRighe WA senza data, salto: '+senzaData.length+'\n';
+    if(!daCreare.length){alert(testo+'\nNessuna riga da creare.');return;}
+    var tot=daCreare.reduce(function(s,x){return s+x.qty;},0);
+    testo+='\nRighe da creare in Imballo ('+daCreare.length+', totale '+tot+' pz):\n'+elenco(daCreare)+'\n\nOK per salvare, Annulla per non fare niente.';
+    if(!confirm(testo))return;
+    var cl=getCliente(),ora=new Date().toISOString();
+    var righe=daCreare.map(function(x){
+      return {codice_articolo:cod,articolo:desc,sequenza:String(x.qty),totale:x.qty,
+        note:BYPASS_NOTA+x.wa.id,data_inserimento:x.data,cliente:cl,created_at:ora};
+    });
+    var r=await apiPost('imballo',righe);
+    if(!r)return;
+    caricaImballo();
+    verificaVerniciatoImballo();
+  }finally{_bypassInCorso=false;}
 }
 
 async function verificaTutto(){
