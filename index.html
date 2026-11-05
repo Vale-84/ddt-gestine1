@@ -157,6 +157,19 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .ext-nova-num { display: flex; flex-wrap: wrap; gap: 2px 12px; color: #555; margin: 4px 0 6px; }
 .ext-nova-num .d { color: #C00000; font-weight: bold; }
 .ext-nova-riga .btn { margin-bottom: 0; }
+/* Aggiorna listino da Excel */
+.ext-lis-sel { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 16px; margin-bottom: 10px; background: white; }
+.ext-lis-info { font-size: 12px; color: #555; background: #F2F2F2; border-radius: 8px; padding: 8px 10px; margin: 8px 0 10px; }
+details.ext-lis-gr { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 0 10px; margin-bottom: 8px; }
+details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointer; padding: 10px 0; font-size: 14px; }
+.ext-lis-riga { border-top: 1px solid #eee; padding: 6px 0; font-size: 13px; overflow-wrap: anywhere; }
+.ext-lis-num { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; margin-top: 2px; }
+.ext-lis-num s { color: #999; }
+.ext-lis-su { color: #C00000; font-weight: bold; }
+.ext-lis-giu { color: #217346; font-weight: bold; }
+.ext-lis-nota { font-size: 11px; color: #C55A11; margin-top: 2px; }
+.ext-lis-btn { display: flex; gap: 6px; flex-wrap: wrap; }
+.ext-lis-btn .btn { flex: 1 1 140px; width: auto; margin-bottom: 0; }
 .ext-fatt-ddt td { background: #DDEBF7 !important; color: #1F4E79; font-weight: bold; font-size: 12px; }
 @media (max-width: 600px) { .ext-tab tr.ext-fatt-ddt td::before { display: none; } }
 .ext-ddt-tot { text-align: right; font-weight: bold; color: #217346; font-size: 15px; margin-bottom: 8px; }
@@ -1291,6 +1304,26 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
     <button class="btn btn-orange" onclick="document.getElementById('ext-pdf').click()">CARICA DDT PDF</button>
     <div id="msg-ext-pdf"></div>
     <div id="ext-pdf-anteprima"></div>
+  </div>
+  <div class="card">
+    <h2>Aggiorna listino da Excel</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Export del listino di Nova (un file per cliente): vedi cosa cambia prima di salvare. I prezzi vecchi restano nello storico.</p>
+    <input type="file" id="ext-lis-file" class="pdf-input" accept=".xlsx,.xls" onchange="leggiExcelListinoExtra(this)">
+    <button class="btn btn-teal" onclick="document.getElementById('ext-lis-file').click()">SCEGLI FILE EXCEL</button>
+    <div id="ext-lis-form" style="display:none;">
+      <div class="ext-lis-info" id="ext-lis-info"></div>
+      <label for="ext-lis-cliente">Cliente</label>
+      <select id="ext-lis-cliente" class="ext-lis-sel" onchange="anteprimaListinoXlsExtra()">
+        <option value="">— scegli —</option>
+        <option value="AZZURRA">AZZURRA</option>
+        <option value="BERGAMASCO">BERGAMASCO</option>
+        <option value="FOPPA PEDRETTI">FOPPA PEDRETTI</option>
+      </select>
+      <label for="ext-lis-dal">Valido dal</label>
+      <input type="date" id="ext-lis-dal" onchange="anteprimaListinoXlsExtra()">
+    </div>
+    <div id="msg-ext-lis"></div>
+    <div id="ext-lis-anteprima"></div>
   </div>
   <div class="card">
     <h2>Controlla fattura PDF</h2>
@@ -10038,6 +10071,29 @@ function mappaListinoFattExtra(lista){
   (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]={prezzo:Number(l.prezzo),cliente:l.cliente||'',codiceDb:l.codice};});
   return m;
 }
+// Storico prezzi (righe di listino_prezzi) → {CODICE:[righe dalla più recente per valido_dal]}
+function mappaStoricoListinoExtra(lista){
+  var m={};
+  (lista||[]).forEach(function(x){if(x.codice==null||x.prezzo==null||!x.valido_dal)return;var k=normCodiceExtra(x.codice);(m[k]=m[k]||[]).push(x);});
+  Object.keys(m).forEach(function(k){m[k].sort(function(a,b){var da=String(a.valido_dal),db=String(b.valido_dal);return da<db?1:da>db?-1:(Number(b.id)||0)-(Number(a.id)||0);});});
+  return m;
+}
+// Prezzo valido a una data (ISO). Dall'ultimo cambio dello storico in poi vale il listino attuale;
+// prima, l'ultimo prezzo dello storico con valido_dal <= data. Nessuno storico o nessuna data = listino attuale.
+// → {prezzo, dal} (dal = data di decorrenza da mostrare, null per il prezzo "iniziale" o senza storico)
+function prezzoAllaDataExtra(storico,codice,attuale,data){
+  var l=storico&&storico[codice];
+  if(!l||!l.length||!data)return{prezzo:attuale,dal:null};
+  var dal=function(x){return x.fonte==='iniziale'?null:String(x.valido_dal).slice(0,10);};
+  if(String(l[0].valido_dal)<=data)return{prezzo:attuale,dal:dal(l[0])};
+  var r=l.find(function(x){return String(x.valido_dal)<=data;});
+  return r?{prezzo:Number(r.prezzo),dal:dal(r)}:{prezzo:attuale,dal:null};
+}
+// Data con cui si cerca il prezzo di una riga di fattura: data del DDT ("Rif ... del"), se manca la data fattura
+function dataPrezzoRigaFattExtra(f,r){
+  var d=(f.ddt||[]).find(function(x){return x.numero===r.ddt;});
+  return d&&d.data?d.data:f.data||'';
+}
 // AZZURRA e BERGAMASCO hanno i DDT in ddt_uscita; tutti gli altri in lavori_extra
 function gruppoClienteFattExtra(cliente){
   var c=normTestoExtra(cliente);
@@ -10121,15 +10177,19 @@ function confrontaFatturaExtra(fattura,lavori,opz){
       var c=e.codice,li=listino.hasOwnProperty(c)?listino[c]:null;
       if(!li){e.nonInListino=true;arancio(e,'codice non in listino');}
       else{
-        e.prezzoListino=arrot2Extra(li.prezzo);
+        // Prezzo valido alla data del DDT (storico listino_prezzi; senza storico = listino attuale, come prima)
+        var pa=prezzoAllaDataExtra(opz.storico,c,li.prezzo,dataPrezzoRigaFattExtra(fattura,r));
+        e.prezzoListinoRaw=pa.prezzo;e.listinoDal=pa.dal;
+        e.prezzoListino=arrot2Extra(pa.prezzo);
+        var dalTxt=pa.dal?' (valido dal '+dataFattExtra(pa.dal)+')':'';
         if(!stessoClienteFattExtra(li.cliente,fattura.cliente))arancio(e,'codice di un altro cliente ('+li.cliente+'), da verificare');
         // Riga senza prezzo (resta rossa): cosa scrivere in Nova
         if(e.senzaPrezzo)e.motivi.push({t:'',s:'prezzo da listino: '+przFattExtra(e.prezzoListino)+' → importo da fatturare '+eurFattExtra(Math.round(r.quantita*e.prezzoListino*100)/100)});
         if(!isNaN(r.prezzo)){
-          if(stessoNumExtra(e.prezzoListino,r.prezzo,10000))bene(e,'prezzo uguale al listino');
+          if(stessoNumExtra(e.prezzoListino,r.prezzo,10000))bene(e,'prezzo uguale al listino'+dalTxt);
           else{
             e.diff=Math.round((r.importo-Math.round(r.quantita*e.prezzoListino*100)/100)*100)/100;
-            rosso(e,'in fattura '+przFattExtra(r.prezzo)+', listino '+przFattExtra(e.prezzoListino)+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''),true);
+            rosso(e,'in fattura '+przFattExtra(r.prezzo)+', listino '+przFattExtra(e.prezzoListino)+dalTxt+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''),true);
           }
         }
       }
@@ -10191,8 +10251,9 @@ function confrontaFatturaExtra(fattura,lavori,opz){
     });
     if(gruppo)Object.keys(usc).forEach(function(k){
       if(k.split('|')[0]!==n||qFatt.hasOwnProperty(k))return;
-      var u=usc[k],li=listino[normCodiceExtra(u.codice)];
-      var pz=li?arrot2Extra(li.prezzo):null;
+      var u=usc[k],cu=normCodiceExtra(u.codice),li=listino[cu];
+      var dd=(fattura.ddt.find(function(x){return normTestoExtra(x.numero)===n;})||{}).data||u.data||fattura.data||'';
+      var pz=li?arrot2Extra(prezzoAllaDataExtra(opz.storico,cu,li.prezzo,dd).prezzo):null;
       mancanti.push({fonte:'ddt',numero_ddt:u.numero_ddt,data:u.data,codice:u.codice||'',descrizione:u.descrizione||'',quantita:u.qta,prezzo:pz,importo:pz==null?null:Math.round(u.qta*pz*100)/100});
     });
   });
@@ -10216,15 +10277,16 @@ function confrontaFatturaExtra(fattura,lavori,opz){
 var extraPdfDdts=[];
 
 // Listino completo: Supabase dà max 1000 righe per richiesta → a blocchi. null = errore
+// → {prezzi:{CODICE: prezzo attuale}, storico: mappaStoricoListinoExtra} (il prezzo alla data del DDT si calcola con prezzoAllaDataExtra)
 async function caricaListinoExtra(){
-  var tutte=[];
-  while(true){
-    var b=await apiGet('listino','select=codice,prezzo&order=codice.asc&limit=1000&offset='+tutte.length);
-    if(b===null)return null;
-    if(!b.length)break;
-    tutte=tutte.concat(b);
-  }
-  return mappaListinoExtra(tutte);
+  var res=await Promise.all([
+    leggiTuttoFattExtra('listino','select=codice,prezzo&order=codice.asc'),
+    leggiTuttoFattExtra('listino_prezzi','select=id,codice,prezzo,valido_dal,fonte&order=id.asc')
+  ]);
+  if(res[0]===null||res[1]===null)return null;
+  var m={};
+  res[0].forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]=Number(l.prezzo);});
+  return{prezzi:m,storico:mappaStoricoListinoExtra(res[1])};
 }
 
 // Listino in cui scrivere una riga DDT ('' = AZZURRA/BERGAMASCO: non si toccano)
@@ -10303,12 +10365,15 @@ async function leggiPdfExtra(input){
     d.salvato=false;
     d.righe.forEach(function(r){
       r.conferma=false;
-      r.ultimo=null;r.listino=null;
+      r.ultimo=null;r.listino=null;r.listinoDal=null;
       if(codiceVeroExtra(r.codice)){
-        // Codice vero: prezzo dal listino (se c'è), lo storico non conta
+        // Codice vero: prezzo dal listino valido alla data del DDT (se c'è), arrotondato a 2 decimali come Nova; lo storico dei lavori non conta
         var c=normCodiceExtra(r.codice);
         r.daListino=true;
-        if(listino.hasOwnProperty(c))r.listino=listino[c];
+        if(listino.prezzi.hasOwnProperty(c)){
+          var pa=prezzoAllaDataExtra(listino.storico,c,listino.prezzi[c],d.data);
+          r.listino=arrot2Extra(pa.prezzo);r.listinoDal=pa.dal;
+        }
         r.prezzo=r.listino!=null?r.listino:NaN;
       }else{
         r.daListino=false;
@@ -10338,8 +10403,9 @@ function testoRigaPdfExtra(i,j){
   var spunta='<label><input type="checkbox" '+(r.conferma?'checked ':'')+'onchange="extraPdfDdts['+i+'].righe['+j+'].conferma=this.checked"> Confermo il nuovo prezzo</label>';
   if(r.daListino){
     if(r.listino==null)return '<span class="warn">codice non in listino, inserisci prezzo</span>';
-    if(st==='cambiato')return '<span class="warn">diverso dal listino ('+fmtPrezzoExtra(r.listino)+')</span>'+spunta;
-    return '<span class="ok">prezzo da listino</span>';
+    var dal=r.listinoDal?', valido dal '+escAbb(fmtData(r.listinoDal)):'';
+    if(st==='cambiato')return '<span class="warn">diverso dal listino ('+fmtPrezzoExtra(r.listino)+dal+')</span>'+spunta;
+    return '<span class="ok">prezzo da listino</span>'+(dal?' ('+dal.slice(2)+')':'');
   }
   if(!r.ultimo)return '<span class="warn">articolo nuovo, inserisci prezzo</span>';
   var h='ultimo prezzo: '+fmtPrezzoExtra(r.ultimo.prezzo_unitario)+' del '+escAbb(fmtData(r.ultimo.data));
@@ -10510,10 +10576,11 @@ async function controllaFatturaExtra(input){
     apiGet('lavori_extra','select=*&order=data.desc,id.desc&limit=5000'),
     leggiTuttoFattExtra('listino','select=codice,prezzo,cliente&order=codice.asc'),
     ddt.length?leggiTuttoFattExtra('ddt_uscita','select=id,numero_ddt,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt&numero_ddt=in.('+ddt.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=id.asc'):Promise.resolve([]),
-    caricaScelteFattExtra(fatture)
+    caricaScelteFattExtra(fatture),
+    leggiTuttoFattExtra('listino_prezzi','select=id,codice,cliente,prezzo,valido_dal,fonte&order=id.asc')
   ]);
-  if(res[0]===null||res[1]===null||res[2]===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
-  fattExtraStato={fatture:fatture,lavori:res[0],listino:res[1],uscita:res[2],nomeFile:file.name,esiti:null,scelteOk:res[3]!==null,scelte:{}};
+  if(res[0]===null||res[1]===null||res[2]===null||res[4]===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
+  fattExtraStato={fatture:fatture,lavori:res[0],listino:res[1],uscita:res[2],prezzi:res[4],nomeFile:file.name,esiti:null,scelteOk:res[3]!==null,scelte:{}};
   (res[3]||[]).forEach(registraSceltaFattExtra);
   if(res[3]===null)showMsg('msg-ext-fatt','Scelte sulle righe non disponibili (tabella fattura_scelte non raggiungibile): il controllo funziona lo stesso','err');
   fattExtraPrezzo=null;fattExtraTutti=null;fattExtraScelta=null;
@@ -10524,7 +10591,7 @@ async function controllaFatturaExtra(input){
 // Ultimo controllo fattura: tenuto per ricontrollare le righe dopo un "+ LISTINO"
 var fattExtraStato=null,fattExtraSalva=false;
 function rifaiFattureExtra(){
-  var s=fattExtraStato,opz={listino:mappaListinoFattExtra(s.listino),uscita:s.uscita};
+  var s=fattExtraStato,opz={listino:mappaListinoFattExtra(s.listino),uscita:s.uscita,storico:mappaStoricoListinoExtra(s.prezzi)};
   s.mappa=opz.listino;
   s.esiti=s.fatture.map(function(f){var c=confrontaFatturaExtra(f,s.lavori,opz);applicaScelteFattExtra(f,c,s.scelteOk?s.scelte:null);return{f:f,c:c};});
   document.getElementById('ext-fatt-esito').innerHTML=htmlFattureExtra(s.esiti,s.nomeFile);
@@ -10768,8 +10835,10 @@ function htmlAnteprimaFattExtra(fi,k,e){
   var h='<div class="ext-listino-box"><b>Fattura giusta: aggiorno l\'app</b>';
   if(e.codiceVero){
     var li=fattExtraStato.mappa[e.codice];
+    var pr=e.prezzoListinoRaw!=null?e.prezzoListinoRaw:li.prezzo;
     h+='<div class="ext-ante-riga"><span>Listino '+escAbb(nomeListinoFattExtra(li.cliente))+'</span><b class="ext-cod">'+escAbb(li.codiceDb)+'</b></div>'
-      +'<div class="ext-ante-riga"><span>Prezzo</span><span><s>'+escAbb(przFattExtra(li.prezzo))+'</s> → <b>'+escAbb(przFattExtra(p))+'</b></span></div>'
+      +'<div class="ext-ante-riga"><span>Prezzo alla data del DDT</span><span><s>'+escAbb(przFattExtra(pr))+'</s> → <b>'+escAbb(przFattExtra(p))+'</b></span></div>'
+      +(stessoNumExtra(pr,li.prezzo,10000)?'':'<div class="ext-ante-nota">Prezzo attuale del listino: '+escAbb(przFattExtra(li.prezzo))+'</div>')
       +'<div class="ext-ante-nota">Valido dal (data del DDT, puoi cambiarla):</div>'
       +'<input type="date" id="ext-fatt-vd" value="'+escAbb(dataDdtRigaFattExtra(f,r))+'">'
       +'<div class="ext-ante-nota">Il prezzo di prima resta nello storico prezzi.</div>';
@@ -10850,6 +10919,7 @@ async function aggiornaListinoDaFattExtra(e,p,vd,dati){
   if(!storico.length&&prima!=null){
     var ini=await apiPost('listino_prezzi',{codice:cod,cliente:cl,prezzo:prima,valido_dal:'2000-01-01',fonte:'iniziale',inserito_da:op});
     if(!ini)return false;
+    if(ini[0])fattExtraStato.prezzi.push(ini[0]);
   }
   var nuovo=await apiPost('listino_prezzi',{codice:cod,cliente:cl,prezzo:p,valido_dal:vd,fonte:'fattura',fattura_numero:dati.fattura_numero,inserito_da:op});
   if(!nuovo||!nuovo[0])return false;
@@ -10868,6 +10938,7 @@ async function aggiornaListinoDaFattExtra(e,p,vd,dati){
     return false;
   }
   if(aggiorna)fattExtraStato.listino.forEach(function(l){if(l.codice===cod&&l.cliente===cl)l.prezzo=p;});
+  fattExtraStato.prezzi.push(nuovo[0]);
   registraSceltaFattExtra(s[0]);
   return aggiorna?'Listino aggiornato: '+cod+' '+(prima==null?'nessun prezzo':przFattExtra(prima))+' → '+przFattExtra(p)+' (valido dal '+dataFattExtra(vd)+')'
     :'Prezzo di '+cod+' salvato nello storico dal '+dataFattExtra(vd)+': il listino attuale non cambia';
@@ -10922,7 +10993,8 @@ async function ripristinaAggiornaFattExtra(s){
     if(!await patchVerificatoExtra('listino',filtro,{prezzo:s.prezzo_prima,aggiornato:new Date().toISOString()})){alert('Modifica rifiutata dal database, la scelta resta.');return false;}
     fattExtraStato.listino.forEach(function(l){if(l.codice===s.listino_codice&&l.cliente===s.listino_cliente)l.prezzo=s.prezzo_prima;});
   }
-  await cancellaFattExtra('listino_prezzi','id=eq.'+s.listino_prezzi_id);
+  if(await cancellaFattExtra('listino_prezzi','id=eq.'+s.listino_prezzi_id))
+    fattExtraStato.prezzi=fattExtraStato.prezzi.filter(function(x){return x.id!==s.listino_prezzi_id;});
   return '';
 }
 async function annullaSceltaFattExtra(fi,k){
@@ -10980,6 +11052,233 @@ async function segnaCorrettaFattExtra(id){
     }
     await caricaDaSistemareFattExtra();
   }finally{fattExtraSalva=false;}
+}
+
+// ── EXTRA: aggiorna listino da Excel (export listino di Nova, un file per cliente) → listino + listino_prezzi (fonte 'excel') ──
+var lisXlsStato=null,lisXlsSalva=false;
+// Prezzo dalla cella: numero così com'è (es. 20.988, niente arrotondamento a 2 decimali); testo italiano "20,988" o "1.234,5"
+function prezzoXlsExtra(v){
+  if(typeof v==='number')return isFinite(v)?Math.round(v*10000)/10000:NaN;
+  var s=String(v==null?'':v).replace(/[€\s]/g,'');
+  if(!s)return NaN;
+  if(s.indexOf(',')>=0)s=s.replace(/\./g,'').replace(',','.');
+  var n=Number(s);
+  return isFinite(n)?Math.round(n*10000)/10000:NaN;
+}
+// Righe del foglio (array di array) → {info:{listino,descrizione}, cliente proposto, righe:[{codice,descrizione,prezzo}], asterischi, senza:[codici], doppi:[codici]} o {errore}
+function parseListinoNovaExtra(rows){
+  var info={listino:'',descrizione:''},h=-1,ci=-1,cd=-1,cp=-1;
+  function valore(cells,k){
+    var t=cells[k].replace(/^[^:]*:\s*/,'');if(t)return t;
+    for(var q=k+1;q<cells.length;q++)if(cells[q])return cells[q];
+    return '';
+  }
+  for(var i=0;i<Math.min(rows.length,20);i++){
+    var cells=(rows[i]||[]).map(function(x){return String(x==null?'':x).trim();});
+    var low=cells.map(function(x){return x.toLowerCase();});
+    var a=low.indexOf('articolo'),p=low.indexOf('prezzo');
+    if(a>=0&&p>=0){h=i;ci=a;cp=p;cd=low.indexOf('descrizione');break;}
+    var k=low.findIndex(function(x){return x.indexOf('listino:')===0;});
+    if(k>=0&&!info.listino)info.listino=valore(cells,k);
+    k=low.findIndex(function(x){return x.indexOf('descrizione:')===0;});
+    if(k>=0&&!info.descrizione)info.descrizione=valore(cells,k);
+  }
+  if(h<0)return{errore:'Riga dei titoli non trovata: servono le colonne "articolo" e "prezzo"'};
+  var righe=[],perCod={},asterischi=0,senza=[],doppi=[];
+  for(i=h+1;i<rows.length;i++){
+    var r=rows[i]||[],cod=normCodiceExtra(r[ci]);
+    if(!cod)continue;
+    if(cod==='*'){asterischi++;continue;}
+    var pz=prezzoXlsExtra(r[cp]);
+    if(isNaN(pz)||pz<=0){if(senza.indexOf(cod)<0)senza.push(cod);continue;}
+    if(perCod[cod]){if(!stessoNumExtra(perCod[cod].prezzo,pz,10000)&&doppi.indexOf(cod)<0)doppi.push(cod);continue;}
+    perCod[cod]={codice:cod,descrizione:cd>=0?String(r[cd]==null?'':r[cd]).trim():'',prezzo:pz};
+    righe.push(perCod[cod]);
+  }
+  righe=righe.filter(function(x){return doppi.indexOf(x.codice)<0;});
+  return{info:info,cliente:clienteListinoFattExtra(info.descrizione),righe:righe,asterischi:asterischi,senza:senza,doppi:doppi};
+}
+// Listino e storico freschi dal database (tutti i clienti). null = errore
+async function caricaDatiListinoXlsExtra(){
+  var res=await Promise.all([
+    leggiTuttoFattExtra('listino','select=codice,cliente,descrizione,prezzo&order=codice.asc,cliente.asc'),
+    leggiTuttoFattExtra('listino_prezzi','select=id,codice,cliente,prezzo,valido_dal,fonte&order=id.asc')
+  ]);
+  return res[0]===null||res[1]===null?null:{listino:res[0],prezzi:res[1]};
+}
+// Cosa fare per ogni codice del file. Regola A: "prima" = prezzo valido alla data scelta.
+// Regola B: riga dello storico con stessa data → stesso prezzo niente, prezzo diverso si corregge quella riga.
+function pianoListinoXlsExtra(letto,dati,cl,vd){
+  var clN=normTestoExtra(cl),mio={},altro={},stor={};
+  dati.listino.forEach(function(l){var k=normCodiceExtra(l.codice);if(normTestoExtra(l.cliente)===clN)mio[k]=l;else if(!altro[k])altro[k]=l;});
+  dati.prezzi.forEach(function(x){if(normTestoExtra(x.cliente)===clN)(stor[normCodiceExtra(x.codice)]=stor[normCodiceExtra(x.codice)]||[]).push(x);});
+  stor=mappaStoricoListinoExtra([].concat.apply([],Object.keys(stor).map(function(k){return stor[k];})));
+  var piano={cambiati:[],invariati:[],nuovi:[],altroCliente:[],nonNelFile:[]},nelFile={};
+  letto.senza.forEach(function(c){nelFile[c]=1;});
+  letto.righe.forEach(function(r){
+    nelFile[r.codice]=1;
+    var st=stor[r.codice]||[],stessa=st.find(function(x){return String(x.valido_dal)===vd;})||null;
+    var lis=mio[r.codice];
+    if(!lis){
+      if(altro[r.codice]){piano.altroCliente.push({r:r,altro:altro[r.codice]});return;}
+      piano.nuovi.push({r:r,storico:!(stessa&&stessoNumExtra(stessa.prezzo,r.prezzo,10000)),stessa:stessa});
+      return;
+    }
+    var attuale=lis.prezzo==null?null:Number(lis.prezzo);
+    var pa=prezzoAllaDataExtra(stor,r.codice,attuale,vd);
+    var dopo=st.find(function(x){return String(x.valido_dal)>vd;})||null; // prezzo con decorrenza successiva (il più recente)
+    var serveSt=stessa?!stessoNumExtra(stessa.prezzo,r.prezzo,10000):(pa.prezzo==null||!stessoNumExtra(pa.prezzo,r.prezzo,10000));
+    var serveLis=!dopo&&(attuale==null||!stessoNumExtra(attuale,r.prezzo,10000));
+    if(!serveSt&&!serveLis){piano.invariati.push({r:r,lis:lis});return;}
+    piano.cambiati.push({r:r,lis:lis,attuale:attuale,prima:pa.prezzo,
+      correggi:serveSt&&stessa?stessa:null,nuovaRiga:serveSt&&!stessa,iniziale:serveSt&&!stessa&&!st.length&&attuale!=null,
+      aggiornaListino:serveLis,dopo:dopo});
+  });
+  Object.keys(mio).sort().forEach(function(k){if(!nelFile[k])piano.nonNelFile.push(mio[k]);});
+  return piano;
+}
+function firmaPianoListinoXlsExtra(p){
+  return p.cambiati.map(function(x){return x.r.codice+'='+x.r.prezzo+(x.correggi?'c':'')+(x.nuovaRiga?'n':'')+(x.iniziale?'i':'')+(x.aggiornaListino?'l':'');}).join(',')
+    +'|'+p.nuovi.map(function(x){return x.r.codice+(x.storico?'s':'');}).join(',');
+}
+async function leggiExcelListinoExtra(input){
+  var file=input.files&&input.files[0];
+  input.value='';
+  if(!file)return;
+  var ant=document.getElementById('ext-lis-anteprima');
+  ant.innerHTML='<div class="empty">Lettura file...</div>';
+  var letto;
+  try{
+    var wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    letto=parseListinoNovaExtra(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''}));
+  }catch(e){console.error(e);ant.innerHTML='';showMsg('msg-ext-lis','Errore nella lettura del file: '+escAbb(e.message),'err');return;}
+  if(letto.errore){ant.innerHTML='';showMsg('msg-ext-lis',escAbb(letto.errore),'err');return;}
+  if(!letto.righe.length){ant.innerHTML='';showMsg('msg-ext-lis','Nessun articolo con prezzo trovato nel file','err');return;}
+  var dati=await caricaDatiListinoXlsExtra();
+  if(!dati){ant.innerHTML='';showMsg('msg-ext-lis','Errore di collegamento, riprova','err');return;}
+  lisXlsStato={nomeFile:file.name,letto:letto,dati:dati,piano:null};
+  document.getElementById('ext-lis-info').innerHTML='<b>'+escAbb(file.name)+'</b>'
+    +(letto.info.listino?'<br>Listino: <b>'+escAbb(letto.info.listino)+'</b>':'')
+    +(letto.info.descrizione?'<br>Descrizione: <b>'+escAbb(letto.info.descrizione)+'</b>':'')
+    +'<br>'+letto.righe.length+' articoli con prezzo';
+  document.getElementById('ext-lis-cliente').value=letto.cliente||'';
+  document.getElementById('ext-lis-form').style.display='';
+  anteprimaListinoXlsExtra();
+}
+function anteprimaListinoXlsExtra(){
+  var s=lisXlsStato,ant=document.getElementById('ext-lis-anteprima');
+  if(!s)return;
+  var cl=document.getElementById('ext-lis-cliente').value,vd=document.getElementById('ext-lis-dal').value;
+  s.piano=null;
+  if(!cl){ant.innerHTML='<div class="ext-avviso">Scegli il cliente</div>';return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(vd)){ant.innerHTML='<div class="ext-avviso">Scegli la data "valido dal" (obbligatoria)</div>';return;}
+  s.cl=cl;s.vd=vd;
+  s.piano=pianoListinoXlsExtra(s.letto,s.dati,cl,vd);
+  ant.innerHTML=htmlPianoListinoXlsExtra(s);
+}
+function htmlPianoListinoXlsExtra(s){
+  var p=s.piano,L=s.letto,h='';
+  var testa=function(x){return '<div><b class="ext-cod">'+escAbb(x.codice)+'</b> '+escAbb(x.descrizione||'')+'</div>';};
+  var gruppo=function(tit,n,aperto,corpo){return '<details class="ext-lis-gr"'+(aperto&&n?' open':'')+'><summary>'+tit+' ('+n+')</summary>'+(n?corpo:'<div class="ext-lis-riga" style="color:#999;">nessuno</div>')+'</details>';};
+  if(L.cliente&&L.cliente!==s.cl)h+='<div class="ext-avviso">⚠ Il file sembra del listino '+escAbb(nomeListinoFattExtra(L.cliente))+', hai scelto '+escAbb(nomeListinoFattExtra(s.cl))+'</div>';
+  h+=gruppo('CAMBIATI',p.cambiati.length,true,p.cambiati.map(function(x){
+    var pc=x.prima?Math.round((x.r.prezzo-x.prima)/x.prima*1000)/10:null;
+    var note=[];
+    if(x.correggi)note.push('corregge il prezzo già caricato valido dal '+dataFattExtra(vdLis(x.correggi))+' ('+przFattExtra(x.correggi.prezzo)+')');
+    if(x.dopo)note.push('c\'è già un prezzo valido dal '+dataFattExtra(vdLis(x.dopo))+' ('+przFattExtra(x.dopo.prezzo)+'): il listino attuale ('+(x.attuale==null?'nessun prezzo':przFattExtra(x.attuale))+') non cambia');
+    else if(!x.nuovaRiga&&!x.correggi)note.push('prezzo già nello storico: aggiorno solo il listino attuale ('+(x.attuale==null?'nessun prezzo':przFattExtra(x.attuale))+')');
+    return '<div class="ext-lis-riga">'+testa({codice:x.lis.codice,descrizione:x.r.descrizione||x.lis.descrizione})
+      +'<div class="ext-lis-num"><span><s>'+(x.prima==null?'nessun prezzo':escAbb(przFattExtra(x.prima)))+'</s> → <b>'+escAbb(przFattExtra(x.r.prezzo))+'</b></span>'
+      +(pc==null?'':'<span class="'+(pc>0?'ext-lis-su':pc<0?'ext-lis-giu':'')+'">'+(pc>0?'+':'')+escAbb(numFattExtra(pc,1,1))+'%</span>')+'</div>'
+      +note.map(function(n){return '<div class="ext-lis-nota">'+escAbb(n)+'</div>';}).join('')+'</div>';
+  }).join(''));
+  h+=gruppo('INVARIATI',p.invariati.length,false,p.invariati.map(function(x){
+    return '<div class="ext-lis-riga">'+testa({codice:x.lis.codice,descrizione:x.r.descrizione||x.lis.descrizione})+'<div class="ext-lis-num"><span>'+escAbb(przFattExtra(x.r.prezzo))+'</span></div></div>';
+  }).join(''));
+  h+=gruppo('NUOVI',p.nuovi.length,true,p.nuovi.map(function(x){
+    return '<div class="ext-lis-riga">'+testa(x.r)+'<div class="ext-lis-num"><span>'+escAbb(przFattExtra(x.r.prezzo))+'</span><span>non nel listino dell\'app</span></div></div>';
+  }).join(''));
+  h+=gruppo('NON NEL FILE',p.nonNelFile.length,false,'<div class="ext-lis-nota" style="padding:4px 0;">Nel listino dell\'app ma non nel file: non li tocco.</div>'+p.nonNelFile.map(function(l){
+    return '<div class="ext-lis-riga">'+testa(l)+'<div class="ext-lis-num"><span>'+(l.prezzo==null?'nessun prezzo':escAbb(przFattExtra(l.prezzo)))+'</span></div></div>';
+  }).join(''));
+  var saltati=p.altroCliente.length+L.doppi.length+L.senza.length;
+  if(saltati||L.asterischi){
+    h+='<details class="ext-lis-gr"><summary>SALTATI ('+(saltati+L.asterischi)+')</summary>'
+      +(L.asterischi?'<div class="ext-lis-riga">'+L.asterischi+' righe con articolo "*"</div>':'')
+      +(L.senza.length?'<div class="ext-lis-riga">Senza prezzo: '+escAbb(L.senza.join(', '))+'</div>':'')
+      +(L.doppi.length?'<div class="ext-lis-riga ext-lis-nota">Nel file due volte con prezzi diversi (non salvati): '+escAbb(L.doppi.join(', '))+'</div>':'')
+      +p.altroCliente.map(function(x){return '<div class="ext-lis-riga ext-lis-nota">'+escAbb(x.r.codice)+' è già nel listino '+escAbb(nomeListinoFattExtra(x.altro.cliente))+': non aggiunto</div>';}).join('')
+      +'</details>';
+  }
+  var nScr=p.cambiati.length+p.nuovi.length;
+  if(!nScr)return h+'<div class="ext-fatt-msg ok">Niente da aggiornare: il listino è già uguale al file</div>'
+    +'<button class="btn btn-gray btn-sm" onclick="chiudiListinoXlsExtra()">CHIUDI</button>';
+  return h+'<div class="ext-avviso">Con OK scrivo '+p.cambiati.length+' cambiati e '+p.nuovi.length+' nuovi nel listino '+escAbb(nomeListinoFattExtra(s.cl))+', valido dal '+escAbb(dataFattExtra(s.vd))+'. Gli invariati non si toccano.</div>'
+    +'<div class="ext-lis-btn"><button class="btn btn-green" id="ext-lis-ok" onclick="confermaListinoXlsExtra()">OK</button>'
+    +'<button class="btn btn-gray" onclick="chiudiListinoXlsExtra()">ANNULLA</button></div>';
+}
+function vdLis(x){return String(x.valido_dal).slice(0,10);}
+function chiudiListinoXlsExtra(){
+  lisXlsStato=null;
+  document.getElementById('ext-lis-form').style.display='none';
+  document.getElementById('ext-lis-anteprima').innerHTML='';
+}
+// Inserimento a blocchi da 500. → numero di righe scritte (si ferma al primo errore)
+async function postBlocchiExtra(t,arr){
+  for(var i=0;i<arr.length;i+=500){if(!await apiPost(t,arr.slice(i,i+500)))return i;}
+  return arr.length;
+}
+// PATCH in parallelo (8 alla volta). lista: [{t,f,b}] → numero riusciti
+async function patchBlocchiExtra(lista){
+  var ok=0;
+  for(var i=0;i<lista.length;i+=8){
+    var r=await Promise.all(lista.slice(i,i+8).map(function(x){return patchVerificatoExtra(x.t,x.f,x.b);}));
+    r.forEach(function(v){if(v)ok++;});
+  }
+  return ok;
+}
+async function confermaListinoXlsExtra(){
+  var s=lisXlsStato;
+  if(lisXlsSalva||!s||!s.piano)return;
+  lisXlsSalva=true;
+  var btn=document.getElementById('ext-lis-ok');if(btn)btn.disabled=true;
+  try{
+    // Ricontrollo sui dati freschi: se il listino è cambiato nel frattempo si rifà l'anteprima
+    var dati=await caricaDatiListinoXlsExtra();
+    if(!dati){showMsg('msg-ext-lis','Errore di collegamento, niente è stato scritto. Riprova','err');return;}
+    var piano=pianoListinoXlsExtra(s.letto,dati,s.cl,s.vd);
+    if(firmaPianoListinoXlsExtra(piano)!==firmaPianoListinoXlsExtra(s.piano)){
+      s.dati=dati;anteprimaListinoXlsExtra();
+      showMsg('msg-ext-lis','Il listino è cambiato nel frattempo: ricontrolla l\'anteprima e premi di nuovo OK','err');return;
+    }
+    var op=getOperatore()||null,vd=s.vd,cl=s.cl,ora=new Date().toISOString(),errori=[];
+    var riga=function(codice,cliente,prezzo,dal,fonte){return{codice:codice,cliente:cliente,prezzo:prezzo,valido_dal:dal,fonte:fonte,fattura_numero:null,inserito_da:op};};
+    showMsg('msg-ext-lis','Scrittura in corso...','ok');
+    // 1) prezzo vecchio come 'iniziale' (primo cambio dell'articolo)  2) nuove righe 'excel' nello storico
+    var ini=piano.cambiati.filter(function(x){return x.iniziale;}).map(function(x){return riga(x.lis.codice,x.lis.cliente,x.attuale,'2000-01-01','iniziale');});
+    var nIni=await postBlocchiExtra('listino_prezzi',ini);
+    if(nIni<ini.length)errori.push('storico iniziale '+nIni+'/'+ini.length);
+    var nuove=errori.length?[]:piano.cambiati.filter(function(x){return x.nuovaRiga;}).map(function(x){return riga(x.lis.codice,x.lis.cliente,x.r.prezzo,vd,'excel');})
+      .concat(piano.nuovi.filter(function(x){return x.storico&&!x.stessa;}).map(function(x){return riga(x.r.codice,cl,x.r.prezzo,vd,'excel');}));
+    var nNuove=errori.length?0:await postBlocchiExtra('listino_prezzi',nuove);
+    if(nNuove<nuove.length)errori.push('storico '+nNuove+'/'+nuove.length);
+    if(!errori.length){
+      // 3) correzioni della riga con la stessa data (regola B)  4) prezzo attuale nel listino
+      var patch=piano.cambiati.filter(function(x){return x.correggi;}).map(function(x){return{t:'listino_prezzi',f:'id=eq.'+x.correggi.id,b:{prezzo:x.r.prezzo,fonte:'excel',inserito_da:op}};})
+        .concat(piano.nuovi.filter(function(x){return x.storico&&x.stessa;}).map(function(x){return{t:'listino_prezzi',f:'id=eq.'+x.stessa.id,b:{prezzo:x.r.prezzo,fonte:'excel',inserito_da:op}};}))
+        .concat(piano.cambiati.filter(function(x){return x.aggiornaListino;}).map(function(x){return{t:'listino',f:'codice=eq.'+encodeURIComponent(x.lis.codice)+'&cliente=eq.'+encodeURIComponent(x.lis.cliente),b:{prezzo:x.r.prezzo,aggiornato:ora}};}));
+      var nPatch=await patchBlocchiExtra(patch);
+      if(nPatch<patch.length)errori.push('aggiornamenti '+nPatch+'/'+patch.length);
+      // 5) articoli nuovi nel listino
+      var nuovi=piano.nuovi.map(function(x){return{codice:x.r.codice,cliente:cl,descrizione:x.r.descrizione,prezzo:x.r.prezzo};});
+      var nNuovi=await postBlocchiExtra('listino',nuovi);
+      if(nNuovi<nuovi.length)errori.push('nuovi articoli '+nNuovi+'/'+nuovi.length);
+    }
+    s.dati=await caricaDatiListinoXlsExtra()||dati;
+    anteprimaListinoXlsExtra();
+    if(errori.length)showMsg('msg-ext-lis','Scrittura interrotta ('+escAbb(errori.join(', '))+'). Ricarica lo stesso file con la stessa data per completare: non crea doppioni','err');
+    else showMsg('msg-ext-lis','Listino '+escAbb(nomeListinoFattExtra(cl))+' aggiornato: '+piano.cambiati.length+' prezzi cambiati, '+piano.nuovi.length+' articoli nuovi (valido dal '+escAbb(dataFattExtra(vd))+')','ok');
+  }finally{lisXlsSalva=false;var b=document.getElementById('ext-lis-ok');if(b)b.disabled=false;}
 }
 
 // Campi QUANTITÀ e PREZZO UNITARIO: visibili solo in modifica di righe che li hanno
