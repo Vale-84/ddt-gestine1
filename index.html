@@ -139,6 +139,24 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .ext-tab tr.f-rosso td { background: #FFC7CE; }
 .ext-tab tr.f-arancio td { background: #FCE4D6; }
 .ext-tab tr.f-rosso .ext-info .warn { color: #C00000; }
+.ext-tab tr.f-grigio td { background: #E7E6E6; color: #595959; }
+/* Controllo fattura: scelte sulle righe con prezzo diverso */
+.ext-scelte { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ext-scelte .btn { flex: 1 1 200px; width: auto; margin: 0; padding: 10px 8px; font-size: 12px; }
+.ext-scelta-fatta { margin-top: 6px; font-size: 12px; font-weight: bold; }
+.ext-scelta-fatta.aggiorna { color: #375623; }
+.ext-scelta-fatta.speciale { color: #595959; }
+.ext-scelta-fatta.sbagliata { color: #C00000; }
+.ext-scelta-fatta a { display: inline-block; font-weight: normal; color: #1F4E79; margin-left: 6px; padding: 4px 0; white-space: nowrap; }
+.ext-ante-riga { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding: 4px 0; border-bottom: 1px solid #eee; }
+.ext-ante-riga s { color: #999; }
+.ext-ante-nota { font-size: 12px; color: #666; margin-top: 6px; }
+.ext-nova { margin-top: 12px; border: 2px solid #C00000; border-radius: 10px; padding: 8px 10px; background: #fff; }
+.ext-nova h3 { color: #C00000; font-size: 15px; margin: 0 0 4px; }
+.ext-nova-riga { border-top: 1px solid #eee; padding: 8px 0; font-size: 13px; }
+.ext-nova-num { display: flex; flex-wrap: wrap; gap: 2px 12px; color: #555; margin: 4px 0 6px; }
+.ext-nova-num .d { color: #C00000; font-weight: bold; }
+.ext-nova-riga .btn { margin-bottom: 0; }
 .ext-fatt-ddt td { background: #DDEBF7 !important; color: #1F4E79; font-weight: bold; font-size: 12px; }
 @media (max-width: 600px) { .ext-tab tr.ext-fatt-ddt td::before { display: none; } }
 .ext-ddt-tot { text-align: right; font-weight: bold; color: #217346; font-size: 15px; margin-bottom: 8px; }
@@ -1276,11 +1294,12 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
   </div>
   <div class="card">
     <h2>Controlla fattura PDF</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Prima dell'invio allo SDI: confronta la fattura di Nova con i DDT caricati qui. Non salva niente.</p>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">Prima dell'invio allo SDI: confronta la fattura di Nova con i DDT caricati qui. Sulle righe con prezzo diverso scegli cosa fare: la scelta resta salvata.</p>
     <input type="file" id="ext-fatt-pdf" class="pdf-input" accept="application/pdf,.pdf" onchange="controllaFatturaExtra(this)">
     <button class="btn btn-blue" onclick="document.getElementById('ext-fatt-pdf').click()">CONTROLLA FATTURA PDF</button>
     <div id="msg-ext-fatt"></div>
     <div id="ext-fatt-esito"></div>
+    <div id="ext-fatt-nova"></div>
   </div>
   <div class="card">
     <h2>Lavori inseriti</h2>
@@ -1647,7 +1666,7 @@ function salvaConfig(){
 // BACKUP: tutte le tabelle dell'app in un Excel, un foglio per tabella. Solo GET, tutti i clienti
 // (fetch diretto: apiGet filtrerebbe alcune tabelle sul cliente attivo)
 var TABELLE_BACKUP=['articoli','ddt_entrata','ddt_uscita','sostituzioni','abbinamenti_ber','abbinamenti_azzurra','sostituzioni_ber','sostituzioni_azzurra',
-  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria','saldo_iniziale_azzurra'];
+  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria','saldo_iniziale_azzurra','listino_prezzi','fattura_scelte'];
 // Ordine stabile per i blocchi da 1000 (le tabelle senza id hanno un'altra chiave)
 var ORDINE_BACKUP={listino:'codice.asc,cliente.asc',impostazioni_azzurra:'chiave.asc'};
 async function leggiTabellaBackup(t){
@@ -2002,7 +2021,7 @@ function showPage(name,el){
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
   if(name==='dettaglio')resetDettaglioArt();
-  if(name==='extra')caricaExtra();
+  if(name==='extra'){caricaExtra();caricaDaSistemareFattExtra();}
   if(name==='sost-ber')caricaSostituzioni();
   if(name==='riepilogo-ber')caricaRiepilogoBerNew();
   if(name==='controllo-date')caricaControlloDate();
@@ -10016,7 +10035,7 @@ function dataFattExtra(iso){var p=String(iso||'').slice(0,10).split('-');return 
 // Listino ({codice,prezzo,cliente}) → {CODICE:{prezzo,cliente}}
 function mappaListinoFattExtra(lista){
   var m={};
-  (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]={prezzo:Number(l.prezzo),cliente:l.cliente||''};});
+  (lista||[]).forEach(function(l){if(l.codice!=null&&l.prezzo!=null)m[normCodiceExtra(l.codice)]={prezzo:Number(l.prezzo),cliente:l.cliente||'',codiceDb:l.codice};});
   return m;
 }
 // AZZURRA e BERGAMASCO hanno i DDT in ddt_uscita; tutti gli altri in lavori_extra
@@ -10059,7 +10078,8 @@ function confrontaFatturaExtra(fattura,lavori,opz){
     e.usaUscita=e.codiceVero&&!!gruppo;
     return e;
   });
-  function rosso(e,s){e.rosso=true;e.motivi.push({t:'warn',s:s});}
+  // r: motivo rosso; p: rosso per prezzo diverso (su queste righe si può scegliere cosa fare)
+  function rosso(e,s,p){e.rosso=true;e.motivi.push({t:'warn',s:s,r:true,p:!!p});if(p)e.prezzoDiverso=true;}
   function arancio(e,s){e.arancio=true;e.motivi.push({t:'warn',s:s});}
   function bene(e,s){e.motivi.push({t:'ok',s:s});}
 
@@ -10109,7 +10129,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
           if(stessoNumExtra(e.prezzoListino,r.prezzo,10000))bene(e,'prezzo uguale al listino');
           else{
             e.diff=Math.round((r.importo-Math.round(r.quantita*e.prezzoListino*100)/100)*100)/100;
-            rosso(e,'in fattura '+przFattExtra(r.prezzo)+', listino '+przFattExtra(e.prezzoListino)+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''));
+            rosso(e,'in fattura '+przFattExtra(r.prezzo)+', listino '+przFattExtra(e.prezzoListino)+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''),true);
           }
         }
       }
@@ -10134,7 +10154,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
         e.prezzoOk=e.app.prezzo_unitario!=null&&stessoNumExtra(e.prezzoApp,r.prezzo,10000);
         e.diff=Math.round(((isNaN(r.importo)?0:r.importo)-(Number(e.app.importo)||0))*100)/100;
         if(e.prezzoOk)bene(e,'prezzo uguale all\'app');
-        else rosso(e,'in fattura '+(isNaN(r.prezzo)?'nessun prezzo':przFattExtra(r.prezzo))+', nell\'app '+(e.app.prezzo_unitario==null?'nessun prezzo':przFattExtra(e.prezzoApp))+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''));
+        else rosso(e,'in fattura '+(isNaN(r.prezzo)?'nessun prezzo':przFattExtra(r.prezzo))+', nell\'app '+(e.app.prezzo_unitario==null?'nessun prezzo':przFattExtra(e.prezzoApp))+(e.diff?' (differenza '+segnoFattExtra(e.diff)+')':''),true);
       }else bene(e,'quantità uguale all\'app');
       if(e.qtaDiversa){e.motivi=e.motivi.filter(function(m){return m.s!=='quantità uguale all\'app';});arancio(e,'quantità diversa: in fattura '+qtaFattExtra(r.quantita)+', nell\'app '+qtaFattExtra(e.app.quantita));}
       if(e.incerto)arancio(e,'abbinamento incerto: controlla la riga');
@@ -10489,19 +10509,24 @@ async function controllaFatturaExtra(input){
   var res=await Promise.all([
     apiGet('lavori_extra','select=*&order=data.desc,id.desc&limit=5000'),
     leggiTuttoFattExtra('listino','select=codice,prezzo,cliente&order=codice.asc'),
-    ddt.length?leggiTuttoFattExtra('ddt_uscita','select=id,numero_ddt,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt&numero_ddt=in.('+ddt.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=id.asc'):Promise.resolve([])
+    ddt.length?leggiTuttoFattExtra('ddt_uscita','select=id,numero_ddt,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt&numero_ddt=in.('+ddt.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=id.asc'):Promise.resolve([]),
+    caricaScelteFattExtra(fatture)
   ]);
   if(res[0]===null||res[1]===null||res[2]===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
-  fattExtraStato={fatture:fatture,lavori:res[0],listino:res[1],uscita:res[2],nomeFile:file.name,esiti:null};
-  fattExtraPrezzo=null;fattExtraTutti=null;
+  fattExtraStato={fatture:fatture,lavori:res[0],listino:res[1],uscita:res[2],nomeFile:file.name,esiti:null,scelteOk:res[3]!==null,scelte:{}};
+  (res[3]||[]).forEach(registraSceltaFattExtra);
+  if(res[3]===null)showMsg('msg-ext-fatt','Scelte sulle righe non disponibili (tabella fattura_scelte non raggiungibile): il controllo funziona lo stesso','err');
+  fattExtraPrezzo=null;fattExtraTutti=null;fattExtraScelta=null;
   rifaiFattureExtra();
+  caricaDaSistemareFattExtra();
 }
 
 // Ultimo controllo fattura: tenuto per ricontrollare le righe dopo un "+ LISTINO"
 var fattExtraStato=null,fattExtraSalva=false;
 function rifaiFattureExtra(){
   var s=fattExtraStato,opz={listino:mappaListinoFattExtra(s.listino),uscita:s.uscita};
-  s.esiti=s.fatture.map(function(f){return{f:f,c:confrontaFatturaExtra(f,s.lavori,opz)};});
+  s.mappa=opz.listino;
+  s.esiti=s.fatture.map(function(f){var c=confrontaFatturaExtra(f,s.lavori,opz);applicaScelteFattExtra(f,c,s.scelteOk?s.scelte:null);return{f:f,c:c};});
   document.getElementById('ext-fatt-esito').innerHTML=htmlFattureExtra(s.esiti,s.nomeFile);
 }
 // Listino in cui va il codice, dal cliente della fattura ('' = cliente senza listino)
@@ -10631,6 +10656,7 @@ function htmlFatturaExtra(f,c,nomeFile,fi){
     +'<span style="background:#E2EFDA;color:#375623;">'+c.conta.verde+' verdi</span>'
     +'<span style="background:#FFC7CE;color:#C00000;">'+c.conta.rosso+' rosse</span>'
     +'<span style="background:#FCE4D6;color:#C55A11;">'+c.conta.arancio+' arancioni</span>'
+    +(c.conta.grigio?'<span style="background:#E7E6E6;color:#595959;">'+c.conta.grigio+' accettate</span>':'')
     +(c.mancanti.length?'<span style="background:#FCE4D6;color:#C55A11;">'+c.mancanti.length+' mancano in fattura</span>':'')
     +'</div>';
   if(c.diffTot!==0)h+='<div class="ext-avviso">Differenza totale fattura − app/listino: '+(c.diffTot>0?'+':'')+fmtEuroExtra(c.diffTot)+'</div>';
@@ -10650,6 +10676,7 @@ function htmlFatturaExtra(f,c,nomeFile,fi){
       +'<td class="desc">'+(e.codiceVero?'<b class="ext-cod">'+escAbb(e.codice)+'</b> ':'')+escAbb(r.descrizione)
       +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
       +'<div class="ext-info">'+info.join('<br>')+'</div>'
+      +htmlSceltaRigaFattExtra(fi,k,e)
       +(!rigaListinoFattExtra(f,e)?'':fattExtraPrezzo&&fattExtraPrezzo.i===fi&&fattExtraPrezzo.k===k?htmlPrezzoListinoFattExtra(fi,k)
         :'<button class="btn btn-green btn-listino" onclick="aggiungiListinoFattExtra('+fi+','+k+')">+ LISTINO</button>')+'</td>'
       +'<td class="num" data-l="Quantità">'+(isNaN(r.quantita)?'-':fmtNumExtra(r.quantita))+' '+escAbb(r.um)+'</td>'
@@ -10668,6 +10695,291 @@ function htmlFatturaExtra(f,c,nomeFile,fi){
   }
   h+='<table class="ext-tab"><thead><tr><th>Descrizione</th><th style="text-align:right;">Quantità</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Importo</th></tr></thead><tbody>'+righe+'</tbody></table>';
   return h;
+}
+
+// ── Controllo fattura: scelte sulle righe rosse per prezzo diverso (tabella fattura_scelte) ──
+// 'aggiorna' = fattura giusta, prezzo scritto nell'app (listino + listino_prezzi, oppure riga del DDT in lavori_extra)
+// 'speciale' = prezzo accettato solo per questa riga (grigia); 'sbagliata' = da correggere in Nova (elenco "Da sistemare in Nova")
+var fattExtraScelta=null; // anteprima "aggiorna app" aperta: {i,k}
+function annoFattExtra(f){var a=parseInt(String(f.data||'').slice(0,4),10);return isNaN(a)?0:a;}
+function chiaveSceltaFattExtra(numero,anno,chiave){return normTestoExtra(numero)+'|'+(Number(anno)||0)+'|'+chiave;}
+function registraSceltaFattExtra(s){fattExtraStato.scelte[chiaveSceltaFattExtra(s.fattura_numero,s.fattura_anno,s.chiave_riga)]=s;}
+function togliSceltaFattExtra(s){var k=chiaveSceltaFattExtra(s.fattura_numero,s.fattura_anno,s.chiave_riga);if(fattExtraStato.scelte[k]&&fattExtraStato.scelte[k].id===s.id)delete fattExtraStato.scelte[k];}
+function p4FattExtra(n){return Math.round(Number(n)*10000)/10000;}
+// Scelte già fatte per le fatture del PDF (null = errore / tabella mancante)
+function caricaScelteFattExtra(fatture){
+  var nr=[];
+  fatture.forEach(function(f){var n=String(f.numero||'').trim();if(n&&nr.indexOf(n)<0)nr.push(n);});
+  if(!nr.length)return Promise.resolve([]);
+  return leggiTuttoFattExtra('fattura_scelte','select=*&fattura_numero=in.('+nr.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=created_at.asc,id.asc');
+}
+// Prezzo con cui la riga è stata confrontata: listino (righe con codice) o riga del DDT nell'app (righe "*")
+function prezzoAppFattExtra(e){
+  if(e.codiceVero)return e.prezzoListino==null?null:e.prezzoListino;
+  return e.app&&e.app.prezzo_unitario!=null?Number(e.app.prezzo_unitario):null;
+}
+// Dopo il confronto (che resta uguale): chiave stabile di ogni riga e scelte salvate.
+// Le righe senza scelta restano come le ha calcolate confrontaFatturaExtra; conteggi e OK si ricalcolano con le stesse regole.
+function applicaScelteFattExtra(f,c,scelte){
+  var anno=annoFattExtra(f),volte={};
+  c.esiti.forEach(function(e){
+    var r=e.riga;
+    var base=normTestoExtra(r.ddt)+'|'+(e.codiceVero?'C'+e.codice:'D'+e.chiave)+'|'+(isNaN(r.quantita)?'':Math.round(r.quantita*1000));
+    volte[base]=(volte[base]||0)+1;
+    e.chiaveRiga=base+'|'+volte[base];
+    e.puoScegliere=!!(e.prezzoDiverso&&String(f.numero||'').trim()&&!isNaN(r.prezzo)&&!isNaN(r.importo)&&(e.codiceVero?e.prezzoListino!=null:!!e.app));
+    var s=scelte&&scelte[chiaveSceltaFattExtra(f.numero,anno,e.chiaveRiga)];
+    // Scelta valida solo se il prezzo in fattura è ancora quello di allora (fattura corretta in Nova → si riconfronta)
+    e.scelta=s&&stessoNumExtra(s.prezzo_fattura,r.prezzo,10000)?s:null;
+    if(e.scelta&&e.scelta.scelta==='speciale'&&e.prezzoDiverso){
+      e.motivi.forEach(function(m){if(m.p){m.t='';m.s+=' — accettato solo questa volta';}});
+      e.diff=0;
+      e.stato=e.motivi.some(function(m){return m.r&&!m.p;})?'rosso':'grigio';
+    }
+  });
+  c.conta={verde:0,rosso:0,arancio:0,grigio:0};
+  c.esiti.forEach(function(e){c.conta[e.stato]++;});
+  c.diffTot=Math.round(c.esiti.reduce(function(t,e){return t+(e.diff||0);},0)*100)/100;
+  c.ok=c.letturaOk&&c.conta.rosso===0&&c.conta.arancio===0&&c.mancanti.length===0;
+}
+function htmlSceltaRigaFattExtra(fi,k,e){
+  var s=e.scelta;
+  if(s){
+    var t=s.scelta==='aggiorna'?'✓ FATTURA GIUSTA · '+(s.tabella==='lavori_extra'?'riga del DDT aggiornata':s.listino_aggiornato===false?'prezzo salvato solo nello storico (c\'è un prezzo più recente)':'listino aggiornato')
+      :s.scelta==='speciale'?'ACCETTATO · prezzo speciale solo questa volta'
+      :s.corretta_il?'✓ segnata come corretta in Nova il '+fmtData(s.corretta_il):'⚠ DA CORREGGERE IN NOVA';
+    return '<div class="ext-scelta-fatta '+s.scelta+'">'+escAbb(t)+' <a href="#" onclick="annullaSceltaFattExtra('+fi+','+k+');return false;">annulla scelta</a></div>';
+  }
+  if(!e.puoScegliere||!fattExtraStato.scelteOk)return '';
+  if(fattExtraScelta&&fattExtraScelta.i===fi&&fattExtraScelta.k===k)return htmlAnteprimaFattExtra(fi,k,e);
+  return '<div class="ext-scelte">'
+    +'<button class="btn btn-green" onclick="apriAggiornaFattExtra('+fi+','+k+')">FATTURA GIUSTA → AGGIORNA APP</button>'
+    +'<button class="btn btn-gray" onclick="salvaSceltaFattExtra('+fi+','+k+',\'speciale\')">PREZZO SPECIALE, SOLO QUESTA VOLTA</button>'
+    +(prezzoAppFattExtra(e)==null?'':'<button class="btn btn-red" onclick="salvaSceltaFattExtra('+fi+','+k+',\'sbagliata\')">FATTURA SBAGLIATA → DA CORREGGERE</button>')
+    +'</div>';
+}
+// "Valido dal" predefinito: data del DDT della riga (poi data fattura, poi oggi)
+function dataDdtRigaFattExtra(f,r){
+  var d=f.ddt.find(function(x){return x.numero===r.ddt;});
+  return d&&d.data?d.data:f.data||oggiISO();
+}
+function htmlAnteprimaFattExtra(fi,k,e){
+  var f=fattExtraStato.esiti[fi].f,r=e.riga,p=p4FattExtra(r.prezzo);
+  var h='<div class="ext-listino-box"><b>Fattura giusta: aggiorno l\'app</b>';
+  if(e.codiceVero){
+    var li=fattExtraStato.mappa[e.codice];
+    h+='<div class="ext-ante-riga"><span>Listino '+escAbb(nomeListinoFattExtra(li.cliente))+'</span><b class="ext-cod">'+escAbb(li.codiceDb)+'</b></div>'
+      +'<div class="ext-ante-riga"><span>Prezzo</span><span><s>'+escAbb(przFattExtra(li.prezzo))+'</s> → <b>'+escAbb(przFattExtra(p))+'</b></span></div>'
+      +'<div class="ext-ante-nota">Valido dal (data del DDT, puoi cambiarla):</div>'
+      +'<input type="date" id="ext-fatt-vd" value="'+escAbb(dataDdtRigaFattExtra(f,r))+'">'
+      +'<div class="ext-ante-nota">Il prezzo di prima resta nello storico prezzi.</div>';
+  }else{
+    var a=e.app,q=Number(a.quantita),imp=Math.round(q*p*100)/100;
+    h+='<div class="ext-ante-riga"><span>Riga del DDT <b>'+escAbb(a.numero_ddt)+'</b>'+(a.data?' del '+escAbb(fmtData(a.data)):'')+' nell\'app</span></div>'
+      +'<div class="ext-ante-riga"><span>Prezzo</span><span><s>'+(a.prezzo_unitario==null?'nessuno':escAbb(przFattExtra(a.prezzo_unitario)))+'</s> → <b>'+escAbb(przFattExtra(p))+'</b></span></div>'
+      +'<div class="ext-ante-riga"><span>Importo ('+escAbb(qtaFattExtra(q))+' × prezzo)</span><span><s>'+(a.importo==null?'nessuno':escAbb(eurFattExtra(a.importo)))+'</s> → <b>'+escAbb(eurFattExtra(imp))+'</b></span></div>';
+  }
+  return h+'<div class="ext-listino-btn"><button class="btn btn-green btn-sm" onclick="confermaAggiornaFattExtra('+fi+','+k+')">OK</button>'
+    +'<button class="btn btn-gray btn-sm" onclick="chiudiAnteprimaFattExtra()">ANNULLA</button></div></div>';
+}
+function apriAggiornaFattExtra(fi,k){fattExtraScelta={i:fi,k:k};fattExtraPrezzo=null;fattExtraTutti=null;rifaiFattureExtra();}
+function chiudiAnteprimaFattExtra(){fattExtraScelta=null;rifaiFattureExtra();}
+// Dati comuni della riga per fattura_scelte
+function datiSceltaFattExtra(f,e,scelta){
+  var r=e.riga;
+  return{fattura_numero:String(f.numero||'').trim(),fattura_anno:annoFattExtra(f),fattura_data:f.data||null,cliente:f.cliente||null,
+    chiave_riga:e.chiaveRiga,numero_ddt:r.ddt||null,codice:e.codiceVero?e.codice:null,descrizione:r.descrizione||null,
+    quantita:isNaN(r.quantita)?null:r.quantita,prezzo_fattura:p4FattExtra(r.prezzo),prezzo_app:prezzoAppFattExtra(e),
+    differenza:e.diff||0,scelta:scelta,inserito_da:getOperatore()||null};
+}
+// DELETE con controllo della risposta
+async function cancellaFattExtra(t,f){
+  var c=getConfig();
+  try{
+    var r=await fetch(c.url+'/rest/v1/'+t+'?'+f,{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+    if(!r.ok)throw new Error(await r.text());
+    return true;
+  }catch(e){console.error(e);return false;}
+}
+async function salvaSceltaFattExtra(fi,k,scelta){
+  if(fattExtraSalva)return;
+  fattExtraSalva=true;
+  try{
+    var x=fattExtraStato.esiti[fi],e=x.c.esiti[k];
+    var s=await apiPost('fattura_scelte',datiSceltaFattExtra(x.f,e,scelta));
+    if(!s||!s[0])return;
+    registraSceltaFattExtra(s[0]);
+    fattExtraScelta=null;
+    rifaiFattureExtra();
+    if(scelta==='sbagliata')caricaDaSistemareFattExtra();
+    showMsg('msg-ext-fatt',scelta==='speciale'?'Prezzo accettato solo per questa riga':'Riga aggiunta a "Da sistemare in Nova"','ok');
+  }finally{fattExtraSalva=false;}
+}
+async function confermaAggiornaFattExtra(fi,k){
+  if(fattExtraSalva)return;
+  var x=fattExtraStato.esiti[fi],e=x.c.esiti[k],p=p4FattExtra(e.riga.prezzo),vd='';
+  if(e.codiceVero){
+    var el=document.getElementById('ext-fatt-vd');vd=el?el.value:'';
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(vd)){alert('Scrivi la data "valido dal"');return;}
+  }
+  fattExtraSalva=true;
+  try{
+    var dati=datiSceltaFattExtra(x.f,e,'aggiorna');
+    var msg=e.codiceVero?await aggiornaListinoDaFattExtra(e,p,vd,dati):await aggiornaLavoroDaFattExtra(e,p,dati);
+    if(!msg)return;
+    fattExtraScelta=null;
+    rifaiFattureExtra();
+    showMsg('msg-ext-fatt',escAbb(msg),'ok');
+  }finally{fattExtraSalva=false;}
+}
+// Bottone 1, righe con codice: storico in listino_prezzi + prezzo attuale in listino (se è il più recente per data). → testo o false
+async function aggiornaListinoDaFattExtra(e,p,vd,dati){
+  var li=fattExtraStato.mappa[e.codice],cod=li.codiceDb,cl=li.cliente,op=getOperatore()||null;
+  var filtro='codice=eq.'+encodeURIComponent(cod)+'&cliente=eq.'+encodeURIComponent(cl);
+  var res=await Promise.all([
+    leggiTuttoFattExtra('listino','select=codice,cliente,prezzo&'+filtro),
+    leggiTuttoFattExtra('listino_prezzi','select=id,prezzo,valido_dal&'+filtro+'&order=valido_dal.desc,id.desc')
+  ]);
+  if(res[0]===null||res[1]===null){alert('Errore di collegamento (listino o listino_prezzi), niente è stato cambiato.');return false;}
+  if(!res[0].length){alert('Il codice '+cod+' non è più nel listino '+nomeListinoFattExtra(cl)+': niente è stato cambiato.');return false;}
+  var prima=res[0][0].prezzo==null?null:Number(res[0][0].prezzo),storico=res[1];
+  // C'è già un prezzo con decorrenza successiva: questo va solo nello storico, il listino resta com'è
+  var dopoVd=storico.length&&String(storico[0].valido_dal)>vd?storico[0]:null;
+  if(dopoVd&&!confirm('Per '+cod+' c\'è già un prezzo valido dal '+dataFattExtra(dopoVd.valido_dal)+' ('+przFattExtra(dopoVd.prezzo)+').\n\nSalvo '+przFattExtra(p)+' valido dal '+dataFattExtra(vd)+' solo nello storico: il listino attuale non cambia. Continuo?'))return false;
+  // Primo cambio di questo articolo: il prezzo in uso finora entra nello storico, così non si perde
+  if(!storico.length&&prima!=null){
+    var ini=await apiPost('listino_prezzi',{codice:cod,cliente:cl,prezzo:prima,valido_dal:'2000-01-01',fonte:'iniziale',inserito_da:op});
+    if(!ini)return false;
+  }
+  var nuovo=await apiPost('listino_prezzi',{codice:cod,cliente:cl,prezzo:p,valido_dal:vd,fonte:'fattura',fattura_numero:dati.fattura_numero,inserito_da:op});
+  if(!nuovo||!nuovo[0])return false;
+  var idNuovo=nuovo[0].id,aggiorna=!dopoVd;
+  if(aggiorna&&!await patchVerificatoExtra('listino',filtro,{prezzo:p,aggiornato:new Date().toISOString()})){
+    await cancellaFattExtra('listino_prezzi','id=eq.'+idNuovo);
+    alert('Listino non aggiornato: modifica rifiutata dal database.');return false;
+  }
+  dati.tabella='listino';dati.listino_codice=cod;dati.listino_cliente=cl;dati.prezzo_prima=prima;dati.prezzo_dopo=p;
+  dati.listino_aggiornato=aggiorna;dati.listino_prezzi_id=idNuovo;
+  var s=await apiPost('fattura_scelte',dati);
+  if(!s||!s[0]){
+    // Scelta non salvata: si torna come prima
+    if(aggiorna)await patchVerificatoExtra('listino',filtro,{prezzo:prima,aggiornato:new Date().toISOString()});
+    await cancellaFattExtra('listino_prezzi','id=eq.'+idNuovo);
+    return false;
+  }
+  if(aggiorna)fattExtraStato.listino.forEach(function(l){if(l.codice===cod&&l.cliente===cl)l.prezzo=p;});
+  registraSceltaFattExtra(s[0]);
+  return aggiorna?'Listino aggiornato: '+cod+' '+(prima==null?'nessun prezzo':przFattExtra(prima))+' → '+przFattExtra(p)+' (valido dal '+dataFattExtra(vd)+')'
+    :'Prezzo di '+cod+' salvato nello storico dal '+dataFattExtra(vd)+': il listino attuale non cambia';
+}
+// Bottone 1, righe "*": prezzo e importo della riga del DDT in lavori_extra. → testo o false
+async function aggiornaLavoroDaFattExtra(e,p,dati){
+  var a=e.app;
+  var cur=await leggiTuttoFattExtra('lavori_extra','select=id,quantita,prezzo_unitario,importo&id=eq.'+a.id);
+  if(cur===null){alert('Errore di collegamento, niente è stato cambiato.');return false;}
+  if(!cur.length){alert('La riga del DDT non c\'è più nell\'app: niente è stato cambiato.');return false;}
+  cur=cur[0];
+  var q=cur.quantita==null?NaN:Number(cur.quantita);
+  if(isNaN(q)){alert('La riga del DDT nell\'app non ha la quantità: aggiornala a mano.');return false;}
+  var imp=Math.round(q*p*100)/100;
+  if(!await patchVerificatoExtra('lavori_extra','id=eq.'+a.id,{prezzo_unitario:p,importo:imp})){alert('Riga del DDT non aggiornata: modifica rifiutata dal database.');return false;}
+  dati.tabella='lavori_extra';dati.riga_app_id=a.id;
+  dati.prezzo_prima=cur.prezzo_unitario==null?null:Number(cur.prezzo_unitario);dati.importo_prima=cur.importo==null?null:Number(cur.importo);
+  dati.prezzo_dopo=p;dati.importo_dopo=imp;
+  var s=await apiPost('fattura_scelte',dati);
+  if(!s||!s[0]){await patchVerificatoExtra('lavori_extra','id=eq.'+a.id,{prezzo_unitario:dati.prezzo_prima,importo:dati.importo_prima});return false;}
+  a.prezzo_unitario=p;a.importo=imp;
+  registraSceltaFattExtra(s[0]);
+  caricaExtra();
+  return 'Riga del DDT '+a.numero_ddt+' aggiornata: '+(dati.prezzo_prima==null?'nessun prezzo':przFattExtra(dati.prezzo_prima))+' → '+przFattExtra(p)+', importo '+eurFattExtra(imp);
+}
+// Annulla del bottone 1: rimette il prezzo di prima solo se nel frattempo non è cambiato niente.
+// → '' rimesso, testo = non toccato (avviso), false = errore (la scelta resta)
+async function ripristinaAggiornaFattExtra(s){
+  if(s.tabella==='lavori_extra'){
+    var cur=await leggiTuttoFattExtra('lavori_extra','select=id,prezzo_unitario,importo&id=eq.'+s.riga_app_id);
+    if(cur===null){alert('Errore di collegamento, riprova.');return false;}
+    if(!cur.length)return 'La riga del DDT non c\'è più nell\'app: niente da rimettere. La riga torna rossa.';
+    cur=cur[0];
+    if(cur.prezzo_unitario==null||!stessoNumExtra(cur.prezzo_unitario,s.prezzo_dopo,10000)||cur.importo==null||!stessoNumExtra(cur.importo,s.importo_dopo,100))
+      return 'La riga del DDT '+(s.numero_ddt||'')+' è stata cambiata nel frattempo: non la tocco. La riga torna solo rossa.';
+    if(!await patchVerificatoExtra('lavori_extra','id=eq.'+s.riga_app_id,{prezzo_unitario:s.prezzo_prima,importo:s.importo_prima})){alert('Modifica rifiutata dal database, la scelta resta.');return false;}
+    var l=fattExtraStato.lavori.find(function(x){return x.id===s.riga_app_id;});
+    if(l){l.prezzo_unitario=s.prezzo_prima;l.importo=s.importo_prima;}
+    caricaExtra();
+    return '';
+  }
+  var filtro='codice=eq.'+encodeURIComponent(s.listino_codice)+'&cliente=eq.'+encodeURIComponent(s.listino_cliente);
+  var res=await Promise.all([
+    leggiTuttoFattExtra('listino','select=codice,cliente,prezzo&'+filtro),
+    leggiTuttoFattExtra('listino_prezzi','select=id&'+filtro+'&id=gt.'+(Number(s.listino_prezzi_id)||0))
+  ]);
+  if(res[0]===null||res[1]===null){alert('Errore di collegamento, riprova.');return false;}
+  var cambiato=!s.listino_prezzi_id||!res[0].length||res[1].length>0
+    ||(s.listino_aggiornato!==false&&(res[0][0].prezzo==null||!stessoNumExtra(res[0][0].prezzo,s.prezzo_dopo,10000)));
+  if(cambiato)return 'Il listino di '+s.listino_codice+' è cambiato nel frattempo (es. import Excel): non lo tocco. La riga torna solo rossa.';
+  if(s.listino_aggiornato!==false){
+    if(!await patchVerificatoExtra('listino',filtro,{prezzo:s.prezzo_prima,aggiornato:new Date().toISOString()})){alert('Modifica rifiutata dal database, la scelta resta.');return false;}
+    fattExtraStato.listino.forEach(function(l){if(l.codice===s.listino_codice&&l.cliente===s.listino_cliente)l.prezzo=s.prezzo_prima;});
+  }
+  await cancellaFattExtra('listino_prezzi','id=eq.'+s.listino_prezzi_id);
+  return '';
+}
+async function annullaSceltaFattExtra(fi,k){
+  if(fattExtraSalva)return;
+  var e=fattExtraStato.esiti[fi].c.esiti[k],s=e.scelta;
+  if(!s)return;
+  var dom=s.scelta!=='aggiorna'?'Annullo la scelta? La riga torna rossa.'
+    :s.tabella==='lavori_extra'?'Annullo la scelta? Rimetto nella riga del DDT il prezzo di prima ('+(s.prezzo_prima==null?'nessun prezzo':przFattExtra(s.prezzo_prima))+') e la riga torna rossa.'
+    :s.listino_aggiornato===false?'Annullo la scelta? Tolgo il prezzo dallo storico e la riga torna rossa.'
+    :'Annullo la scelta? Rimetto nel listino il prezzo di prima ('+(s.prezzo_prima==null?'nessun prezzo':przFattExtra(s.prezzo_prima))+') e la riga torna rossa.';
+  if(!confirm(dom))return;
+  fattExtraSalva=true;
+  try{
+    var avviso='';
+    if(s.scelta==='aggiorna'){avviso=await ripristinaAggiornaFattExtra(s);if(avviso===false)return;}
+    if(!await cancellaFattExtra('fattura_scelte','id=eq.'+s.id)){alert('Errore di collegamento: la scelta non è stata annullata.');return;}
+    togliSceltaFattExtra(s);
+    rifaiFattureExtra();
+    if(s.scelta==='sbagliata')caricaDaSistemareFattExtra();
+    if(avviso)alert(avviso);else showMsg('msg-ext-fatt','Scelta annullata','ok');
+  }finally{fattExtraSalva=false;}
+}
+// ── Elenco "Da sistemare in Nova": righe 'sbagliata' non ancora corrette ──
+async function caricaDaSistemareFattExtra(){
+  var box=document.getElementById('ext-fatt-nova');if(!box)return;
+  var l=await leggiTuttoFattExtra('fattura_scelte','select=*&scelta=eq.sbagliata&corretta_il=is.null&order=created_at.desc,id.desc');
+  box.innerHTML=l?htmlDaSistemareFattExtra(l):'';
+}
+function htmlDaSistemareFattExtra(l){
+  if(!l.length)return '';
+  var tot=Math.round(l.reduce(function(t,s){return t+(Number(s.differenza)||0);},0)*100)/100;
+  return '<div class="ext-nova"><h3>Da sistemare in Nova ('+l.length+')</h3>'
+    +'<div style="font-size:12px;color:#666;margin-bottom:4px;">Totale differenze: <b>'+escAbb(segnoFattExtra(tot))+'</b></div>'
+    +l.map(function(s){
+      return '<div class="ext-nova-riga">'
+        +'<div>Fattura <b>'+escAbb(s.fattura_numero)+'</b>'+(s.fattura_data?' del '+escAbb(dataFattExtra(s.fattura_data)):'')+(s.cliente?' · '+escAbb(s.cliente):'')+'</div>'
+        +'<div>'+(s.codice?'<b class="ext-cod">'+escAbb(s.codice)+'</b> ':'')+escAbb(s.descrizione||'')+'</div>'
+        +'<div class="ext-nova-num">'+(s.numero_ddt?'<span>DDT '+escAbb(s.numero_ddt)+'</span>':'')
+        +'<span>Q.tà <b>'+(s.quantita==null?'-':escAbb(qtaFattExtra(s.quantita)))+'</b></span>'
+        +'<span>Fattura <b>'+escAbb(przFattExtra(s.prezzo_fattura))+'</b></span>'
+        +'<span>App <b>'+(s.prezzo_app==null?'-':escAbb(przFattExtra(s.prezzo_app)))+'</b></span>'
+        +'<span class="d">Differenza '+escAbb(segnoFattExtra(Number(s.differenza)||0))+'</span></div>'
+        +'<button class="btn btn-green btn-sm" onclick="segnaCorrettaFattExtra('+Number(s.id)+')">CORRETTA</button></div>';
+    }).join('')+'</div>';
+}
+async function segnaCorrettaFattExtra(id){
+  if(fattExtraSalva)return;
+  fattExtraSalva=true;
+  try{
+    var ora=new Date().toISOString();
+    if(!await patchVerificatoExtra('fattura_scelte','id=eq.'+id,{corretta_il:ora})){alert('Errore: riga non aggiornata, riprova.');return;}
+    if(fattExtraStato&&fattExtraStato.scelte){
+      Object.keys(fattExtraStato.scelte).forEach(function(k){var s=fattExtraStato.scelte[k];if(s.id===id)s.corretta_il=ora;});
+      if(fattExtraStato.esiti&&document.getElementById('ext-fatt-esito').innerHTML)rifaiFattureExtra();
+    }
+    await caricaDaSistemareFattExtra();
+  }finally{fattExtraSalva=false;}
 }
 
 // Campi QUANTITÀ e PREZZO UNITARIO: visibili solo in modifica di righe che li hanno
