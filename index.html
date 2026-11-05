@@ -208,7 +208,8 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 .badge-warn { background: #FFF2CC; color: #7B4F00; }
 .badge-err { background: #FCE4D6; color: #7B2C2C; }
 .mag-ok { background: #E2EFDA; color: #375623; white-space: nowrap; }
-.mag-poco { background: #FCE4D6; color: #C55A11; white-space: nowrap; }
+.mag-poco { background: #FFC7CE; color: #C00000; white-space: nowrap; }
+.mag-dopo { background: #ED7D31; color: #fff; white-space: nowrap; }
 .mag-no { background: #FFC7CE; color: #C00000; white-space: nowrap; }
 .mag-ignota { background: #E7E6E6; color: #595959; white-space: nowrap; }
 .mag-form { margin: -4px 0 10px; min-height: 0; }
@@ -6431,7 +6432,7 @@ async function caricaDDTU(){
   var l=document.getElementById('du-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun record</div>';return;}
   var ctx=await caricaCtxMag(d);
-  l.innerHTML=d.map(function(r){var mag=htmlMag(giacenzaRigaMag(ctx,{cod:r.codice_articolo,data:dataRigaMag(r),id:r.id,creata:r.created_at||'',tipo:'ddt'}),r.quantita_ddt);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+badgeOperatore(r)+'</div></div>'+mag+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\',\''+String(r.numero_ddt||'').replace(/\'/g,"\\'")+'\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
+  l.innerHTML=d.map(function(r){var mag=htmlMag(giacenzaRigaMag(ctx,{cod:r.codice_articolo,data:dataRigaMag(r),id:r.id,creata:r.created_at||'',tipo:'ddt',qta:r.quantita_ddt}),r.quantita_ddt);return'<div class="row-item verde">'+'<input type="checkbox" class="du-chk" value="'+r.id+'" style="width:18px;height:18px;min-width:18px;flex-shrink:0;margin:0 8px 0 0;padding:0;border:none;"><div class="row-qty">'+r.quantita_ddt+'</div><div class="row-info"><div class="rdesc"><strong>'+(r.codice_articolo||'—')+'</strong> '+r.descrizione+'</div><div class="rsub">'+r.numero_ddt+(r.data_ddt?' | '+fmtData(r.data_ddt):'')+' | '+r.cliente+badgeOperatore(r)+'</div></div>'+mag+'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||'').replace(/\'/g,"\\'")+'\',\'ddt_uscita\',\''+String(r.numero_ddt||'').replace(/\'/g,"\\'")+'\')">✎</button>'+'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'ddt_uscita\','+r.id+',caricaDDTU)">✕</button>'+'</div>';}).join('');
 }
 
 function toggleSelAllDDTU(checked){
@@ -7893,7 +7894,7 @@ async function caricaImballo(){
             +'<div class="rdesc">'+(r.codice_articolo?'<span class="badge badge-ok">'+r.codice_articolo+'</span> ':'')+r.articolo+'</div>'
             +'<div class="rsub">'+seqStr+(r.note?' · '+r.note:'')+badgeOperatore(r)+'</div>'
           +'</div>'
-          +htmlMag(giacenzaRigaMag(ctxMag,{cod:r.codice_articolo,data:dataRigaMag(r),creata:r.created_at||'',tipo:'imballo'}),r.totale)
+          +htmlMag(giacenzaRigaMag(ctxMag,{cod:r.codice_articolo,data:dataRigaMag(r),creata:r.created_at||'',tipo:'imballo',qta:r.totale}),r.totale)
           +'<div style="display:flex;gap:4px;align-items:center;">'
             +'<button class="edit-btn" onclick="apriModaleVern('+r.id+',\''+String(r.articolo||'').replace(/\'/g,"\\'")+'\',\''+seqStr.replace(/\'/g,"\\'")+'\',\''+String(r.note||'').replace(/\'/g,"\\'")+'\',\'imballo\',\'Modifica imballo\')">✎</button>'
             +'<button class="del-btn" onclick="eliminaRigaImb('+r.id+')">✕</button>'
@@ -8104,8 +8105,12 @@ function giacenzaRigaMagAzzurra(ctx,riga,cod){
   function dopoSaldo(r){return !conSaldo||dataRigaMag(r)>ctx.dataSaldo;}
   var entK=ctx.ent.filter(function(e){return a0Di(e.codice_articolo)===k;});
   if(!entK.length&&!ctx.saldo.hasOwnProperty(k))return{gia:0,nova:false,nessunaEntrata:true};
-  var gia=base;
-  entK.forEach(function(e){if(dataRigaMag(e)<=d&&dopoSaldo(e))gia+=Number(e.quantita_ddt)||0;});
+  var gia=base,extraDopo=0,entDopo=[];
+  entK.forEach(function(e){
+    if(!dopoSaldo(e))return;
+    if(dataRigaMag(e)<=d)gia+=Number(e.quantita_ddt)||0;
+    else{extraDopo+=Number(e.quantita_ddt)||0;entDopo.push(e);} // carico dopo l'uscita
+  });
   ctx.usc.forEach(function(u){
     if(fuoriMag(u.codice_articolo)||a0Di(u.codice_articolo)!==k||!dopoSaldo(u))return;
     if(riga.id!=null&&String(u.id)===String(riga.id))return; // mai la riga stessa
@@ -8115,7 +8120,7 @@ function giacenzaRigaMagAzzurra(ctx,riga,cod){
     if(du===d&&(riga.tipo==='imballo'||(riga.id!=null&&Number(u.id)>=Number(riga.id))))return;
     gia-=Number(u.quantita_ddt||u.quantita||0);
   });
-  return{gia:gia,nova:false};
+  return{gia:gia,giaTutti:gia+extraDopo,carichiDopo:carichiDopoMag(entDopo),nova:false};
 }
 function dataRigaMag(r){return String(r.data_ddt||r.data_inserimento||r.created_at||'').slice(0,10);}
 // Codici del Magazzino su cui cade un articolo (BERGAMASCO: il B0 e i suoi BER)
@@ -8145,15 +8150,44 @@ function giacenzaRigaMag(ctx,riga){
     if(riga.tipo==='imballo')return false;
     return riga.id==null||Number(u.id)<Number(riga.id);
   });
-  var gia=0;
-  calcolaGiacenzeMag(ent,usc,ctx.abb,ctx.cliente).forEach(function(a){if(chiavi.indexOf(a.cod)>=0)gia+=a.gia;});
-  return{gia:gia,nova:false};
+  function giaCon(entR){
+    var g=0;
+    calcolaGiacenzeMag(entR,usc,ctx.abb,ctx.cliente).forEach(function(a){if(chiavi.indexOf(a.cod)>=0)g+=a.gia;});
+    return g;
+  }
+  var gia=giaCon(ent);
+  // Se alla data non basta: stesso calcolo con TUTTI i carichi (anche con data successiva
+  // all'uscita), uscite come sopra. Serve solo all'etichetta arancione "CARICO DOPO L'USCITA".
+  var dopo=carichiDopoMag(ctx.ent.filter(function(e){
+    return dataRigaMag(e)>d&&chiavi.indexOf((e.codice_articolo||'').trim().toUpperCase())>=0;
+  }));
+  var basta=riga.qta!=null&&gia>0&&gia>=Number(riga.qta);
+  var giaTutti=dopo.length&&!basta?giaCon(ctx.ent):gia;
+  return{gia:gia,giaTutti:giaTutti,carichiDopo:dopo,nova:false};
+}
+// DDT Entrata con data successiva all'uscita: {numero,data} senza doppioni, in ordine di data
+function carichiDopoMag(righe){
+  var visti={},out=[];
+  righe.slice().sort(function(a,b){return dataRigaMag(a).localeCompare(dataRigaMag(b));}).forEach(function(e){
+    var k=(e.numero_ddt||'')+'|'+dataRigaMag(e);
+    if(visti[k])return;visti[k]=true;
+    out.push({numero:e.numero_ddt||'?',data:dataRigaMag(e)});
+  });
+  return out;
 }
 function htmlMag(g,qta){
   if(!g)return '';
   if(g.nessunaEntrata)return '<span class="badge mag-ignota" title="Nessuna DDT Entrata e nessun abbinamento per questo codice">MAG ? nessuna entrata</span>';
   var tit=g.nova?'Aperto da Nova (ultimo import)':'Giacenza alla data della riga: ricevuto − spedito prima, come nella scheda Magazzino';
   qta=Number(qta)||0;
+  var basta=g.gia>0&&g.gia>=qta;
+  // Alla data non basta, ma con i carichi successivi all'uscita si': arancione con i DDT Entrata
+  if(!basta&&g.carichiDopo&&g.carichiDopo.length&&g.giaTutti>0&&g.giaTutti>=qta){
+    var elenco=g.carichiDopo.map(function(c){var p=c.data.split('-');return 'DDT '+escAbb(c.numero)+(p.length===3?' del '+p[2]+'/'+p[1]:'');}).join(' · ');
+    return '<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px;">'
+      +'<span class="badge mag-dopo" title="Alla data della riga: MAG '+g.gia+'. Con i carichi successivi all\'uscita: MAG '+g.giaTutti+'">CARICO DOPO L\'USCITA</span>'
+      +'<span style="font-size:11px;color:#C55A11;white-space:nowrap;">'+elenco+'</span></span>';
+  }
   if(g.gia<=0)return '<span class="badge mag-no" title="'+tit+'">NON IN MAGAZZINO</span>';
   if(g.gia<qta)return '<span class="badge mag-poco" title="'+tit+'">MAG '+g.gia+' / servono '+qta+'</span>';
   return '<span class="badge mag-ok" title="'+tit+'">MAG '+g.gia+'</span>';
@@ -8166,7 +8200,7 @@ async function aggiornaMagForm(p){
   if(!cod||!qta){el.innerHTML='';return;}
   if(!magCtx||magCtx.cliente!==getCliente()){el.innerHTML='<span style="font-size:12px;color:#999;">Controllo magazzino...</span>';await caricaCtxMag();}
   var data=(document.getElementById(p==='du'?'du-data':'imb2-date')||{}).value||oggiISO();
-  el.innerHTML=htmlMag(giacenzaRigaMag(magCtx,{cod:cod,data:data,tipo:p==='du'?'ddt':'imballo'}),qta);
+  el.innerHTML=htmlMag(giacenzaRigaMag(magCtx,{cod:cod,data:data,tipo:p==='du'?'ddt':'imballo',qta:qta}),qta);
 }
 
 async function caricaMagazzino(){
