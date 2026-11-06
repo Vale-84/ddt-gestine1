@@ -78,6 +78,10 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .rc-table td:first-child { white-space: normal; min-width: 180px; position: sticky; left: 0; background: #fff; z-index: 1; }
 .rc-table th:first-child { position: sticky; left: 0; top: 0; z-index: 3; }
 .rc-table tbody tr[style*="background-color"] td:first-child { background: inherit; }
+/* Confronto: la card stessa e' l'area che scorre; senza margine interno in alto
+   l'intestazione fissa parte dal bordo della card e non copre la prima riga. */
+#rc-table-ber, #rc-table-azzurra { padding-top: 0; }
+#rc-table-ber .rc-table th, #rc-table-azzurra .rc-table th { box-shadow: 0 1px 0 #163a5e; }
 .row-item.viola { border-left-color: #5B2C8D; }
 .row-item.teal { border-left-color: #1F6B75; }
 .row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
@@ -776,7 +780,9 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <h2>Carica PDF DDT Uscita (multi-DDT)</h2>
     <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica un PDF con uno o più DDT (es. C6000167) e scegli quali importare.</p>
     <button class="btn btn-orange" type="button" onclick="document.getElementById('pdf-multi-usc-inp').click()">CARICA PDF</button>
+    <button class="btn btn-green" type="button" title="Export Nova &quot;Statistiche parametrizzate&quot; (DDT vendita)" onclick="document.getElementById('xls-nova-usc-inp').click()">CARICA EXCEL NOVA</button>
     <input type="file" id="pdf-multi-usc-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPDFMultiUscita(this)">
+    <input type="file" id="xls-nova-usc-inp" class="pdf-input" accept=".xlsx,.xls" onchange="leggiExcelNovaUscita(this)">
     <div id="pdf-multi-usc-status" style="margin-top:8px;"></div>
   </div>
   <div class="card" id="bergamasco-pdf-multi-card" style="display:none;">
@@ -966,7 +972,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       <table class="rc-table">
         <thead>
           <tr>
-            <th>Articolo</th><th>Verniciato</th><th>Imballo</th><th>DDT Entr. (Δ Vern.)</th><th>DDT Usc. (Δ Imb.)</th><th>Stato</th>
+            <th>Articolo</th><th>Verniciato</th><th>Imballo</th><th>DDT Entr. (Δ Vern.)</th><th title="Δ contro Imballo; se Imballo = 0, contro Verniciato">DDT Usc. (Δ Imb./Vern.)</th><th>Stato</th>
           </tr>
         </thead>
         <tbody id="rc-ber-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
@@ -1550,7 +1556,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 <!-- MODAL PREVIEW PDF MULTI-DDT (DDT USCITA AZZURRA) -->
 <div class="modal" id="modal-pdf-multi">
   <div class="modal-box" style="max-width:640px;">
-    <h3 style="color:#C55A11;">DDT trovati nel PDF</h3>
+    <h3 style="color:#C55A11;" id="pdf-multi-titolo">DDT trovati nel PDF</h3>
     <div id="pdf-multi-lista" style="margin-bottom:14px;"></div>
     <button class="btn btn-green" id="btn-importa-pdf-multi" onclick="importaPDFMultiUscita()">IMPORTA SELEZIONATI</button>
     <button class="btn btn-gray" id="btn-annulla-pdf-multi" onclick="chiudiModalePdfMulti()">ANNULLA</button>
@@ -5005,13 +5011,13 @@ function filtraRiepilogoCompleto(f){
 
 function renderRiepilogoCompleto(){
   if(!rcDatiCompleti)return;
-  var okManuali={};
-  try{okManuali=JSON.parse(localStorage.getItem('az_ok_manuali')||'{}');}catch(e){}
+  var okManuali=leggiOkManuali('az_ok_manuali');
+  function okRiga(r){return okManualeValido(okManuali,r,OK_CAMPI_AZ);}
   var righe=rcDatiCompleti.filter(function(r){
     if(rcFiltroAttivo==='tutti')return true;
-    if(rcFiltroAttivo==='differenze')return r.stato!=='ok'&&r.stato!=='solowa'&&!okManuali[r.cod];
-    if(rcFiltroAttivo==='verificare')return (r.stato==='ddtdiff'||r.stato==='wadiff')&&!okManuali[r.cod];
-    if(rcFiltroAttivo==='conferma')return r.stato==='conferma'&&!okManuali[r.cod];
+    if(rcFiltroAttivo==='differenze')return r.stato!=='ok'&&r.stato!=='solowa'&&!okRiga(r);
+    if(rcFiltroAttivo==='verificare')return (r.stato==='ddtdiff'||r.stato==='wadiff')&&!okRiga(r);
+    if(rcFiltroAttivo==='conferma')return r.stato==='conferma'&&!okRiga(r);
     return true;
   });
   var tb=document.getElementById('rc-tbody');
@@ -5019,16 +5025,17 @@ function renderRiepilogoCompleto(){
     tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
   }else{
     tb.innerHTML=righe.map(function(r){
-      var manuale=!!okManuali[r.cod];
+      var manuale=okRiga(r);
       var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
       var badge=manuale?'✓ OK (manuale)':r.badge;
       var btnOk=(!manuale&&r.stato!=='ok'&&r.stato!=='solowa')
-        ?'<button onclick="setOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">✓ OK</button>'
+        ?'<button onclick="setOkManualeAz(\''+r.cod+'\')" title="Conferma la riga con i numeri attuali: se cambiano, l\'OK non vale piu\'" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">Segna OK</button>'
         :(manuale?'<button onclick="removeOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
-      var lblE=r.diffE===0?'':(r.waE===0
+      // Riga confermata: niente avvisi ⚠️ nelle colonne DDT.
+      var lblE=(manuale||r.diffE===0)?'':(r.waE===0
         ?'<span style="color:#C00000;font-size:11px;"> ⚠️ senza WA</span>'
         :'<span style="color:#C00000;font-size:11px;"> ⚠️ diff: '+(r.diffE>0?'+':'')+r.diffE+'</span>');
-      var lblU=r.diffU===0?'':(r.waU===0
+      var lblU=(manuale||r.diffU===0)?'':(r.waU===0
         ?'<span style="color:#C00000;font-size:11px;"> ⚠️ senza WA</span>'
         :'<span style="color:#C00000;font-size:11px;"> ⚠️ diff: '+(r.diffU>0?'+':'')+r.diffU+'</span>');
       return '<tr style="'+bg+'">'
@@ -5047,18 +5054,12 @@ function renderRiepilogoCompleto(){
 }
 
 function setOkManualeAz(cod){
-  var okManuali={};
-  try{okManuali=JSON.parse(localStorage.getItem('az_ok_manuali')||'{}');}catch(e){}
-  okManuali[cod]=true;
-  localStorage.setItem('az_ok_manuali',JSON.stringify(okManuali));
+  salvaOkManuale('az_ok_manuali',rcDatiCompleti,cod,OK_CAMPI_AZ);
   renderRiepilogoCompleto();
 }
 
 function removeOkManualeAz(cod){
-  var okManuali={};
-  try{okManuali=JSON.parse(localStorage.getItem('az_ok_manuali')||'{}');}catch(e){}
-  delete okManuali[cod];
-  localStorage.setItem('az_ok_manuali',JSON.stringify(okManuali));
+  togliOkManuale('az_ok_manuali',cod);
   renderRiepilogoCompleto();
 }
 
@@ -5074,21 +5075,28 @@ async function aggiornaConfrrontoBer(){
   var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   if(!vern||!imb||!ddte||!ddtu)return;
 
-  var dataChiusuraBer=localStorage.getItem('chiusura_'+getCliente())||'';
-  if(dataChiusuraBer){
-    ddte=ddte.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraBer;});
-    ddtu=ddtu.filter(function(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraBer;});
-  }
+  // Stesso periodo per tutte le colonne, come il Confronto Produzione: filtro "fino al
+  // giorno" (se attivo) su liste e DDT; l'inizio e' la riga piu' vecchia rimasta in
+  // Imballo/Verniciato (si svuotano a fine mese). DDT Entrata e Uscita contati solo da
+  // quella data. Liste vuote: nessun periodo, nessun DDT contato.
+  var fino=_finoGiorno;
+  function dataDDTBer(r){return (r.data_ddt||r.created_at||'').slice(0,10);}
+  imb=imb.filter(function(r){return rigaFino(r,fino);});
+  vern=vern.filter(function(r){return rigaFino(r,fino);});
+  var inizio='';
+  [imb,vern].forEach(function(arr){
+    arr.forEach(function(r){var d=dataRigaLav(r);if(d&&(!inizio||d<inizio))inizio=d;});
+  });
+  function ddtNelPeriodo(r){var d=dataDDTBer(r);return !!inizio&&!!d&&d>=inizio&&(!fino||d<=fino);}
+  ddte=ddte.filter(ddtNelPeriodo);
+  ddtu=ddtu.filter(ddtNelPeriodo);
   var periodoElBer=document.getElementById('rc-periodo-info');
   if(periodoElBer){
-    if(dataChiusuraBer){
-      var dcBer=new Date(dataChiusuraBer);
-      var dcLabelBer=dcBer.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
-      periodoElBer.style.display='';
-      periodoElBer.innerHTML='📅 Confronto DDT dal <strong>'+dcLabelBer+'</strong> (data ultima chiusura mese)';
-    } else {
-      periodoElBer.style.display='none';
-    }
+    periodoElBer.style.display='';
+    periodoElBer.innerHTML=(inizio
+      ?'📅 Periodo dal <strong>'+fmtDataGMA(inizio)+'</strong>'+(fino?' al <strong>'+fmtDataGMA(fino)+'</strong>':' ad oggi')+' (dalla riga più vecchia di Imballo/Verniciato): Verniciato, Imballo, DDT Entrata e DDT Uscita contati sullo stesso periodo'
+      :'📅 Nessun periodo: Imballo e Verniciato sono vuoti'+(fino?' fino al '+fmtDataGMA(fino):'')+', nessun DDT contato')
+      +(fino?'<br><span style="color:#C55A11;">Filtro "fino al giorno" attivo: righe e DDT dopo il '+fmtDataGMA(fino)+' non contati.</span>':'');
   }
 
   // Build abbinamenti maps (keys uppercase)
@@ -5136,7 +5144,7 @@ async function aggiornaConfrrontoBer(){
 
   // Map BER totals to B0 codes with group logic for multi-B0 BERs
   var mDDTE={};          // b0 key (uppercase) -> ddtE for display
-  var b0GroupAnomaly={}; // b0 key -> {anomaly:bool, residuo:number} — only set for multi-B0 BERs
+  var b0GroupAnomaly={}; // b0 key -> {anomaly:bool} — only set for multi-B0 BERs
 
   Object.keys(berToB0s).forEach(function(berK){
     var b0List=berToB0s[berK];
@@ -5160,7 +5168,6 @@ async function aggiornaConfrrontoBer(){
 
     var sumVernActive=active.reduce(function(s,b0){return s+vernPerDDT(b0);},0);
     var groupAnomaly=berTotal>0&&sumVernActive!==berTotal;
-    var residuo=Math.max(0,berTotal-sumVernActive);
 
     // Scalare assignment among actives: each gets min(vernTot, remaining)
     var remaining=berTotal;
@@ -5170,15 +5177,14 @@ async function aggiornaConfrrontoBer(){
       if(!mDDTE[b0])mDDTE[b0]=0;
       mDDTE[b0]+=assigned;
       remaining-=assigned;
-      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false,residuo:0};
+      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false};
       b0GroupAnomaly[b0].anomaly=b0GroupAnomaly[b0].anomaly||groupAnomaly;
-      b0GroupAnomaly[b0].residuo+=residuo;
     });
 
     // Inactive: ddtE stays 0, mark as group member with no anomaly
     inactive.forEach(function(b0){
       if(!mDDTE[b0])mDDTE[b0]=0;
-      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false,residuo:0};
+      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false};
     });
   });
 
@@ -5195,26 +5201,30 @@ async function aggiornaConfrrontoBer(){
     var desc=(v_&&v_.desc)||(i_&&i_.desc)||(u_&&u_.desc)||'';
     var diffVernImb=vernTot-imbTot;
     var diffDDTEVern=ddtE-vernDDT;
-    var diffDDTUImb=ddtU-imbTot;
+    // DDT Uscita contro Imballo; senza Imballo contro Verniciato (i pezzi vanno da
+    // Verniciato direttamente al DDT), come nel Confronto Produzione.
+    var fonteU=imbTot!==0?'Imb':'Vern';
+    var diffDDTUImb=ddtU-(imbTot!==0?imbTot:vernTot);
+    // Vern≠Imb solo se c'e' Imballo (come nel Confronto Produzione).
+    var vernImbDiff=imbTot!==0&&vernTot!==imbTot;
     var stato='ok',badge='✓ Ok',colore='';
     var grp=b0GroupAnomaly[k];
     if(grp){
       // Multi-B0 group: anomaly decided at group level
       if(grp.anomaly){
-        var residuoLabel=grp.residuo>0?' (+'+grp.residuo+' scoperti)':'';
-        stato='ddtvern';badge='⚠️ DDT≠Vern'+residuoLabel;colore='#fff3e0';
+        stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';
       } else {
         if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
-        else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+        else if(vernImbDiff){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
       }
     } else {
       // Single B0 or no abbinamento: original logic
       if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
       else if(ddtE>0&&ddtE!==vernDDT){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
-      else if(vernTot!==imbTot&&(vernTot>0||imbTot>0)){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+      else if(vernImbDiff){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
     }
     return {cod:cod,desc:desc,vern:vernTot,riporto:riportoTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
-            diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,
+            diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,fonteU:fonteU,
             stato:stato,badge:badge,colore:colore};
   });
 
@@ -5238,15 +5248,46 @@ function filtraRiepilogoBer(f){
   renderRiepilogoCompletoBer();
 }
 
+// OK manuale del Confronto: in localStorage si salvano i numeri della riga al momento
+// della conferma. L'OK vale solo finche' quei numeri restano uguali; gli OK vecchi
+// salvati senza numeri (valore true) sono scaduti.
+var OK_CAMPI_BER=['vern','imb','ddtE','ddtU'];
+var OK_CAMPI_AZ=['waE','ddtE','waU','ddtU'];
+function leggiOkManuali(chiave){
+  var ok={};
+  try{ok=JSON.parse(localStorage.getItem(chiave)||'{}')||{};}catch(e){ok={};}
+  return ok;
+}
+function scriviOkManuali(chiave,ok){
+  try{localStorage.setItem(chiave,JSON.stringify(ok));}catch(e){}
+}
+function okManualeValido(ok,r,campi){
+  var s=ok[r.cod];
+  if(!s||typeof s!=='object')return false;
+  return campi.every(function(c){return Number(s[c])===Number(r[c]);});
+}
+function salvaOkManuale(chiave,righe,cod,campi){
+  var r=(righe||[]).find(function(x){return x.cod===cod;});if(!r)return;
+  var ok=leggiOkManuali(chiave),s={};
+  campi.forEach(function(c){s[c]=Number(r[c])||0;});
+  ok[cod]=s;
+  scriviOkManuali(chiave,ok);
+}
+function togliOkManuale(chiave,cod){
+  var ok=leggiOkManuali(chiave);
+  delete ok[cod];
+  scriviOkManuali(chiave,ok);
+}
+
 function renderRiepilogoCompletoBer(){
   if(!rcDatiBer)return;
-  var okManuali={};
-  try{okManuali=JSON.parse(localStorage.getItem('ber_ok_manuali')||'{}');}catch(e){}
+  var okManuali=leggiOkManuali('ber_ok_manuali');
+  function okRiga(r){return okManualeValido(okManuali,r,OK_CAMPI_BER);}
   var righe=rcDatiBer.filter(function(r){
     if(rcFiltroBer==='tutti')return true;
-    if(rcFiltroBer==='differenze')return r.stato!=='ok'&&!okManuali[r.cod];
-    if(rcFiltroBer==='verificare')return (r.stato==='ddtvern'||r.stato==='vernimb')&&!okManuali[r.cod];
-    if(rcFiltroBer==='conferma')return r.stato==='conferma'&&!okManuali[r.cod];
+    if(rcFiltroBer==='differenze')return r.stato!=='ok'&&!okRiga(r);
+    if(rcFiltroBer==='verificare')return (r.stato==='ddtvern'||r.stato==='vernimb')&&!okRiga(r);
+    if(rcFiltroBer==='conferma')return r.stato==='conferma'&&!okRiga(r);
     return true;
   });
   var tb=document.getElementById('rc-ber-tbody');if(!tb)return;
@@ -5254,13 +5295,14 @@ function renderRiepilogoCompletoBer(){
     tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
   }else{
     tb.innerHTML=righe.map(function(r){
-      var manuale=!!okManuali[r.cod];
+      var manuale=okRiga(r);
       var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
-      var colDE=r.diffDDTEVern===0?'#217346':'#C00000';
-      var colDU=r.diffDDTUImb===0?'#217346':'#C00000';
+      // Riga confermata: Δ in grigio, non piu' in rosso.
+      var colDE=manuale?'#888':(r.diffDDTEVern===0?'#217346':'#C00000');
+      var colDU=manuale?'#888':(r.diffDDTUImb===0?'#217346':'#C00000');
       var badge=manuale?'✓ OK (manuale)':r.badge;
       var btnOk=(!manuale&&r.stato!=='ok')
-        ?'<button onclick="setOkManualeBer(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">✓ OK</button>'
+        ?'<button onclick="setOkManualeBer(\''+r.cod+'\')" title="Conferma la riga con i numeri attuali: se cambiano, l\'OK non vale piu\'" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">Segna OK</button>'
         :(manuale?'<button onclick="removeOkManualeBer(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
       return '<tr style="'+bg+'">'
         +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
@@ -5269,7 +5311,7 @@ function renderRiepilogoCompletoBer(){
         +'</td>'
         +'<td style="text-align:right;">'+r.imb+'</td>'
         +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colDE+';font-size:11px;">('+(r.diffDDTEVern>0?'+':'')+r.diffDDTEVern+')</span></td>'
-        +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+')</span></td>'
+        +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;" title="Δ contro '+(r.fonteU==='Vern'?'Verniciato (Imballo = 0)':'Imballo')+'">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+(r.fonteU==='Vern'?' vs Vern':'')+')</span></td>'
         +'<td>'+badge+btnOk+'</td>'
       +'</tr>';
     }).join('');
@@ -5280,18 +5322,12 @@ function renderRiepilogoCompletoBer(){
 }
 
 function setOkManualeBer(cod){
-  var okManuali={};
-  try{okManuali=JSON.parse(localStorage.getItem('ber_ok_manuali')||'{}');}catch(e){}
-  okManuali[cod]=true;
-  localStorage.setItem('ber_ok_manuali',JSON.stringify(okManuali));
+  salvaOkManuale('ber_ok_manuali',rcDatiBer,cod,OK_CAMPI_BER);
   renderRiepilogoCompletoBer();
 }
 
 function removeOkManualeBer(cod){
-  var okManuali={};
-  try{okManuali=JSON.parse(localStorage.getItem('ber_ok_manuali')||'{}');}catch(e){}
-  delete okManuali[cod];
-  localStorage.setItem('ber_ok_manuali',JSON.stringify(okManuali));
+  togliOkManuale('ber_ok_manuali',cod);
   renderRiepilogoCompletoBer();
 }
 
@@ -6715,8 +6751,75 @@ async function leggiPDFMultiUscita(input){
     ddts.forEach(function(d,i){d.dupe=presenti[i];d.selected=true;d.aperto=false;});
     pdfMultiUscDati=ddts;
     status.innerHTML='';
-    apriModalePdfMulti();
+    apriModalePdfMulti('DDT trovati nel PDF');
   }catch(e){status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
+  input.value='';
+}
+
+// ── EXCEL NOVA DDT USCITA (AZZURRA): export "Statistiche parametrizzate" (DDT vendita) ──
+// Intestazione con CodArt, Descrizione, ..., NumDocum, DataDocum, Qtà TOT, Qtà Spe (colonne per
+// nome). Solo righe con CodArt A0... (le IA sono i riferimenti alle entrate, la riga dei totali
+// non ha CodArt). Quantità = Qtà Spe (vuota: Qtà TOT); numero = NumDocum senza "BV".
+// Anteprima e salvataggio come il PDF multi-DDT (stessa finestra, stesso "Sostituire?").
+function _nomeColNova(s){return String(s==null?'':s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]/g,'');}
+function _numCellaNova(v){
+  if(v===null||v===undefined||String(v).trim()==='')return null;
+  if(typeof v==='number')return v;
+  var n=parseFloat(String(v).trim().replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));
+  return isNaN(n)?null:n;
+}
+async function leggiExcelNovaUscita(input){
+  var file=input.files[0];if(!file)return;
+  var status=document.getElementById('pdf-multi-usc-status');
+  status.innerHTML='<div style="padding:10px;color:#217346;">Lettura Excel...</div>';
+  try{
+    if(getCliente()!=='AZZURRA')throw new Error('Seleziona il cliente AZZURRA');
+    var wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});
+    // Riga intestazione: la prima (entro le prime 20) che contiene CodArt e NumDocum
+    var hi=-1,H={};
+    for(var i=0;i<Math.min(rows.length,20);i++){
+      var nomi=(rows[i]||[]).map(_nomeColNova);
+      if(nomi.indexOf('CODART')>=0&&nomi.indexOf('NUMDOCUM')>=0){
+        hi=i;
+        // Nomi ripetuti (due "Descrizione"): vale il PRIMO, quello dopo CodArt
+        nomi.forEach(function(n,idx){if(n&&H[n]===undefined)H[n]=idx;});
+        break;
+      }
+    }
+    if(hi<0)throw new Error('Riga di intestazione con "CodArt" e "NumDocum" non trovata');
+    var manca=['CODART','NUMDOCUM','DATADOCUM'].filter(function(n){return H[n]===undefined;});
+    if(H.QTASPE===undefined&&H.QTATOT===undefined)manca.push('QTA SPE / QTA TOT');
+    if(manca.length)throw new Error('Colonne mancanti: '+manca.join(', '));
+    var mappa={},ordine=[],scartateIA=0,qtaZero=0,senzaNumero=0;
+    for(var r=hi+1;r<rows.length;r++){
+      var row=rows[r]||[];
+      var cod=String(row[H.CODART]==null?'':row[H.CODART]).trim().toUpperCase();
+      if(!cod)continue; // riga vuota o dei totali
+      if(cod.indexOf('A0')!==0){if(cod.indexOf('IA')===0)scartateIA++;continue;}
+      var q=_numCellaNova(H.QTASPE!==undefined?row[H.QTASPE]:null);
+      if(q===null)q=_numCellaNova(H.QTATOT!==undefined?row[H.QTATOT]:null);
+      if(!q||q<=0){qtaZero++;continue;}
+      var nddt=normNumeroDdt(String(row[H.NUMDOCUM]||'').replace(/^\s*BV/i,''));
+      if(!nddt){senzaNumero++;continue;}
+      var data=_inevBerData(row[H.DATADOCUM]);
+      var k=nddt+'|'+data.slice(0,4);
+      if(!mappa[k]){mappa[k]={nddt:nddt,data:data,righe:[],nota:'Excel Nova'};ordine.push(k);}
+      mappa[k].righe.push({cod:cod,desc:H.DESCRIZIONE!==undefined?String(row[H.DESCRIZIONE]||'').trim():'',qty:q});
+    }
+    var ddts=ordine.map(function(k){return mappa[k];});
+    if(!ddts.length)throw new Error('Nessuna riga con CodArt A0 e quantità trovata');
+    var presenti=await contaDdtUscitaPresenti(ddts);
+    if(presenti===null)throw new Error('Errore di collegamento nel controllo dei DDT già presenti, riprova');
+    ddts.forEach(function(d,i){d.dupe=presenti[i];d.selected=true;d.aperto=false;});
+    pdfMultiUscDati=ddts;
+    var info=[];
+    if(scartateIA)info.push(scartateIA+' righe IA scartate');
+    if(qtaZero)info.push(qtaZero+' righe A0 senza quantità escluse');
+    if(senzaNumero)info.push(senzaNumero+' righe senza NumDocum escluse');
+    status.innerHTML=info.length?'<div style="font-size:12px;color:#666;">'+escAbb(file.name)+': '+info.join(' · ')+'</div>':'';
+    apriModalePdfMulti('DDT trovati nell\'Excel Nova');
+  }catch(e){status.innerHTML='<div class="msg msg-err">Errore: '+escAbb(e.message)+'</div>';}
   input.value='';
 }
 
@@ -6754,7 +6857,8 @@ function parsePdfMultiAzzurra(testo){
   return ordine.map(function(k){return mappa[k];});
 }
 
-function apriModalePdfMulti(){
+function apriModalePdfMulti(titolo){
+  var t=document.getElementById('pdf-multi-titolo');if(t)t.textContent=titolo||'DDT trovati nel PDF';
   renderPdfMultiPreview();
   document.getElementById('modal-pdf-multi').style.display='flex';
 }
@@ -6776,7 +6880,7 @@ function renderPdfMultiPreview(){
     return '<div class="row-item" style="display:block;">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
         +'<input type="checkbox" '+(d.selected?'checked':'')+' onchange="togglePdfMultiSel('+idx+',this.checked)" style="width:18px;height:18px;">'
-        +'<div style="flex:1;"><strong>'+d.nddt+'</strong> &nbsp; '+(d.data||'data ?')+' &nbsp; <span style="color:#666;">'+d.righe.length+' articoli</span>'+dupeBadge+'</div>'
+        +'<div style="flex:1;"><strong>'+d.nddt+'</strong> &nbsp; '+(d.data?fmtDataGMA(d.data):'data ?')+' &nbsp; <span style="color:#666;">'+d.righe.length+' articoli · '+d.righe.reduce(function(t,a){return t+(Number(a.qty)||0);},0)+' pz</span>'+(d.dupe?dupeBadge:' <span class="badge badge-ok" style="margin-left:8px;">nuovo</span>')+'</div>'
         +'<button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" onclick="togglePdfMultiDettagli('+idx+')">'+(d.aperto?'Nascondi':'Dettagli')+'</button>'
       +'</div>'
       +(d.aperto?('<div style="margin-top:8px;">'+dettagli+'</div>'):'')
@@ -6817,7 +6921,7 @@ async function importaPDFMultiUscita(){
       var righeDdt=0;
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
-        var r=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:a.cod,descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:'PDF multi-DDT'});
+        var r=await apiPost('ddt_uscita',{numero_ddt:d.nddt,data_ddt:d.data||null,cliente:getCliente(),codice_articolo:a.cod,descrizione:a.desc,quantita_verniciato:0,quantita_imballato:0,quantita_ddt:a.qty,note:d.nota||'PDF multi-DDT'});
         if(r)righeDdt++;
       }
       var extra=(d.proposte||[]).filter(function(p){return p.attiva;});
