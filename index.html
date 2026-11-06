@@ -5142,50 +5142,43 @@ async function aggiornaConfrrontoBer(){
     berEntrata[k]+=Number(r.quantita_ddt)||0;
   });
 
-  // Map BER totals to B0 codes with group logic for multi-B0 BERs
-  var mDDTE={};          // b0 key (uppercase) -> ddtE for display
-  var b0GroupAnomaly={}; // b0 key -> {anomaly:bool} — only set for multi-B0 BERs
-
+  // GRUPPI BER: il DDT del cliente da' il TOTALE di un BER, non diviso per B0 (es. BER00646
+  // = gambe dx + sx insieme), quindi il carico di un BER con piu' B0 non si divide tra le
+  // righe: va su una riga di gruppo, confrontato con la somma dei suoi B0. I BER che hanno
+  // un B0 in comune stanno nello stesso gruppo (es. BER00232 e BER00238 per B0RETIBI), cosi'
+  // nessun B0 e' contato due volte. Gli abbinamenti del codice BER "senza colore" di un BER
+  // con regole colore (es. BER00537 -> bianco e naturale) non uniscono i colori, se in quel
+  // periodo non ci sono carichi con quel codice senza colore.
+  var regoleBer={};
+  ((await caricaRegoleColore())||[]).forEach(function(r){var c=(r.codice_ber||'').trim().toUpperCase();if(c)regoleBer[c]=true;});
+  var padre={};
+  function radice(x){while(padre[x]!==x){padre[x]=padre[padre[x]];x=padre[x];}return x;}
+  function unisci(a,b){a=radice(a);b=radice(b);if(a!==b)padre[b]=a;}
   Object.keys(berToB0s).forEach(function(berK){
-    var b0List=berToB0s[berK];
-    var berTotal=berEntrata[berK]||0;
+    if(regoleBer[berK]&&!berEntrata[berK])return;
+    padre['E:'+berK]=padre['E:'+berK]||'E:'+berK;
+    berToB0s[berK].forEach(function(b0){padre['B:'+b0]=padre['B:'+b0]||'B:'+b0;unisci('E:'+berK,'B:'+b0);});
+  });
+  var compo={};
+  Object.keys(padre).forEach(function(n){
+    var rt=radice(n);if(!compo[rt])compo[rt]={bers:[],b0s:[]};
+    if(n.slice(0,2)==='E:')compo[rt].bers.push(n.slice(2));else compo[rt].b0s.push(n.slice(2));
+  });
+  var descBer={};
+  ddte.forEach(function(r){var k=(r.codice_articolo||'').trim().toUpperCase();if(k&&!descBer[k]&&r.descrizione)descBer[k]=r.descrizione;});
+  (abb||[]).forEach(function(r){var k=(r.codice_ber||'').trim().toUpperCase();if(k&&!descBer[k]&&r.desc_ber)descBer[k]=r.desc_ber;});
 
-    if(b0List.length===1){
-      // Single B0: original behaviour unchanged
-      var b0=b0List[0];
-      if(!mDDTE[b0])mDDTE[b0]=0;
-      mDDTE[b0]+=berTotal;
-      return;
-    }
-
-    // Multi-B0 group: split active (any movement) from inactive (all zero)
-    var active=b0List.filter(function(b0){
-      return (mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0);
-    });
-    var inactive=b0List.filter(function(b0){
-      return !((mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0));
-    });
-
-    var sumVernActive=active.reduce(function(s,b0){return s+vernPerDDT(b0);},0);
-    var groupAnomaly=berTotal>0&&sumVernActive!==berTotal;
-
-    // Scalare assignment among actives: each gets min(vernTot, remaining)
-    var remaining=berTotal;
-    active.forEach(function(b0){
-      var vernB0=vernPerDDT(b0);
-      var assigned=Math.min(vernB0,remaining);
-      if(!mDDTE[b0])mDDTE[b0]=0;
-      mDDTE[b0]+=assigned;
-      remaining-=assigned;
-      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false};
-      b0GroupAnomaly[b0].anomaly=b0GroupAnomaly[b0].anomaly||groupAnomaly;
-    });
-
-    // Inactive: ddtE stays 0, mark as group member with no anomaly
-    inactive.forEach(function(b0){
-      if(!mDDTE[b0])mDDTE[b0]=0;
-      if(!b0GroupAnomaly[b0])b0GroupAnomaly[b0]={anomaly:false};
-    });
+  var mDDTE={};          // B0 da solo: totale dei suoi BER
+  var b0Gruppo={};       // B0 in un gruppo -> gruppo
+  var gruppi=[];
+  function haMov(b0){return (mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0);}
+  Object.keys(compo).forEach(function(rt){
+    var c=compo[rt];c.bers.sort();c.b0s.sort();
+    var ent=c.bers.reduce(function(s,b){return s+(berEntrata[b]||0);},0);
+    if(c.b0s.length===1){mDDTE[c.b0s[0]]=(mDDTE[c.b0s[0]]||0)+ent;return;}
+    var g={cod:c.bers.join(' + '),bers:c.bers,b0s:c.b0s,ent:ent};
+    c.b0s.forEach(function(b0){b0Gruppo[b0]=g;});
+    gruppi.push(g);
   });
 
   // Unified B0 key set
@@ -5193,14 +5186,14 @@ async function aggiornaConfrrontoBer(){
   [mVern,mImb,mDDTU].forEach(function(m){Object.keys(m).forEach(function(k){keys[k]=true;});});
   Object.keys(mDDTE).forEach(function(k){keys[k]=true;});
 
-  var righe=Object.keys(keys).map(function(k){
-    var v_=mVern[k],i_=mImb[k],u_=mDDTU[k];
-    var vernTot=v_?v_.tot:0,imbTot=i_?i_.tot:0,ddtU=u_?u_.tot:0,ddtE=mDDTE[k]||0;
+  function rigaB0(k){
+    var v_=mVern[k],i_=mImb[k],u_=mDDTU[k],g=b0Gruppo[k];
+    var vernTot=v_?v_.tot:0,imbTot=i_?i_.tot:0,ddtU=u_?u_.tot:0,ddtE=g?null:(mDDTE[k]||0);
     var riportoTot=v_?v_.riporto:0,vernDDT=vernTot-riportoTot;
     var cod=(v_&&v_.cod)||(i_&&i_.cod)||(u_&&u_.cod)||k;
     var desc=(v_&&v_.desc)||(i_&&i_.desc)||(u_&&u_.desc)||'';
     var diffVernImb=vernTot-imbTot;
-    var diffDDTEVern=ddtE-vernDDT;
+    var diffDDTEVern=g?0:ddtE-vernDDT;
     // DDT Uscita contro Imballo; senza Imballo contro Verniciato (i pezzi vanno da
     // Verniciato direttamente al DDT), come nel Confronto Produzione.
     var fonteU=imbTot!==0?'Imb':'Vern';
@@ -5208,32 +5201,44 @@ async function aggiornaConfrrontoBer(){
     // Vern≠Imb solo se c'e' Imballo (come nel Confronto Produzione).
     var vernImbDiff=imbTot!==0&&vernTot!==imbTot;
     var stato='ok',badge='✓ Ok',colore='';
-    var grp=b0GroupAnomaly[k];
-    if(grp){
-      // Multi-B0 group: anomaly decided at group level
-      if(grp.anomaly){
-        stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';
-      } else {
-        if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
-        else if(vernImbDiff){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
-      }
-    } else {
-      // Single B0 or no abbinamento: original logic
-      if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
-      else if(ddtE>0&&ddtE!==vernDDT){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
-      else if(vernImbDiff){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
-    }
-    return {cod:cod,desc:desc,vern:vernTot,riporto:riportoTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
+    if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
+    // B0 di un gruppo: il DDT Entrata si controlla sulla riga del gruppo
+    else if(!g&&ddtE>0&&ddtE!==vernDDT){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
+    else if(vernImbDiff){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
+    return {tipo:g?'membro':'singolo',gruppo:g?g.cod:'',cod:cod,desc:desc,vern:vernTot,riporto:riportoTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,
             diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,fonteU:fonteU,
             stato:stato,badge:badge,colore:colore};
+  }
+
+  // Blocchi: un B0 da solo, oppure riga di gruppo + i suoi B0 con movimenti (sempre insieme)
+  var blocchi=[];
+  Object.keys(keys).forEach(function(k){if(!b0Gruppo[k])blocchi.push([rigaB0(k)]);});
+  gruppi.forEach(function(g){
+    var membri=g.b0s.filter(haMov).map(rigaB0);
+    if(!membri.length&&!g.ent)return;
+    var s={vern:0,riporto:0,imb:0,ddtU:0};
+    membri.forEach(function(m){s.vern+=m.vern;s.riporto+=m.riporto;s.imb+=m.imb;s.ddtU+=m.ddtU;});
+    var vernDDT=s.vern-s.riporto;
+    // Carico del gruppo contro il verniciato del gruppo; se nel gruppo non c'e' verniciato
+    // (pezzi usciti senza verniciatura, es. gambe Gioia) contro la somma delle uscite.
+    var fonteE=vernDDT!==0?'Vern':'Usc';
+    var rifE=vernDDT!==0?vernDDT:s.ddtU;
+    var stato='ok',badge='✓ Ok',colore='';
+    if(g.ent>0&&g.ent!==rifE){stato='ddtvern';badge='⚠️ DDT≠'+(fonteE==='Vern'?'Vern':'Usc')+' (gruppo)';colore='#fff3e0';}
+    var testa={tipo:'gruppo',gruppo:g.cod,cod:g.cod,desc:descBer[g.bers.filter(function(b){return berEntrata[b];})[0]||g.bers[0]]||'',
+      nB0:g.b0s.length,vern:s.vern,riporto:s.riporto,imb:s.imb,ddtE:g.ent,ddtU:s.ddtU,
+      diffVernImb:0,diffDDTEVern:g.ent-rifE,fonteE:fonteE,diffDDTUImb:0,stato:stato,badge:badge,colore:colore};
+    blocchi.push([testa].concat(membri.sort(function(a,b){return (a.cod||'').localeCompare(b.cod||'');})));
   });
 
-  righe.sort(function(a,b){
-    var pa=a.stato==='ok'?1:0,pb=b.stato==='ok'?1:0;
+  blocchi.sort(function(a,b){
+    var pa=a.every(function(r){return r.stato==='ok';})?1:0,pb=b.every(function(r){return r.stato==='ok';})?1:0;
     if(pa!==pb)return pa-pb;
-    return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
+    var ka=a.length>1?a[1].cod:a[0].cod,kb=b.length>1?b[1].cod:b[0].cod;
+    return (ka||a[0].desc||'').localeCompare(kb||b[0].desc||'');
   });
-
+  var righe=[];
+  blocchi.forEach(function(bl,i){bl.forEach(function(r){r.blocco=i;righe.push(r);});});
   rcDatiBer=righe;
   renderRiepilogoCompletoBer();
 }
@@ -5283,20 +5288,24 @@ function renderRiepilogoCompletoBer(){
   if(!rcDatiBer)return;
   var okManuali=leggiOkManuali('ber_ok_manuali');
   function okRiga(r){return okManualeValido(okManuali,r,OK_CAMPI_BER);}
-  var righe=rcDatiBer.filter(function(r){
-    if(rcFiltroBer==='tutti')return true;
+  function passa(r){
     if(rcFiltroBer==='differenze')return r.stato!=='ok'&&!okRiga(r);
     if(rcFiltroBer==='verificare')return (r.stato==='ddtvern'||r.stato==='vernimb')&&!okRiga(r);
     if(rcFiltroBer==='conferma')return r.stato==='conferma'&&!okRiga(r);
     return true;
-  });
+  }
+  // Un gruppo BER (riga di gruppo + suoi B0) si mostra intero se almeno una riga passa il filtro
+  var blocchiOk={};
+  rcDatiBer.forEach(function(r){if(passa(r))blocchiOk[r.blocco]=true;});
+  var righe=rcDatiBer.filter(function(r){return blocchiOk[r.blocco];});
   var tb=document.getElementById('rc-ber-tbody');if(!tb)return;
   if(!righe.length){
     tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
   }else{
     tb.innerHTML=righe.map(function(r){
       var manuale=okRiga(r);
-      var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
+      var gruppo=r.tipo==='gruppo',membro=r.tipo==='membro';
+      var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':(gruppo?'background-color:#EEF4FA;':''));
       // Riga confermata: Δ in grigio, non piu' in rosso.
       var colDE=manuale?'#888':(r.diffDDTEVern===0?'#217346':'#C00000');
       var colDU=manuale?'#888':(r.diffDDTUImb===0?'#217346':'#C00000');
@@ -5304,21 +5313,36 @@ function renderRiepilogoCompletoBer(){
       var btnOk=(!manuale&&r.stato!=='ok')
         ?'<button onclick="setOkManualeBer(\''+r.cod+'\')" title="Conferma la riga con i numeri attuali: se cambiano, l\'OK non vale piu\'" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">Segna OK</button>'
         :(manuale?'<button onclick="removeOkManualeBer(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
+      var cellaArt=gruppo
+        ?'<td><span class="badge" style="background:#E6F1FB;color:#0C447C;">GRUPPO</span> <strong>'+r.cod+'</strong> '+r.desc
+          +'<div style="font-size:11px;color:#666;">Carico totale del BER per tutti i suoi '+r.nB0+' B0: confrontato con la somma delle righe sotto</div></td>'
+        :'<td'+(membro?' style="padding-left:22px;"':'')+'>'+(membro?'<span style="color:#999;">↳</span> ':'')+'<strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>';
+      var cellaE=membro
+        ?'<td style="text-align:right;color:#888;font-size:11px;">nel gruppo<br>'+r.gruppo+'</td>'
+        :'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colDE+';font-size:11px;"'+(gruppo?' title="Δ contro '+(r.fonteE==='Usc'?'la somma del DDT Uscita (nel gruppo non c\'e\' Verniciato)':'la somma del Verniciato')+'"':'')+'>('+(r.diffDDTEVern>0?'+':'')+r.diffDDTEVern+(gruppo&&r.fonteE==='Usc'?' vs Usc':'')+')</span></td>';
+      var cellaU=gruppo
+        ?'<td style="text-align:right;" title="Somma del DDT Uscita dei B0 del gruppo">'+r.ddtU+'</td>'
+        :'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;" title="Δ contro '+(r.fonteU==='Vern'?'Verniciato (Imballo = 0)':'Imballo')+'">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+(r.fonteU==='Vern'?' vs Vern':'')+')</span></td>';
       return '<tr style="'+bg+'">'
-        +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
+        +cellaArt
         +'<td style="text-align:right;">'+r.vern
           +(r.riporto?'<div><span class="badge" style="background:#EDE7F6;color:#4527A0;" title="Escluso dal confronto con DDT Entrata">RIPORTO '+r.riporto+'</span></div>':'')
         +'</td>'
         +'<td style="text-align:right;">'+r.imb+'</td>'
-        +'<td style="text-align:right;">'+r.ddtE+' <span style="color:'+colDE+';font-size:11px;">('+(r.diffDDTEVern>0?'+':'')+r.diffDDTEVern+')</span></td>'
-        +'<td style="text-align:right;">'+r.ddtU+' <span style="color:'+colDU+';font-size:11px;" title="Δ contro '+(r.fonteU==='Vern'?'Verniciato (Imballo = 0)':'Imballo')+'">('+(r.diffDDTUImb>0?'+':'')+r.diffDDTUImb+(r.fonteU==='Vern'?' vs Vern':'')+')</span></td>'
+        +cellaE
+        +cellaU
         +'<td>'+badge+btnOk+'</td>'
       +'</tr>';
     }).join('');
   }
-  var tot={vern:0,imb:0,ddtE:0,ddtU:0};
-  righe.forEach(function(r){tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
-  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
+  // Totali senza doppi conteggi: DDT Entrata da righe singole e di gruppo; Verniciato,
+  // Imballo e DDT Uscita dalle righe dei B0 (la riga di gruppo e' gia' la loro somma).
+  var tot={vern:0,imb:0,ddtE:0,ddtU:0},nArt=0;
+  righe.forEach(function(r){
+    if(r.tipo!=='membro')tot.ddtE+=r.ddtE||0;
+    if(r.tipo!=='gruppo'){tot.vern+=r.vern;tot.imb+=r.imb;tot.ddtU+=r.ddtU;nArt++;}
+  });
+  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+nArt+' articoli):</strong> &nbsp; Verniciato: <strong>'+tot.vern+'</strong> &nbsp; Imballo: <strong>'+tot.imb+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
 }
 
 function setOkManualeBer(cod){
