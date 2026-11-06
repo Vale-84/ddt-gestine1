@@ -10134,6 +10134,40 @@ function ultimoPrezzoExtra(lista,cliente,desc){
 // Codice articolo: maiuscolo e senza spazi. "" e "*" = nessun codice vero (prezzo dallo storico)
 function normCodiceExtra(s){return String(s||'').toUpperCase().replace(/\s+/g,'');}
 function codiceVeroExtra(s){var c=normCodiceExtra(s);return c!==''&&c!=='*';}
+// Con i codici lunghi il PDF di Nova scrive codice e descrizione come un unico testo nella
+// colonna ARTICOLO ("B0GAADCOGIONTGAMBA ANTERIORE DX..."). Se il codice letto non e' tra i
+// codici noti ma INIZIA con uno di essi (spazi esclusi), si separa li' (il piu' lungo).
+// Solo se la riga non ha descrizione o il testo letto come codice contiene spazi: un codice
+// nuovo scritto bene (non in listino) non viene spezzato. noti: {CODICE:true}
+// → {codice, resto} oppure null
+function separaCodiceAttaccatoExtra(testo,desc,noti){
+  var raw=String(testo||'').trim(),n=normCodiceExtra(raw);
+  if(!n||n==='*'||noti[n])return null;
+  if(String(desc||'').trim()&&!/\s/.test(raw))return null;
+  var best='';
+  Object.keys(noti).forEach(function(k){if(k.length>=4&&k.length<n.length&&k.length>best.length&&n.indexOf(k)===0)best=k;});
+  if(!best)return null;
+  // Il resto con gli spazi originali: si saltano tanti caratteri (non spazio) quanti ne ha il codice
+  var i=0,c=0;
+  while(i<raw.length&&c<best.length){if(!/\s/.test(raw.charAt(i)))c++;i++;}
+  return{codice:best,resto:raw.slice(i).replace(/\s+/g,' ').trim()};
+}
+function insiemeCodiciExtra(liste){
+  var m={};
+  liste.forEach(function(l){(l||[]).forEach(function(c){var k=normCodiceExtra(c);if(k&&k!=='*')m[k]=true;});});
+  return m;
+}
+// Riga {codice,descrizione}: separa il codice attaccato; il testo letto resta in r.codiceLetto
+function applicaSeparaCodiceExtra(r,noti){
+  var s=separaCodiceAttaccatoExtra(r.codice,r.descrizione,noti);
+  if(!s)return false;
+  r.codiceLetto=r.codice;r.codice=s.codice;
+  r.descrizione=(s.resto+' '+(r.descrizione||'')).replace(/\s+/g,' ').trim();
+  return true;
+}
+function htmlCodiceSeparatoExtra(r){
+  return r.codiceLetto?'<div class="rsub" style="color:#888;">codice separato dalla descrizione (letto "'+escAbb(normCodiceExtra(r.codiceLetto))+'")</div>':'';
+}
 // Righe del listino ({codice,prezzo}) → {CODICE: prezzo arrotondato a 2 decimali come Nova}
 function mappaListinoExtra(lista){
   var m={};
@@ -10349,6 +10383,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
     var e={riga:r,chiave:chiaveDescFattExtra(r.descrizione+' '+r.note.join(' ')),app:null,incerto:false,qtaDiversa:false,storico:null,motivi:[],rosso:false,arancio:false,diff:0};
     e.codiceVero=codiceVeroExtra(r.codice);
     e.codice=e.codiceVero?normCodiceExtra(r.codice):'';
+    if(r.codiceLetto)e.motivi.push({t:'',s:'codice separato dalla descrizione (letto "'+normCodiceExtra(r.codiceLetto)+'")'});
     // BERGAMASCO: la riga "*" MATERIALE DI CONSUMO di Nova è la riga CONSUMO del DDT dell'app
     if(!e.codiceVero&&gruppo==='BERGAMASCO'&&/MATERIALE DI CONSUMO/i.test(r.descrizione)){e.codice='CONSUMO';e.codiceVero=true;}
     e.senzaPrezzo=!isNaN(r.quantita)&&(isNaN(r.prezzo)||isNaN(r.importo));
@@ -10557,6 +10592,9 @@ async function leggiPdfExtra(input){
   await caricaExtra(); // storico prezzi e DDT già caricati aggiornati
   var listino=await caricaListinoExtra();
   if(listino===null){ant.innerHTML='';input.value='';showMsg('msg-ext-pdf','Errore nel caricamento del listino, riprova','err');return;}
+  // Codici noti per separare codice e descrizione attaccati nel PDF: listino, articoli, lavori extra
+  var artNoti=await leggiTuttoFattExtra('articoli','select=codice_articolo&order=id.asc');
+  var notiPdf=insiemeCodiciExtra([Object.keys(listino.prezzi),(artNoti||[]).map(function(x){return x.codice_articolo;}),(extraCache||[]).map(function(x){return x.codice_articolo;})]);
   var trovati=[];
   try{
     for(var f=0;f<files.length;f++){
@@ -10589,6 +10627,7 @@ async function leggiPdfExtra(input){
     d.righe.forEach(function(r){
       r.conferma=false;
       r.ultimo=null;r.listino=null;r.listinoDal=null;
+      if(!d.escluso)applicaSeparaCodiceExtra(r,notiPdf);
       if(codiceVeroExtra(r.codice)){
         // Codice vero: prezzo dal listino valido alla data del DDT (se c'è), arrotondato a 2 decimali come Nova; lo storico dei lavori non conta
         var c=normCodiceExtra(r.codice);
@@ -10664,6 +10703,7 @@ function renderPdfExtra(){
       return '<tr id="ext-pr-'+i+'-'+j+'" class="'+statoRigaPdfExtra(r)+'">'
         +'<td class="desc">'+(codiceVeroExtra(r.codice)?'<b class="ext-cod">'+escAbb(r.codice)+'</b> ':'')+escAbb(r.descrizione)
         +(r.note.length?'<div class="rsub">'+escAbb(r.note.join(' '))+'</div>':'')
+        +htmlCodiceSeparatoExtra(r)
         +'<div class="ext-info" id="ext-pi-'+i+'-'+j+'">'+infoRigaPdfExtra(i,j)+'</div></td>'
         +'<td class="num" data-l="Quantità">'+fmtNumExtra(r.quantita)+' '+escAbb(r.um)+'</td>'
         +'<td class="num" data-l="Prezzo unit. €"><input type="text" class="ext-prezzo" inputmode="decimal" placeholder="0,00" autocomplete="off"'
@@ -10800,9 +10840,13 @@ async function controllaFatturaExtra(input){
     leggiTuttoFattExtra('listino','select=codice,prezzo,cliente&order=codice.asc'),
     ddt.length?leggiTuttoFattExtra('ddt_uscita','select=id,numero_ddt,data_ddt,cliente,codice_articolo,descrizione,quantita_ddt&numero_ddt=in.('+ddt.map(function(n){return '"'+encodeURIComponent(n)+'"';}).join(',')+')&order=id.asc'):Promise.resolve([]),
     caricaScelteFattExtra(fatture),
-    leggiTuttoFattExtra('listino_prezzi','select=id,codice,cliente,prezzo,valido_dal,fonte&order=id.asc')
+    leggiTuttoFattExtra('listino_prezzi','select=id,codice,cliente,prezzo,valido_dal,fonte&order=id.asc'),
+    leggiTuttoFattExtra('articoli','select=codice_articolo&order=id.asc')
   ]);
   if(res[0]===null||res[1]===null||res[2]===null||res[4]===null){box.innerHTML='';showMsg('msg-ext-fatt','Errore di collegamento, riprova','err');return;}
+  // Codice e descrizione attaccati nel PDF: si separano sui codici noti (listino, DDT Uscita citati, articoli)
+  var notiFatt=insiemeCodiciExtra([res[1].map(function(x){return x.codice;}),res[2].map(function(x){return x.codice_articolo;}),(res[5]||[]).map(function(x){return x.codice_articolo;})]);
+  fatture.forEach(function(f){f.righe.forEach(function(r){applicaSeparaCodiceExtra(r,notiFatt);});});
   fattExtraStato={fatture:fatture,lavori:res[0],listino:res[1],uscita:res[2],prezzi:res[4],nomeFile:file.name,esiti:null,scelteOk:res[3]!==null,scelte:{}};
   (res[3]||[]).forEach(registraSceltaFattExtra);
   if(res[3]===null)showMsg('msg-ext-fatt','Scelte sulle righe non disponibili (tabella fattura_scelte non raggiungibile): il controllo funziona lo stesso','err');
