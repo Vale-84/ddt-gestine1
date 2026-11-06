@@ -1,0 +1,4751 @@
+{
+ "nota": "Copia prima delle correzioni A1 A3 A4 A5 A8 A9 A10 A11 del 2026-11-06",
+ "abbinamenti_ber": [
+  {
+   "id": 1,
+   "codice_b0": "B0BLAVABI",
+   "codice_ber": "BER00531",
+   "desc_b0": "BLOCCHETTO LET. AVANT BIANCO",
+   "desc_ber": "EL. BOLOCCHETTO SPONDA DIVANETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 2,
+   "codice_b0": "B0BLOAVANT",
+   "codice_ber": "BER00531",
+   "desc_b0": "BLOCCHETTO LET. AVANT NATURALE",
+   "desc_ber": "EL. BOLOCCHETTO SPONDA DIVANETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 3,
+   "codice_b0": "B0BLOCUBI",
+   "codice_ber": "BER00531",
+   "desc_b0": "BLOCCHETTO CUORICINI BIANCO",
+   "desc_ber": "EL. BOLOCCHETTO SPONDA DIVANETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 4,
+   "codice_b0": "B0BLOCUNT",
+   "codice_ber": "BER00531",
+   "desc_b0": "BLOCCHETTO CUORICINI NATURALE",
+   "desc_ber": "EL. BOLOCCHETTO SPONDA DIVANETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 5,
+   "codice_b0": "B0CUINFLEBI",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA INFERIORE LETT. CULLA LEONARDO BIANCO",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 6,
+   "codice_b0": "B0CUINFLENT",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA INFERIORE LET. CULLA LEONARDO NATURALE",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 7,
+   "codice_b0": "B0CUINFLESTO",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA INFERIORE LET. CULLA LEONARDO STONE",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 8,
+   "codice_b0": "B0CUINFLETO",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA INFERIORE LET. CULLA LEONARDO TORTORA",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 9,
+   "codice_b0": "B0CUINFOVBI",
+   "codice_ber": "BER00303",
+   "desc_b0": "CURVA INFERIORE LETTINO OVALE BIANCO-CHOCO-GREY",
+   "desc_ber": "EL. CURVA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 10,
+   "codice_b0": "B0CUINFOVCH",
+   "codice_ber": "BER00303",
+   "desc_b0": "CURVA INFERIORE LETTINO OVALE CHOCO",
+   "desc_ber": "EL. CURVA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 11,
+   "codice_b0": "B0CUINFOVGR",
+   "codice_ber": "BER00303",
+   "desc_b0": "CURVA INFERIORE LETTINO OVALE GREY",
+   "desc_ber": "EL. CURVA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 12,
+   "codice_b0": "B0CUSUPLEBI",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA SUPERIORE LET. CULLA LEONARDO BIANCO",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 13,
+   "codice_b0": "B0CUSUPLENT",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA SUPERIORE LET. CULLA LEONARDO NATURALE",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 14,
+   "codice_b0": "B0CUSUPLESTO",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA SUPERIORE LET. CULLA LEONARDO STONE",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 15,
+   "codice_b0": "B0CUSUPLETO",
+   "codice_ber": "BER00508",
+   "desc_b0": "CURVA SUPERIORE LET. CULLA LEONARDO TORTORA",
+   "desc_ber": "EL. CURVA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 16,
+   "codice_b0": "B0CUSUPOVBI",
+   "codice_ber": "BER00303",
+   "desc_b0": "CURVA SUPERIORE LETTINO OVALE BIANCO-CHOCO-GREY",
+   "desc_ber": "EL. CURVA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 17,
+   "codice_b0": "B0CUSUPOVCH",
+   "codice_ber": "BER00303",
+   "desc_b0": "CURVA SUPERIORE LETTINO OVALE CHOCO",
+   "desc_ber": "EL. CURVA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 18,
+   "codice_b0": "B0CUSUPOVGR",
+   "codice_ber": "BER00303",
+   "desc_b0": "CURVA SUPERIORE LETTINO OVALE GREY",
+   "desc_ber": "EL. CURVA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 19,
+   "codice_b0": "B0DONPOBI",
+   "codice_ber": "BER00515",
+   "desc_b0": "DONDOLO POLTRONA BIANCO",
+   "desc_ber": "SET 2 PZ. BASE POLTRONA OSLO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 20,
+   "codice_b0": "B0DONPONT",
+   "codice_ber": "BER00515",
+   "desc_b0": "DONDOLO POLTRONA NATURALE",
+   "desc_ber": "SET 2 PZ. BASE POLTRONA OSLO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 21,
+   "codice_b0": "B0FELIBI",
+   "codice_ber": "BER00343-V",
+   "desc_b0": "TESTATA LETTINO FELICITY BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO FELICITY CER finitura",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 22,
+   "codice_b0": "B0FELIBI",
+   "codice_ber": "BER00343",
+   "desc_b0": "TESTATA LETTINO FELICITY BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO FELICITY CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 23,
+   "codice_b0": "B0FIACOBI",
+   "codice_ber": "BER00660",
+   "desc_b0": "FIANCO COMO BIANCO",
+   "desc_ber": "EL. FIANCO FASCIATOIO DA COMO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 24,
+   "codice_b0": "B0FIPREEVONT",
+   "codice_ber": "BER00594",
+   "desc_b0": "FIANCO PROLUNGA RETE LET. EVO NATURALE CER",
+   "desc_ber": "EL. LISTELLO RETE LETTO EVO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 25,
+   "codice_b0": "B0FISREEVBI",
+   "codice_ber": "BER00593",
+   "desc_b0": "FIANCO SEMIRETE LET. CULLA EVO BIANCO",
+   "desc_ber": "EL. LISTELLO RETE CULLA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 26,
+   "codice_b0": "B0FISREEVNT",
+   "codice_ber": "BER00593",
+   "desc_b0": "FIANCO SEMIRETE LET. EVO NATURALE",
+   "desc_ber": "EL. LISTELLO RETE CULLA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 27,
+   "codice_b0": "B0FRCACOBI",
+   "codice_ber": "BER00611",
+   "desc_b0": "FRONTALI CASSETTI COMO' BIANCO",
+   "desc_ber": "EL. FRONTALE COMO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 28,
+   "codice_b0": "B0FRCACOGR",
+   "codice_ber": "BER00610",
+   "desc_b0": "FRONTALI CASSETTI BAGNETTO GRIGIO",
+   "desc_ber": "EL. FRONTALE CASS. BAGNETTO GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 29,
+   "codice_b0": "B0GAACODODNT",
+   "codice_ber": "BER00577",
+   "desc_b0": "GAMBA ANTERIORE DX COMO' DOLCEVITA NATURALE",
+   "desc_ber": "EL. GAMBA ANTERIORE COMO DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 30,
+   "codice_b0": "B0GAACODOSNT",
+   "codice_ber": "BER00577",
+   "desc_b0": "GAMBA ANTERIORE SX COMO' DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA ANTERIORE COMO DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 31,
+   "codice_b0": "B0GAADCOGIONT",
+   "codice_ber": "BER00646",
+   "desc_b0": "GAMBA ANTERIORE DX COMO GIOIA NATURALE CER",
+   "desc_ber": "EL. GAMBA ANTERIORE COMO' GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 32,
+   "codice_b0": "B0GAARDOADNT",
+   "codice_ber": "BER00575",
+   "desc_b0": "GAMBA ANTERIORE DX ARMADIO DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA ANTERIORE ARMADIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 33,
+   "codice_b0": "B0GAARDOASNT",
+   "codice_ber": "BER00575",
+   "desc_b0": "GAMBA ANTERIORE SX ARMADIO DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA ANTERIORE ARMADIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 34,
+   "codice_b0": "B0GAASCOGIONT",
+   "codice_ber": "BER00646",
+   "desc_b0": "GAMBA ANTERIORE SX COMO GIOIA NATURALE CER",
+   "desc_ber": "EL. GAMBA ANTERIORE COMO' GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 35,
+   "codice_b0": "B0GADOSTO",
+   "codice_ber": "BER00630",
+   "desc_b0": "GAMBA DOLCESTELLA TORTORA CER",
+   "desc_ber": "EL. GAMBA LET. DOLCESTELLA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 36,
+   "codice_b0": "B0GAFIGIONT",
+   "codice_ber": "BER00649",
+   "desc_b0": "GAMBA FISSA LETTINO GIOIA NATURALE CER",
+   "desc_ber": "EL. GAMBA FISSA LET. GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 37,
+   "codice_b0": "B0GALEBI",
+   "codice_ber": "BER00509",
+   "desc_b0": "GAMBA LET. CULLA LEONARDO BIANCO",
+   "desc_ber": "EL. GAMBA LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 38,
+   "codice_b0": "B0GALEDXDOLNT",
+   "codice_ber": "BER00631",
+   "desc_b0": "GAMBA DX LETTINO DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 39,
+   "codice_b0": "B0GALENT",
+   "codice_ber": "BER00509",
+   "desc_b0": "GAMBA LET. LEONARDO NATURALE",
+   "desc_ber": "EL. GAMBA LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 40,
+   "codice_b0": "B0GALESTO",
+   "codice_ber": "BER00509",
+   "desc_b0": "GAMBA LET. LEONARDO STONE",
+   "desc_ber": "EL. GAMBA LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 41,
+   "codice_b0": "B0GALESXDOLNT",
+   "codice_ber": "BER00631",
+   "desc_b0": "GAMBA SX LETTINO DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 42,
+   "codice_b0": "B0GALETO",
+   "codice_ber": "BER00509",
+   "desc_b0": "GAMBA LET. LEONARDO TORTORA",
+   "desc_ber": "EL. GAMBA LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 43,
+   "codice_b0": "B0GAMOGIONT",
+   "codice_ber": "BER00648",
+   "desc_b0": "GAMBA MOBILE LETTINO GIOIA NATURALE CER",
+   "desc_ber": "EL. GAMBA MOBILE LET. GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 44,
+   "codice_b0": "B0GAOVABI",
+   "codice_ber": "BER00304",
+   "desc_b0": "GAMBA LETTINO DX-SX OVALE BIANCO-CHOCO-GREY",
+   "desc_ber": "EL. GAMBA CULLA EVOC SX",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 45,
+   "codice_b0": "B0GAPARDONT",
+   "codice_ber": "BER00576",
+   "desc_b0": "GAMBA POSTERIORE ARMADIO DOLCEVITA NATURALE",
+   "desc_ber": "EL. GAMBA POSTERIORE ARMADIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 46,
+   "codice_b0": "B0GAPDCGIONT",
+   "codice_ber": "BER00647",
+   "desc_b0": "GAMBA POSTERIORE DX COMO GIOIA NATURALE CER",
+   "desc_ber": "EL. GAMBA POSTERIORE COMO' GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 47,
+   "codice_b0": "B0GAPDCODONT",
+   "codice_ber": "BER00578",
+   "desc_b0": "GAMBA POSTERIORE SX COMO' DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA POSTERIORE COMO' DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 48,
+   "codice_b0": "B0GAPSCGIONT",
+   "codice_ber": "BER00647",
+   "desc_b0": "GAMBA POSTERIORE SX COMO GIOIA NATURALE CER",
+   "desc_ber": "EL. GAMBA POSTERIORE COMO' GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 49,
+   "codice_b0": "B0GAPSCODONT",
+   "codice_ber": "BER00578",
+   "desc_b0": "GAMBA POSTERIORE DX COMO' DOLCEVITA NATURALE CER",
+   "desc_ber": "EL. GAMBA POSTERIORE COMO' DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 50,
+   "codice_b0": "B0GASPMOBI",
+   "codice_ber": "BER00620",
+   "desc_b0": "GAMBA LETT. MOOVIE BIANCO",
+   "desc_ber": "EL. GAMBA TESTATA MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 51,
+   "codice_b0": "B0LISEEVOBI",
+   "codice_ber": "BER00593",
+   "desc_b0": "LISTELLO SEMIRETE EVO BIANCO CER",
+   "desc_ber": "EL. LISTELLO RETE CULLA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 52,
+   "codice_b0": "B0LISEEVONT",
+   "codice_ber": "BER00593",
+   "desc_b0": "LISTELLO SEMIRETE EVO NATURALE",
+   "desc_ber": "EL. LISTELLO RETE CULLA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 53,
+   "codice_b0": "B0LISSUPBI",
+   "codice_ber": "BER00623",
+   "desc_b0": "LISTELLO SUPERIORE MOOVIE BIANCO",
+   "desc_ber": "EL. LISTELLO SUPERIORE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 54,
+   "codice_b0": "B0LISSUPNT",
+   "codice_ber": "BER00623",
+   "desc_b0": "LISTELLO SUPERIORE LETT. MOOVIE NATURALE",
+   "desc_ber": "EL. LISTELLO SUPERIORE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 55,
+   "codice_b0": "B0LONMOOBI",
+   "codice_ber": "BER00622",
+   "desc_b0": "LONGHERONE RETE MOOVIE BIANCO",
+   "desc_ber": "EL. LONGHERONE RETE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 56,
+   "codice_b0": "B0LONMOONT",
+   "codice_ber": "BER00622",
+   "desc_b0": "LONGHERONE RETE MOOVIE NATURALE",
+   "desc_ber": "EL. LONGHERONE RETE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 57,
+   "codice_b0": "B0PANGOLBI",
+   "codice_ber": "BER00670",
+   "desc_b0": "PANNELLI GOLOSONE BIANCO CER",
+   "desc_ber": "EL. PANNELLO GOLOSONE/MASCOTTE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 58,
+   "codice_b0": "B0PANOROBI",
+   "codice_ber": "BER00628",
+   "desc_b0": "PANNELLO ORSO LETT. OVALE BIANCO",
+   "desc_ber": "EL. PANNELLO ORSO X SPONDA LET. OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 59,
+   "codice_b0": "B0PANPIKKBI",
+   "codice_ber": "BER00635",
+   "desc_b0": "PANNELLO PIKKOLETTO BIANCO CER",
+   "desc_ber": "EL. PANNELLO PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 60,
+   "codice_b0": "B0PIEJIFPBI",
+   "codice_ber": "BER00607",
+   "desc_b0": "PIEDINI JIUNIOR BIANCO CER",
+   "desc_ber": "EL. PIEDINO LETTO JUNIORN FOPPA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 61,
+   "codice_b0": "B0PIEJIFPNT",
+   "codice_ber": "BER00607",
+   "desc_b0": "PIEDINI JUNIOR NATURALE CER",
+   "desc_ber": "EL. PIEDINO LETTO JUNIORN FOPPA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 62,
+   "codice_b0": "B0PIOVABI",
+   "codice_ber": "BER00404",
+   "desc_b0": "PIEDINO OVALE BIANCO",
+   "desc_ber": "EL. PIEDINO OSLO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 63,
+   "codice_b0": "B0PRLREBI",
+   "codice_ber": "BER00534",
+   "desc_b0": "PROLUNGA LONGHERONE RETE INFINITO BIANCO",
+   "desc_ber": "EL. PROLUNGA LONGHERONE LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 64,
+   "codice_b0": "B0PRLRENT",
+   "codice_ber": "BER00534",
+   "desc_b0": "PROLUNGA LONGHERONE RETE INFINITO NATURALE",
+   "desc_ber": "EL. PROLUNGA LONGHERONE LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 65,
+   "codice_b0": "B0REBABI1",
+   "codice_ber": "BER00562",
+   "desc_b0": "RETE BACIO BIANCO 120X60",
+   "desc_ber": "EL. RETE BACIO 120X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 66,
+   "codice_b0": "B0REBABI2",
+   "codice_ber": "BER00563",
+   "desc_b0": "RETE BACIO BIANCO 140X70",
+   "desc_ber": "EL. RETE BACIO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 67,
+   "codice_b0": "B0REDIVBI",
+   "codice_ber": "BER00582",
+   "desc_b0": "RETE DIVANETTO BIANCO",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 68,
+   "codice_b0": "B0REDO1253BI",
+   "codice_ber": "BER00632",
+   "desc_b0": "RETE LETTINO DOLCEVITA 1253 BIANCO CER",
+   "desc_ber": "EL. LISTELLO RETE DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 69,
+   "codice_b0": "B0REDO140BI",
+   "codice_ber": "BER00632",
+   "desc_b0": "RETE LET. DOLCEVITA 140 BIANCO CER",
+   "desc_ber": "EL. LISTELLO RETE DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 70,
+   "codice_b0": "B0REGI1253BI",
+   "codice_ber": "BER00632",
+   "desc_b0": "RETE LETTINO DOLCEVITA 1253 BIANCO CER",
+   "desc_ber": "EL. LISTELLO RETE DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 71,
+   "codice_b0": "B0REPIKBI",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETE LETTINO PIKKOLETTO BIANCO CER",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 72,
+   "codice_b0": "B0REPIKNT",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETE LETTINO PIKKOLETTO NATURALE CER",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 73,
+   "codice_b0": "B0RETEMIBI",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETE LETTINO MINI BIANCO",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 74,
+   "codice_b0": "B0RETEMINT",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETE LETTINO MINI NATURALE",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 75,
+   "codice_b0": "B0RETEMITO",
+   "codice_ber": "BER00302",
+   "desc_b0": "RETE LETTINO MINI TORTORA",
+   "desc_ber": "EL. RETE LETTINO MINI",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 76,
+   "codice_b0": "B0RETENT",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETE NATURALE",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 77,
+   "codice_b0": "B0RETEPR",
+   "codice_ber": "BER00551",
+   "desc_b0": "RETE LETTINO PRIME BIANCO",
+   "desc_ber": "EL. RETE DIVANETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 78,
+   "codice_b0": "B0RETIAVBI",
+   "codice_ber": "BER00651",
+   "desc_b0": "RETI PICCOLA AVANT BIANCO",
+   "desc_ber": "EL. LISTELLO PICCOLO RETE AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 79,
+   "codice_b0": "B0RETIBI",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETE BIANCO CER",
+   "desc_ber": "EL. RETI CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 80,
+   "codice_b0": "B0RETITO",
+   "codice_ber": "BER00238",
+   "desc_b0": "RETI TORTORA CER",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 81,
+   "codice_b0": "B0RETLEOBI",
+   "codice_ber": "BER00313",
+   "desc_b0": "RETE LEONARDO BIANCO",
+   "desc_ber": "EL. RETE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 82,
+   "codice_b0": "B0RETRALEO",
+   "codice_ber": "BER00313",
+   "desc_b0": "RETE TRASFORMABILE LEONARDO BIANCO",
+   "desc_ber": "EL. RETE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 83,
+   "codice_b0": "B0RUEVOBI",
+   "codice_ber": "BER00592",
+   "desc_b0": "RUOTA EVO BIANCO CER",
+   "desc_ber": "EL. RUOTA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 84,
+   "codice_b0": "B0RUEVONT",
+   "codice_ber": "BER00592",
+   "desc_b0": "RUOTA EVO NATURALE CER",
+   "desc_ber": "EL. RUOTA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 85,
+   "codice_b0": "B0SPAUSTNT",
+   "codice_ber": "BER00477",
+   "desc_b0": "SPONDA LETTINO AUSTIN",
+   "desc_ber": "EL. SPONDA AUSTIN",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 86,
+   "codice_b0": "B0SPEVOBI",
+   "codice_ber": "BER00591",
+   "desc_b0": "SPONDA LETT. EVO BIANCO CER",
+   "desc_ber": "EL. SPONDA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 87,
+   "codice_b0": "B0SPEVONT",
+   "codice_ber": "BER00591",
+   "desc_b0": "SPONDA LETT. EVO NATURALE CER",
+   "desc_ber": "EL. SPONDA EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 88,
+   "codice_b0": "B0SPFBABI1",
+   "codice_ber": "BER00560",
+   "desc_b0": "SPONDA FISSA BACIO BIANCO 120X60",
+   "desc_ber": "EL. SPONDA BACIO 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 89,
+   "codice_b0": "B0SPFBABI2",
+   "codice_ber": "BER00561",
+   "desc_b0": "SPONDA FISSA BACIO BIANCO 140X70",
+   "desc_ber": "EL. SPONDA BACIO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 90,
+   "codice_b0": "B0SPFBAME1",
+   "codice_ber": "BER00560",
+   "desc_b0": "SPONDA FISSA BACIO MENTA 120X60",
+   "desc_ber": "EL. SPONDA BACIO 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 91,
+   "codice_b0": "B0SPFBAME2",
+   "codice_ber": "BER00561",
+   "desc_b0": "SPONDA FISSA BACIO MENTA 140X70",
+   "desc_ber": "EL. SPONDA BACIO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 92,
+   "codice_b0": "B0SPFBAPE1",
+   "codice_ber": "BER00560",
+   "desc_b0": "SPONDA FISSA BACIO PERLA 120X60",
+   "desc_ber": "EL. SPONDA BACIO 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 93,
+   "codice_b0": "B0SPFBAPE2",
+   "codice_ber": "BER00561",
+   "desc_b0": "SPONDA FISSA BACIO PERLA 140X70",
+   "desc_ber": "EL. SPONDA BACIO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 94,
+   "codice_b0": "B0SPFCUMBI",
+   "codice_ber": "BER00301",
+   "desc_b0": "SPONDA FISSA CUORICINI BIANCO",
+   "desc_ber": "EL. SPONDA LETTINO MINI FIS. CUOR",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 95,
+   "codice_b0": "B0SPFCUMTO",
+   "codice_ber": "BER00301",
+   "desc_b0": "SPONDA FISSA CUORICINI TORTORA",
+   "desc_ber": "EL. SPONDA LETTINO MINI FIS. CUOR",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 96,
+   "codice_b0": "B0SPFIAVAGBI",
+   "codice_ber": "BER00637",
+   "desc_b0": "SPONDA FISSA LET. AVANT GRANDE BIANCO",
+   "desc_ber": "EL. SPONDA GRANDE AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 97,
+   "codice_b0": "B0SPFIAVAGNT",
+   "codice_ber": "BER00637",
+   "desc_b0": "SPONDA FISSA LET. AVANT GRANDE NATURALE",
+   "desc_ber": "EL. SPONDA GRANDE AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 98,
+   "codice_b0": "B0SPFIAVAPBI",
+   "codice_ber": "BER00636",
+   "desc_b0": "SPONDA FISSA LET. AVANT PICCOLA BIANCO",
+   "desc_ber": "EL. SPONDA PICCOLA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 99,
+   "codice_b0": "B0SPFIAVAPNT",
+   "codice_ber": "BER00636",
+   "desc_b0": "SPONDA FISSA LET. AVANT PICCOLA NATURALE",
+   "desc_ber": "EL. SPONDA PICCOLA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 100,
+   "codice_b0": "B0SPFIBI",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA BIANCO CER",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 101,
+   "codice_b0": "B0SPFIBI1",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA 450-500 BIANCO CER",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 102,
+   "codice_b0": "B0SPFIBILO1",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA 450-500 LOVELY BIANCO CER",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 103,
+   "codice_b0": "B0SPFICOGIOBI",
+   "codice_ber": "BER00644",
+   "desc_b0": "SPONDA FISSA CORTA GIOIA BIANCO CER",
+   "desc_ber": "EL. SPONDA PICCOLA LET. GIOIA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 104,
+   "codice_b0": "B0SPFIDSBI",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA 500 DOLCESTELLA BIANCO CER",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 105,
+   "codice_b0": "B0SPFIGRGIOBI",
+   "codice_ber": "BER00643",
+   "desc_b0": "SPONDA FISSA GRANDE GIOIA BIANCO CER",
+   "desc_ber": "EL. SPONDA GRANDE LET. GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 106,
+   "codice_b0": "B0SPFIGRINFBI",
+   "codice_ber": "BER00538",
+   "desc_b0": "SPONDA FISSA GRANDE LETTINO INFINITO BIANCO",
+   "desc_ber": "EL. SPONDA GRANDE FIS. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 107,
+   "codice_b0": "B0SPFINT",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA NATURALE CER",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 108,
+   "codice_b0": "B0SPFIOLBI",
+   "codice_ber": "BER00513",
+   "desc_b0": "SPONDA FISSA OLLY DIVANETTO BIANCO",
+   "desc_ber": "EL. SPONDA FISSA LET. OVALE OLLY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 109,
+   "codice_b0": "B0SPFIOLNT",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA OLLY DIVANETTO NATURALE",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 110,
+   "codice_b0": "B0SPFIOVBI",
+   "codice_ber": "BER00513",
+   "desc_b0": "SPONDA FISSA LETT. OVALE BIANCO",
+   "desc_ber": "EL. SPONDA FISSA LET. OVALE OLLY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 111,
+   "codice_b0": "B0SPFIOVOLLBI",
+   "codice_ber": "BER00463",
+   "desc_b0": "SPONDA FISSA OVALE OLLY BIANCO",
+   "desc_ber": "SPONDA FISSA OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 112,
+   "codice_b0": "B0SPFIPIGIOBI",
+   "codice_ber": "BER00644",
+   "desc_b0": "SPONDA FISSA PICCOLA GIOIA BIANCO CER",
+   "desc_ber": "EL. SPONDA PICCOLA LET. GIOIA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 113,
+   "codice_b0": "B0SPFIPIINFBI",
+   "codice_ber": "BER00536",
+   "desc_b0": "SPONDA FISSA PICCOLA LETTINO INFINITO BIANCO",
+   "desc_ber": "EL. SPONDA PICCOLA FIS. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 114,
+   "codice_b0": "B0SPFITO1",
+   "codice_ber": "BER00240",
+   "desc_b0": "SPONDA FISSA  450-500 TORTORA CER",
+   "desc_ber": "EL. SPONDA NS FISSA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 115,
+   "codice_b0": "B0SPFMDFDOBI",
+   "codice_ber": "BER00634",
+   "desc_b0": "SPONDA FISSA MDF DOLCEVITA 140X70 BIANCO",
+   "desc_ber": "EL. SPONDA 140X70 DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 116,
+   "codice_b0": "B0SPFMDFDOBI1",
+   "codice_ber": "BER00638",
+   "desc_b0": "SPONDA FISSA MDF LETTINO DOLCEVITA BIANCO CER",
+   "desc_ber": "EL. SPONDA DOLCEVITA 1200X690 CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 117,
+   "codice_b0": "B0SPFMDFDOCI",
+   "codice_ber": "BER00634",
+   "desc_b0": "SPONDA FISSA MDF LETTINO DOLCEVITA CIPRIA CER",
+   "desc_ber": "EL. SPONDA 140X70 DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 118,
+   "codice_b0": "B0SPFMDFDOME",
+   "codice_ber": "BER00634",
+   "desc_b0": "SPONDA FISSA MDF LETTINO DOLCEVITA MENTA CER",
+   "desc_ber": "EL. SPONDA 140X70 DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 119,
+   "codice_b0": "B0SPFPIKBI",
+   "codice_ber": "BER00469",
+   "desc_b0": "SPONDA FISSA PIKKOLETTO BIANCO CER",
+   "desc_ber": "SPONDA FISSA LETT.PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 120,
+   "codice_b0": "B0SPFPIKNT",
+   "codice_ber": "BER00469",
+   "desc_b0": "SPONDA FISSA PIKKOLETTO NATURALE CER",
+   "desc_ber": "SPONDA FISSA LETT.PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 121,
+   "codice_b0": "B0SPLEOBI",
+   "codice_ber": "BER00503",
+   "desc_b0": "SPONDA LETT. CULLA  LEONARDO BIANCO",
+   "desc_ber": "EL. SPONDA PICCOLA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 122,
+   "codice_b0": "B0SPLEONT",
+   "codice_ber": "BER00503",
+   "desc_b0": "SPONDA LETT. CULLA LEONARDO NATURALE",
+   "desc_ber": "EL. SPONDA PICCOLA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 123,
+   "codice_b0": "B0SPLEOSTO",
+   "codice_ber": "BER00503",
+   "desc_b0": "SPONDA LETT. CULLA LEONARDO STONE",
+   "desc_ber": "EL. SPONDA PICCOLA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 124,
+   "codice_b0": "B0SPLEOTO",
+   "codice_ber": "BER00503",
+   "desc_b0": "SPONDA LETT. CULLA LEONARDO TORTORA",
+   "desc_ber": "EL. SPONDA PICCOLA OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 125,
+   "codice_b0": "B0SPMCUMBI",
+   "codice_ber": "BER00700",
+   "desc_b0": "SPONDA MOBILE CUORICINI BIANCO",
+   "desc_ber": "EL. SPONDA LETTINO MINI FIS. CUOR",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 126,
+   "codice_b0": "B0SPMOAVAGBI",
+   "codice_ber": "BER00637",
+   "desc_b0": "SPONDA MOBILE LET. AVANT GRANDE BIANCO",
+   "desc_ber": "EL. SPONDA GRANDE AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 127,
+   "codice_b0": "B0SPMOAVAGNT",
+   "codice_ber": "BER00637",
+   "desc_b0": "SPONDA MOBILE LET. AVANT GRANDE NATURALE",
+   "desc_ber": "EL. SPONDA GRANDE AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 128,
+   "codice_b0": "B0SPMOAVAPBI",
+   "codice_ber": "BER00636",
+   "desc_b0": "SPONDA MOBILE LET. AVANT PICCOLA BIANCO",
+   "desc_ber": "EL. SPONDA PICCOLA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 129,
+   "codice_b0": "B0SPMOAVAPNT",
+   "codice_ber": "BER00636",
+   "desc_b0": "SPONDA MOBILE LET. AVANT PICCOLA NATURALE",
+   "desc_ber": "EL. SPONDA PICCOLA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 130,
+   "codice_b0": "B0SPMOBI",
+   "codice_ber": "BER00244",
+   "desc_b0": "SPONDA MOBILE BIANCO CER",
+   "desc_ber": "EL. SPONDA NS MOBILE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 131,
+   "codice_b0": "B0SPMOBI1",
+   "codice_ber": "BER00244",
+   "desc_b0": "SPONDA MOBILE 450 - 500 BIANCO CER",
+   "desc_ber": "EL. SPONDA NS MOBILE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 132,
+   "codice_b0": "B0SPMOBIL1",
+   "codice_ber": "BER00244",
+   "desc_b0": "SPONDA MOBILE 450-500 LOVELY BIANCO CER",
+   "desc_ber": "EL. SPONDA NS MOBILE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 133,
+   "codice_b0": "B0SPMOCOGIOBI",
+   "codice_ber": "BER00644",
+   "desc_b0": "SPONDA MOBILE CORTA GIOIA BIANCO CER",
+   "desc_ber": "EL. SPONDA PICCOLA LET. GIOIA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 134,
+   "codice_b0": "B0SPMODSBI",
+   "codice_ber": "BER00244",
+   "desc_b0": "SPONDA MOBILE 500 DOLCESTELLA BIANCO CER",
+   "desc_ber": "EL. SPONDA NS MOBILE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 135,
+   "codice_b0": "B0SPMOGRGIOBI",
+   "codice_ber": "BER00643",
+   "desc_b0": "SPONDA MOBILE GRANDE GIOIA BIANCO CER",
+   "desc_ber": "EL. SPONDA GRANDE LET. GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 136,
+   "codice_b0": "B0SPMOGRINFBI",
+   "codice_ber": "BER00537",
+   "desc_b0": "SPONDA MOBILE GRANDE LETTINO INFINITO BIANCO",
+   "desc_ber": "EL. SPONDA GRANDE MOB. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 137,
+   "codice_b0": "B0SPMOLUGIOBI",
+   "codice_ber": "BER00643",
+   "desc_b0": "SPONDA MOBILE LUNGA GIOIA BIANCO CER",
+   "desc_ber": "EL. SPONDA GRANDE LET. GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 138,
+   "codice_b0": "B0SPMOOLBI",
+   "codice_ber": "BER00512",
+   "desc_b0": "SPONDA MOBILE OLLY DIVANETTO BIANCO",
+   "desc_ber": "EL. SPONDA MOBILE LET. OLLY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 139,
+   "codice_b0": "B0SPMOOLNT",
+   "codice_ber": "BER00580",
+   "desc_b0": "SPONDA MOBILE OLLY DIVANETTO NATURALE",
+   "desc_ber": "EL. SPONDA DIVANETTO MOBILE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 140,
+   "codice_b0": "B0SPMOOVBI",
+   "codice_ber": "BER00444",
+   "desc_b0": "SPONDA MOBILE LETT. OVALE BIANCO",
+   "desc_ber": "EL. SPONDA LETTO OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 141,
+   "codice_b0": "B0SPMOOVOLBI",
+   "codice_ber": "BER00462",
+   "desc_b0": "SPONDA MOBILE OVALE OLLY BIANCO",
+   "desc_ber": "SPONDA MOBILE OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 142,
+   "codice_b0": "B0SPMOPIINFBI",
+   "codice_ber": "BER00535",
+   "desc_b0": "SPONDA MOBILE PICCOLA LETTINO INFINITO BIANCO",
+   "desc_ber": "EL. SPONDA PICCOLA MOB. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 143,
+   "codice_b0": "B0SPMOTO1",
+   "codice_ber": "BER00244",
+   "desc_b0": "SPONDA MOBILE 450 - 500 TORTORA CER",
+   "desc_ber": "EL. SPONDA NS MOBILE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 144,
+   "codice_b0": "B0SPMPIBI",
+   "codice_ber": "BER00470",
+   "desc_b0": "SPONDA MOBILE PIKKOLETTO BIANCO CER",
+   "desc_ber": "SPONDA MOBILE LET. PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 145,
+   "codice_b0": "B0SPMPINT",
+   "codice_ber": "BER00470",
+   "desc_b0": "SPONDA MOBILE PIKKOLETTO NATURALE CER",
+   "desc_ber": "SPONDA MOBILE LET. PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 146,
+   "codice_b0": "B0SPOGIBI",
+   "codice_ber": "BER00650",
+   "desc_b0": "SPONDINA GIOIA 140X70 BIANCO CER",
+   "desc_ber": "EL. SPONDINA LET.GIOIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 147,
+   "codice_b0": "B0SPPMDFDOBI",
+   "codice_ber": "BER00638",
+   "desc_b0": "SPONDA PICCOLA MDF DOLCEVITA BIANCO CER",
+   "desc_ber": "EL. SPONDA DOLCEVITA 1200X690 CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 148,
+   "codice_b0": "B0SPPMDFDOCI",
+   "codice_ber": "BER00638",
+   "desc_b0": "SPONDA PICCOLA MDF DOLCEVITA CIPRIA CER",
+   "desc_ber": "EL. SPONDA DOLCEVITA 1200X690 CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 149,
+   "codice_b0": "B0SPPMDFDOME",
+   "codice_ber": "BER00638",
+   "desc_b0": "SPONDA PICCOLA MDF DOLCEVITA MENTA CER",
+   "desc_ber": "EL. SPONDA DOLCEVITA 1200X690 CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 150,
+   "codice_b0": "B0SPSPOBI",
+   "codice_ber": "BER00564",
+   "desc_b0": "SPONDINA BACIO 140X70 BIANCO CER",
+   "desc_ber": "EL. SPONDINA BACIO MOBILE 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 151,
+   "codice_b0": "B0STBACIOVE",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LETTINO BACIO VERDE",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 152,
+   "codice_b0": "B0STECINFBI",
+   "codice_ber": "BER00540",
+   "desc_b0": "STECCHE LETTINO INFINITO BIANCO",
+   "desc_ber": "EL. STECCA TESTATA INFINITO 895X44",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 153,
+   "codice_b0": "B0STEDOLTO",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LETTINO DOLCESTELLA TORTORA CER",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 154,
+   "codice_b0": "B0STELEOBI",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LET. CULLA LEONARDO BIANCO",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 155,
+   "codice_b0": "B0STELEONT",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LET. CULLA LEONARDO NATURALE",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 156,
+   "codice_b0": "B0STELEOTO",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LET. CULLA LEONARDO TORTORA",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 157,
+   "codice_b0": "B0STELET",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LETTINO",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 158,
+   "codice_b0": "B0STESPINFBI",
+   "codice_ber": "BER00545",
+   "desc_b0": "STECCHE SPONDA LETTINO INFINTO BIANCO",
+   "desc_ber": "EL. STECCA SPONDA INFINITO 629X44",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 159,
+   "codice_b0": "B0STESPINFVE",
+   "codice_ber": "BER00545",
+   "desc_b0": "STECCHE SPONDA LETTINO INFINTO VERDE",
+   "desc_ber": "EL. STECCA SPONDA INFINITO 629X44",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 160,
+   "codice_b0": "B0STETSINFBI",
+   "codice_ber": "BER00540",
+   "desc_b0": "STECCHE TESTATA LETTINO INFINTO BIANCO",
+   "desc_ber": "EL. STECCA TESTATA INFINITO 895X44",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 161,
+   "codice_b0": "B0STETSINFVE",
+   "codice_ber": "BER00540",
+   "desc_b0": "STECCHE TESTATA LETTINO INFINTO VERDE",
+   "desc_ber": "EL. STECCA TESTATA INFINITO 895X44",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 162,
+   "codice_b0": "B0STOVABI",
+   "codice_ber": "BER00398",
+   "desc_b0": "STECCHE LETTINO OVALE BIANCO-CHOCO-GREY",
+   "desc_ber": "EL. STECCA LETTINO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 163,
+   "codice_b0": "B0TESOSTO",
+   "codice_ber": "BER00629",
+   "desc_b0": "SPALLIERA DOLCESTELLA TORTORA CER",
+   "desc_ber": "EL. SPALLIERA LETT. DOLCESTELLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 164,
+   "codice_b0": "B0TOMOBI",
+   "codice_ber": "BER00385",
+   "desc_b0": "TORRE MOOVIE BIANCO",
+   "desc_ber": "EL. TORRE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 165,
+   "codice_b0": "B0TOMOGR",
+   "codice_ber": "BER00385",
+   "desc_b0": "TORRE MOOVIE GRIGIO",
+   "desc_ber": "EL. TORRE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 166,
+   "codice_b0": "B0TRAFALEOBI",
+   "codice_ber": "BER00504",
+   "desc_b0": "SPONDA TRASF. FASCIATOIO LEONARDO BIANCO",
+   "desc_ber": "EL. SPONDA GRANDE OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 167,
+   "codice_b0": "B0TRAFALETO",
+   "codice_ber": "BER00504",
+   "desc_b0": "SPONDA TRASF. FASC. LEONARDO TORTORA",
+   "desc_ber": "EL. SPONDA GRANDE OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 168,
+   "codice_b0": "B0TRALELEOBI",
+   "codice_ber": "BER00504",
+   "desc_b0": "SPONDA TRASF. LETTO LEONARDO BIANCO",
+   "desc_ber": "EL. SPONDA GRANDE OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 169,
+   "codice_b0": "B0TRALELEONT",
+   "codice_ber": "BER00504",
+   "desc_b0": "SPONDA TRASF. LETTO LEONARDO NATURALE",
+   "desc_ber": "EL. SPONDA GRANDE OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 170,
+   "codice_b0": "B0TRALELEOST",
+   "codice_ber": "BER00504",
+   "desc_b0": "SPONDA TRASF. LETTO LEONARDO STONE",
+   "desc_ber": "EL. SPONDA GRANDE OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 171,
+   "codice_b0": "B0TRALELEOTO",
+   "codice_ber": "BER00504",
+   "desc_b0": "SPONDA TRASF. LETTO LEONARDO TORTORA",
+   "desc_ber": "EL. SPONDA GRANDE OVALE LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 172,
+   "codice_b0": "B0TRFALEOBI",
+   "codice_ber": "BER00507",
+   "desc_b0": "TRAVERSO LETT. LEONARDO BIANCO",
+   "desc_ber": "EL. TRAVERSO FASCIATOIO LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 173,
+   "codice_b0": "B0TRFASCOBI",
+   "codice_ber": "BER00661",
+   "desc_b0": "TRAVERSO FASCIATOIO COMO BIANCO",
+   "desc_ber": "EL. TRAVERSO FASCIATOIO DA COMO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 174,
+   "codice_b0": "B0TRPIOVBI",
+   "codice_ber": "BER00404",
+   "desc_b0": "PIEDINO TRASF. - RIDUZ. LETTO OVALE BIANCO",
+   "desc_ber": "EL. PIEDINO OSLO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 175,
+   "codice_b0": "B0TRSPOVBI",
+   "codice_ber": "BER00312",
+   "desc_b0": "SPONDA TRASF. - RIDUZ. LETTO OVALE BIANCO",
+   "desc_ber": "EL. SPONDA CULLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 176,
+   "codice_b0": "B0TRTSMOOBI",
+   "codice_ber": "BER00621",
+   "desc_b0": "TRAVERSO TESTATA LETTINO MOOVIE BIANCO",
+   "desc_ber": "EL. TRAVERSO TESTATA MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 177,
+   "codice_b0": "B0TSALICBI",
+   "codice_ber": "BER00239",
+   "desc_b0": "TESTATA LETTINO ALICE BIANCO",
+   "desc_ber": "EL. TESTATA LETTINO ALICE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 178,
+   "codice_b0": "B0TSAUSTNT",
+   "codice_ber": "BER00476",
+   "desc_b0": "TESTATA LETTINO AUSTIN NATURALE",
+   "desc_ber": "EL. TESTATA AUSTIN",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 179,
+   "codice_b0": "B0TSAVABI",
+   "codice_ber": "BER00613",
+   "desc_b0": "TESTATA LETTINO AVANT BIANCO",
+   "desc_ber": "EL. TESTATA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 180,
+   "codice_b0": "B0TSAVANCA",
+   "codice_ber": "BER00613",
+   "desc_b0": "TESTATA LETTINO AVANT CAFFE",
+   "desc_ber": "EL. TESTATA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 181,
+   "codice_b0": "B0TSAVANT",
+   "codice_ber": "BER00613",
+   "desc_b0": "TESTATA LETT. AVANT NATURALE",
+   "desc_ber": "EL. TESTATA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 182,
+   "codice_b0": "B0TSAVAVE",
+   "codice_ber": "BER00613",
+   "desc_b0": "TESTATA LETTINO AVANT VERDE",
+   "desc_ber": "EL. TESTATA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 183,
+   "codice_b0": "B0TSBIGR",
+   "codice_ber": "BER00510",
+   "desc_b0": "TESTATA LETTINO BIRICHINI GRIGIO CER",
+   "desc_ber": "EL. TESTATA LET. BIRICHINI CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 184,
+   "codice_b0": "B0TSBIRBBI",
+   "codice_ber": "BER00353",
+   "desc_b0": "TESTATA LETTINO BIRBANTE BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO BIRBANTE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 185,
+   "codice_b0": "B0TSCUORBI",
+   "codice_ber": "BER00379",
+   "desc_b0": "TESTATA LETTINO CUORICINI BIANCO",
+   "desc_ber": "EL. TESTATA LETTINO CUORICINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 186,
+   "codice_b0": "B0TSCUORNT",
+   "codice_ber": "BER00379",
+   "desc_b0": "TESTATA LETTINO CUORICINI NATURALE",
+   "desc_ber": "EL. TESTATA LETTINO CUORICINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 187,
+   "codice_b0": "B0TSCUORTO",
+   "codice_ber": "BER00379",
+   "desc_b0": "TESTATA LETTINO CUORICINO TORTORA",
+   "desc_ber": "EL. TESTATA LETTINO CUORICINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 188,
+   "codice_b0": "B0TSDOLBI",
+   "codice_ber": "BER00328",
+   "desc_b0": "TESTATA LETTINO DOLCECUORE BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO DOLCECUORE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 189,
+   "codice_b0": "B0TSDOLTO",
+   "codice_ber": "BER00328",
+   "desc_b0": "TESTATA LETTINO DOLCECUORE TORTORA CER",
+   "desc_ber": "EL. TESTATA LETTINO DOLCECUORE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 190,
+   "codice_b0": "B0TSDOSBI",
+   "codice_ber": "BER00400",
+   "desc_b0": "TESTATA LETTINO DOLCESTELLA BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO DOLCESTELLA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 191,
+   "codice_b0": "B0TSEVOBI",
+   "codice_ber": "BER00590",
+   "desc_b0": "TESTATA LETTINO EVO BIANCO CER",
+   "desc_ber": "EL. TESTATA EVO DX-SX CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 192,
+   "codice_b0": "B0TSEVONT",
+   "codice_ber": "BER00590",
+   "desc_b0": "TESTATA LETTINO EVO NATURALE CER",
+   "desc_ber": "EL. TESTATA EVO DX-SX CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 193,
+   "codice_b0": "B0TSFELIBI",
+   "codice_ber": "BER00343",
+   "desc_b0": "TESTATA LETTINO FELICITY BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO FELICITY CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 194,
+   "codice_b0": "B0TSGOBI",
+   "codice_ber": "BER00433",
+   "desc_b0": "TESTATA LETTINO GOLOSONE BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO GOLOSONE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 195,
+   "codice_b0": "B0TSHTBI",
+   "codice_ber": "BER00514",
+   "desc_b0": "TESTATA LETTINO HAPPY TOUR BIANCO CER",
+   "desc_ber": "EL. TESTATA LET. HAPPY TOUR CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 196,
+   "codice_b0": "B0TSINFBI",
+   "codice_ber": "BER00533",
+   "desc_b0": "TESTATA LETTINO INFINITO BIANCO",
+   "desc_ber": "EL. TESTATA INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 197,
+   "codice_b0": "B0TSLOVBI",
+   "codice_ber": "BER00345",
+   "desc_b0": "TESTATA LETTINO LOVELY BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO LOVELY CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 198,
+   "codice_b0": "B0TSLUCBI",
+   "codice_ber": "BER00230",
+   "desc_b0": "TESTATA LETTINO LUCY BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO LUCY CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 199,
+   "codice_b0": "B0TSMASBI",
+   "codice_ber": "BER00501",
+   "desc_b0": "TESTATA LETTINO MASCOTTE BIANCO CER",
+   "desc_ber": "EL. TESTATA LET.MASCOTTE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 200,
+   "codice_b0": "B0TSPATBI",
+   "codice_ber": "BER00352",
+   "desc_b0": "TESTATA LETTINO PATTY BIANCO CER",
+   "desc_ber": "EL. TESTATA LETTINO PATTY CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 201,
+   "codice_b0": "B0TSPIAMBI",
+   "codice_ber": "BER00434",
+   "desc_b0": "TESTATA LETTINO PICCOLI AMICI BIANCO CER",
+   "desc_ber": "EL. TESTATA PICCOLI AMICI CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 202,
+   "codice_b0": "B0TSPIKBI",
+   "codice_ber": "BER00468",
+   "desc_b0": "TESTATA LETTINO PIKKOLETTO BIANCO CER",
+   "desc_ber": "EL. TESTATA LETT.PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 203,
+   "codice_b0": "B0TSPIKDBI",
+   "codice_ber": "BER00491",
+   "desc_b0": "TESTATA LETTINO PIKKOLETTO DOLCESTELLA BIANCO CER",
+   "desc_ber": "EL. TESTATA LETT.PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 204,
+   "codice_b0": "B0TSPIKNT",
+   "codice_ber": "BER00468",
+   "desc_b0": "TESTATA LETTINO PIKKOLETTO NATURALE CER",
+   "desc_ber": "EL. TESTATA LETT.PIKKOLETTO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 205,
+   "codice_b0": "B0TSPRABI",
+   "codice_ber": "BER00529",
+   "desc_b0": "TESTATA LETTINO PRAIM BIANCO",
+   "desc_ber": "EL. TESTATA LET. PRAIM",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 206,
+   "codice_b0": "B0TSPRANT",
+   "codice_ber": "BER00529",
+   "desc_b0": "TESTATA LETTINO PRAIM NATURALE",
+   "desc_ber": "EL. TESTATA LET. PRAIM",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 207,
+   "codice_b0": "B0TSTEDBI",
+   "codice_ber": "BER00374",
+   "desc_b0": "TESTATA LETTINO TED DIVANETTO BIANCO",
+   "desc_ber": "EL. TESTATA LETTINO TED",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 208,
+   "codice_b0": "B0TSTEOBI",
+   "codice_ber": "BER00436",
+   "desc_b0": "TESTATA LETTINO TEODORO BIANCO",
+   "desc_ber": "EL. TESTATA LETT. TEODORO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 209,
+   "codice_b0": "B0ZOCCINFBI",
+   "codice_ber": "BER00534",
+   "desc_b0": "PROLUNGA-ZOCCOLO INFINITO BIANCO",
+   "desc_ber": "EL. PROLUNGA LONGHERONE LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-13T21:31:07.052226+00:00"
+  },
+  {
+   "id": 210,
+   "codice_b0": "B0REDIVNT",
+   "codice_ber": "BER00582",
+   "desc_b0": "RETE DIVANETTO NATURALE",
+   "desc_ber": "EL. LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-06-18T20:37:18.862536+00:00"
+  },
+  {
+   "id": 211,
+   "codice_b0": "B0RETIBI",
+   "codice_ber": "BER00232",
+   "desc_b0": "RETE BIANCO CER",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T02:47:15.214469+00:00"
+  },
+  {
+   "id": 212,
+   "codice_b0": "B0TSSA/RUBI",
+   "codice_ber": "BER00702",
+   "desc_b0": "TESTATA LETTINO SALLY/RUDY BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:08:47.934174+00:00"
+  },
+  {
+   "id": 213,
+   "codice_b0": "B0TSSA/RUNT",
+   "codice_ber": "BER00702",
+   "desc_b0": "TESTATA LETTINO SALLY/RUDY NATURALE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:09:08.523932+00:00"
+  },
+  {
+   "id": 214,
+   "codice_b0": "B0SPFCUMBI",
+   "codice_ber": "BER00701",
+   "desc_b0": "SPONDA FISSA CUORICINI BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:10:44.043256+00:00"
+  },
+  {
+   "id": 215,
+   "codice_b0": "B0SPFCUMTO",
+   "codice_ber": "BER00701",
+   "desc_b0": "SPONDA FISSA CUORICINI TORTORA",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:11:12.827765+00:00"
+  },
+  {
+   "id": 216,
+   "codice_b0": "B0SPMOOLBI",
+   "codice_ber": "BER00580",
+   "desc_b0": "SPONDA MOBILE OLLY DIVANETTO BIANCO",
+   "desc_ber": "EL. SPONDA DIVANETTO MOBILE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:12:41.201241+00:00"
+  },
+  {
+   "id": 217,
+   "codice_b0": "B0SPFIOLBI",
+   "codice_ber": "BER00580",
+   "desc_b0": "SPONDA FISSA OLLY DIVANETTO BIANCO",
+   "desc_ber": "EL. SPONDA DIVANETTO MOBILE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:13:50.543064+00:00"
+  },
+  {
+   "id": 218,
+   "codice_b0": "B0SPFIOLNT",
+   "codice_ber": "BER00580",
+   "desc_b0": "SPONDA FISSA OLLY DIVANETTO NATURALE",
+   "desc_ber": "EL. SPONDA DIVANETTO MOBILE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T05:14:04.117923+00:00"
+  },
+  {
+   "id": 219,
+   "codice_b0": "B0REINFBI",
+   "codice_ber": "BER00539",
+   "desc_b0": "RETE LETTINO INFINITO BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T06:05:36.827338+00:00"
+  },
+  {
+   "id": 220,
+   "codice_b0": "B0HTSSALRUBI",
+   "codice_ber": "BER00704",
+   "desc_b0": "H PER TESTATA LETTINO SALLY RUDY BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-13T09:11:23.699953+00:00"
+  },
+  {
+   "id": 221,
+   "codice_b0": "B0LONGETERNT",
+   "codice_ber": "BER00679",
+   "desc_b0": "LONGHERONE LETTINO ETERNITY NATURALE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-13T09:18:11.640877+00:00"
+  },
+  {
+   "id": 225,
+   "codice_b0": "B0RETIETERBI",
+   "codice_ber": "BER00522",
+   "desc_b0": "RETI LETTINO ETERNITY BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-13T09:20:39.615055+00:00"
+  },
+  {
+   "id": 226,
+   "codice_b0": "B0TSINFNT",
+   "codice_ber": "BER00533",
+   "desc_b0": "TESTATA LETTINO INFINITO NATURALE",
+   "desc_ber": "EL. TESTATA INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T19:10:53.739028+00:00"
+  },
+  {
+   "id": 227,
+   "codice_b0": "B0SPMOPIINFNT",
+   "codice_ber": "BER00535",
+   "desc_b0": "SPONDA MOBILE PICCOLA INFINITO NATURALE",
+   "desc_ber": "EL. SPONDA PICCOLA MOB. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T19:11:23.305253+00:00"
+  },
+  {
+   "id": 228,
+   "codice_b0": "B0SPFIPIINFNT",
+   "codice_ber": "BER00536",
+   "desc_b0": "SPONDA FISSA PICCOLA INFINITO NATURALE",
+   "desc_ber": "EL. SPONDA PICCOLA FIS. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T19:11:49.505582+00:00"
+  },
+  {
+   "id": 229,
+   "codice_b0": "B0SPMOGRINFNT",
+   "codice_ber": "BER00537",
+   "desc_b0": "SPONDA MOBILE GRANDE INFINITO NATURALE",
+   "desc_ber": "EL. SPONDA GRANDE MOB. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T19:12:48.551666+00:00"
+  },
+  {
+   "id": 230,
+   "codice_b0": "B0SPFIGRINFNT",
+   "codice_ber": "BER00538",
+   "desc_b0": "SPONDA FISSA GRANDE INFINITO NATURALE",
+   "desc_ber": "EL. SPONDA GRANDE FIS. LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T19:13:15.132461+00:00"
+  },
+  {
+   "id": 237,
+   "codice_b0": "B0LONGETERNO",
+   "codice_ber": "BER00679",
+   "desc_b0": "LONGHERONE LETTINO ETERNITY NOCE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T19:16:59.936024+00:00"
+  },
+  {
+   "id": 238,
+   "codice_b0": "B0SPMCUMNT",
+   "codice_ber": "BER00700",
+   "desc_b0": "SPONDA MOBILE CUORICINI NATURALE",
+   "desc_ber": "EL. SPONDA LETTINO MINI FIS. CUOR",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T20:58:29.525557+00:00"
+  },
+  {
+   "id": 239,
+   "codice_b0": "B0SPFCUMNT",
+   "codice_ber": "BER00701",
+   "desc_b0": "SPONDA FISSA CUORICINI NATURALE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-05T20:59:14.35343+00:00"
+  },
+  {
+   "id": 240,
+   "codice_b0": "B0SPPETERBI",
+   "codice_ber": "BER00680BI",
+   "desc_b0": "SPONDA PICCOLA LETTINO ETERNITY BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:16:26.604991+00:00"
+  },
+  {
+   "id": 241,
+   "codice_b0": "B0SPPETERNO",
+   "codice_ber": "BER00680NO",
+   "desc_b0": "SPONDA PICCOLA LETTINO ETERNITY NOCE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:17:10.143023+00:00"
+  },
+  {
+   "id": 242,
+   "codice_b0": "B0SPGRETEBI",
+   "codice_ber": "BER00681BI",
+   "desc_b0": "SPONDA GRANDE ETERNITY BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:19:04.618632+00:00"
+  },
+  {
+   "id": 243,
+   "codice_b0": "B0SPGRETENT",
+   "codice_ber": "BER00681NT",
+   "desc_b0": "SPONDA GRANDE LETTINO ETERNITY NATURALE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:19:33.293648+00:00"
+  },
+  {
+   "id": 244,
+   "codice_b0": "B0SPGRETENO",
+   "codice_ber": "BER00681NO",
+   "desc_b0": "SPONDA GRANDE LETTINO ETERNITY NOCE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:19:51.168974+00:00"
+  },
+  {
+   "id": 245,
+   "codice_b0": "B0SPPETERNT",
+   "codice_ber": "BER00680NT",
+   "desc_b0": "SPONDA PICCOLA LETTINO ETERNITY NATURALE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:22:58.964852+00:00"
+  },
+  {
+   "id": 246,
+   "codice_b0": "B0TSETERNNT",
+   "codice_ber": "BER00678NT",
+   "desc_b0": "TESTATA LETTINO ETERNITY NATURALE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:24:02.057561+00:00"
+  },
+  {
+   "id": 247,
+   "codice_b0": "B0TSETERNO",
+   "codice_ber": "BER00678NO",
+   "desc_b0": "TESTATA LETTINO ETERNITY NOCE",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:24:18.676199+00:00"
+  },
+  {
+   "id": 248,
+   "codice_b0": "B0TSETERBI",
+   "codice_ber": "BER00678BI",
+   "desc_b0": "TESTATA LETTINO ETERNITY BIANCO",
+   "desc_ber": null,
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:24:38.653383+00:00"
+  }
+ ],
+ "articoli_bergamasco": [
+  {
+   "id": 388,
+   "codice_articolo": "B0ANTMODTO",
+   "descrizione": "ANTA MODULAR TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 389,
+   "codice_articolo": "B0BLAVABI",
+   "descrizione": "BLOCCHETTO LET. AVANT BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 390,
+   "codice_articolo": "B0BLOAVANT",
+   "descrizione": "BLOCCHETTO LET. AVANT NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 391,
+   "codice_articolo": "B0BLOCUBI",
+   "descrizione": "BLOCCHETTO CUORICINI BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 392,
+   "codice_articolo": "B0BLOCUNT",
+   "descrizione": "BLOCCHETTO CUORICINI NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 393,
+   "codice_articolo": "B0CUINFLEBI",
+   "descrizione": "CURVA INFERIORE LETT. CULLA LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 394,
+   "codice_articolo": "B0CUINFLENT",
+   "descrizione": "CURVA INFERIORE LET. CULLA LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 395,
+   "codice_articolo": "B0CUINFLESTO",
+   "descrizione": "CURVA INFERIORE LET. CULLA LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 396,
+   "codice_articolo": "B0CUINFLETO",
+   "descrizione": "CURVA INFERIORE LET. CULLA LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 397,
+   "codice_articolo": "B0CUINFOVBI",
+   "descrizione": "CURVA INFERIORE LETTINO OVALE BIANCO-CHOCO-GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 398,
+   "codice_articolo": "B0CUINFOVCH",
+   "descrizione": "CURVA INFERIORE LETTINO OVALE CHOCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 399,
+   "codice_articolo": "B0CUINFOVGR",
+   "descrizione": "CURVA INFERIORE LETTINO OVALE GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 400,
+   "codice_articolo": "B0CUSUPLEBI",
+   "descrizione": "CURVA SUPERIORE LET. CULLA LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 401,
+   "codice_articolo": "B0CUSUPLENT",
+   "descrizione": "CURVA SUPERIORE LET. CULLA LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 402,
+   "codice_articolo": "B0CUSUPLESTO",
+   "descrizione": "CURVA SUPERIORE LET. CULLA LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 403,
+   "codice_articolo": "B0CUSUPLETO",
+   "descrizione": "CURVA SUPERIORE LET. CULLA LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 404,
+   "codice_articolo": "B0CUSUPOVBI",
+   "descrizione": "CURVA SUPERIORE LETTINO OVALE BIANCO-CHOCO-GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 405,
+   "codice_articolo": "B0CUSUPOVCH",
+   "descrizione": "CURVA SUPERIORE LETTINO OVALE CHOCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 406,
+   "codice_articolo": "B0CUSUPOVGR",
+   "descrizione": "CURVA SUPERIORE LETTINO OVALE GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 407,
+   "codice_articolo": "B0DONPOBI",
+   "descrizione": "DONDOLO POLTRONA BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 408,
+   "codice_articolo": "B0DONPONT",
+   "descrizione": "DONDOLO POLTRONA NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 409,
+   "codice_articolo": "B0FIACOBI",
+   "descrizione": "FIANCO COMO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 410,
+   "codice_articolo": "B0FIACONT",
+   "descrizione": "FIANCO COMO FASCIATOIO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 411,
+   "codice_articolo": "B0FIACOTO",
+   "descrizione": "FIANCO COMO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 412,
+   "codice_articolo": "B0FIPREEVONT",
+   "descrizione": "FIANCO PROLUNGA RETE LET. EVO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 413,
+   "codice_articolo": "B0FISREEVBI",
+   "descrizione": "FIANCO SEMIRETE LET. CULLA EVO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 414,
+   "codice_articolo": "B0FISREEVNT",
+   "descrizione": "FIANCO SEMIRETE LET. EVO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 415,
+   "codice_articolo": "B0FRCACOBI",
+   "descrizione": "FRONTALI CASSETTI COMO' BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 416,
+   "codice_articolo": "B0FRCACOGR",
+   "descrizione": "FRONTALI CASSETTI BAGNETTO GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 417,
+   "codice_articolo": "B0FRPICOBI",
+   "descrizione": "FRONTALI PIANO COMO' BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 418,
+   "codice_articolo": "B0GAACODODNT",
+   "descrizione": "GAMBA ANTERIORE DX COMO' DOLCEVITA NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 419,
+   "codice_articolo": "B0GAACODOSNT",
+   "descrizione": "GAMBA ANTERIORE SX COMO' DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 420,
+   "codice_articolo": "B0GAADCOGIONT",
+   "descrizione": "GAMBA ANTERIORE DX COMO GIOIA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 421,
+   "codice_articolo": "B0GAARDOADNT",
+   "descrizione": "GAMBA ANTERIORE DX ARMADIO DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 422,
+   "codice_articolo": "B0GAARDOASNT",
+   "descrizione": "GAMBA ANTERIORE SX ARMADIO DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 423,
+   "codice_articolo": "B0GAASCOGIONT",
+   "descrizione": "GAMBA ANTERIORE SX COMO GIOIA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 424,
+   "codice_articolo": "B0GADOSTO",
+   "descrizione": "GAMBA DOLCESTELLA TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 425,
+   "codice_articolo": "B0GAFIGIONT",
+   "descrizione": "GAMBA FISSA LETTINO GIOIA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 426,
+   "codice_articolo": "B0GALEBI",
+   "descrizione": "GAMBA LET. CULLA LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 427,
+   "codice_articolo": "B0GALEDXDOLNT",
+   "descrizione": "GAMBA DX LETTINO DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 428,
+   "codice_articolo": "B0GALENT",
+   "descrizione": "GAMBA LET. LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 429,
+   "codice_articolo": "B0GALESTO",
+   "descrizione": "GAMBA LET. LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 430,
+   "codice_articolo": "B0GALESXDOLNT",
+   "descrizione": "GAMBA SX LETTINO DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 431,
+   "codice_articolo": "B0GALETO",
+   "descrizione": "GAMBA LET. LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 432,
+   "codice_articolo": "B0GAMOGIONT",
+   "descrizione": "GAMBA MOBILE LETTINO GIOIA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 433,
+   "codice_articolo": "B0GAOVABI",
+   "descrizione": "GAMBA LETTINO DX-SX OVALE BIANCO-CHOCO-GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 434,
+   "codice_articolo": "B0GAOVACH",
+   "descrizione": "GAMBA LETTINO OVALE CHOCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 435,
+   "codice_articolo": "B0GAOVAGR",
+   "descrizione": "GAMBA LETTINO OVALE GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 436,
+   "codice_articolo": "B0GAPARDONT",
+   "descrizione": "GAMBA POSTERIORE ARMADIO DOLCEVITA NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 437,
+   "codice_articolo": "B0GAPDCGIONT",
+   "descrizione": "GAMBA POSTERIORE DX COMO GIOIA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 438,
+   "codice_articolo": "B0GAPDCODONT",
+   "descrizione": "GAMBA POSTERIORE SX COMO' DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 439,
+   "codice_articolo": "B0GAPSCGIONT",
+   "descrizione": "GAMBA POSTERIORE SX COMO GIOIA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 440,
+   "codice_articolo": "B0GAPSCODONT",
+   "descrizione": "GAMBA POSTERIORE DX COMO' DOLCEVITA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 441,
+   "codice_articolo": "B0GASPMOBI",
+   "descrizione": "GAMBA LETT. MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 442,
+   "codice_articolo": "B0IMBAPP",
+   "descrizione": "IMBALLO APPENDIALBERO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 443,
+   "codice_articolo": "B0IMBCULE",
+   "descrizione": "IMBALLO LETTINO CULLA LEONARDO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 444,
+   "codice_articolo": "B0IMBFALEOTO",
+   "descrizione": "IMBALLO TRAF. FASCIATOIO LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 445,
+   "codice_articolo": "B0IMBFAS",
+   "descrizione": "IMBALLO FASCIASTOIO COMO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 446,
+   "codice_articolo": "B0IMBKITEVO",
+   "descrizione": "IMBALLO KIT LETTO EVO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 447,
+   "codice_articolo": "B0IMBKITSPAV",
+   "descrizione": "IMBALLO KIT SPONDE AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 448,
+   "codice_articolo": "B0IMBKTRBGBI",
+   "descrizione": "IMBALLO KIT TRASF. BAGNETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 449,
+   "codice_articolo": "B0IMBLETTI",
+   "descrizione": "IMBALLO LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 450,
+   "codice_articolo": "B0IMBLETTIAM",
+   "descrizione": "IMBALLLO LETTI ADI/AUSTIN",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 451,
+   "codice_articolo": "B0IMBLETTIMO",
+   "descrizione": "IMBALLO LETTINO MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 452,
+   "codice_articolo": "B0IMBMINEV",
+   "descrizione": "IMBALLO MINUTERIA - RUOTE EVO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 453,
+   "codice_articolo": "B0IMBMO",
+   "descrizione": "IMBALLO SPONDE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 454,
+   "codice_articolo": "B0IMBOV",
+   "descrizione": "IMBALLO LETTINO OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 455,
+   "codice_articolo": "B0IMBRIDOV",
+   "descrizione": "IMBALLO KIT RIDUZIONE LETTO OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 456,
+   "codice_articolo": "B0IMBSPBAC",
+   "descrizione": "IMBALLO SPONDINA BACIO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 457,
+   "codice_articolo": "B0IMBSPD",
+   "descrizione": "IMBALLO SPONDA DOLCEVITA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 458,
+   "codice_articolo": "B0IMBSPJU",
+   "descrizione": "IMBALLO SPONDA  JUNIOR BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 459,
+   "codice_articolo": "B0IMBSPPD",
+   "descrizione": "IMBALLO SPONDA PICCOLA DOLCEVITA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 460,
+   "codice_articolo": "B0IMBTOMOOV",
+   "descrizione": "IMBALLO TORRE MOOVIE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 461,
+   "codice_articolo": "B0IMBTORFA",
+   "descrizione": "IMBALLO TORRE FANTASY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 462,
+   "codice_articolo": "B0IMBTRAFLEBI",
+   "descrizione": "IMBALLO TRASF. FASC. LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 463,
+   "codice_articolo": "B0IMBTRALLEBI",
+   "descrizione": "IMBALLO TRASF LETTO LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 464,
+   "codice_articolo": "B0IMBTRALLENT",
+   "descrizione": "IMBALLO TRASF. LETTO LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 465,
+   "codice_articolo": "B0IMBTRALLEST",
+   "descrizione": "IMBALLO TRASF. LETTO LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 466,
+   "codice_articolo": "B0IMBTRALLETO",
+   "descrizione": "IMBALLO TRASF. LETTO LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 467,
+   "codice_articolo": "B0IMBTRFALST",
+   "descrizione": "IMBALLO TRASF. FASC. LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 468,
+   "codice_articolo": "B0LISEEVOBI",
+   "descrizione": "LISTELLO SEMIRETE EVO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 469,
+   "codice_articolo": "B0LISEEVONT",
+   "descrizione": "LISTELLO SEMIRETE EVO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 470,
+   "codice_articolo": "B0LISSUPBI",
+   "descrizione": "LISTELLO SUPERIORE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 471,
+   "codice_articolo": "B0LISSUPNT",
+   "descrizione": "LISTELLO SUPERIORE LETT. MOOVIE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 472,
+   "codice_articolo": "B0LONMOOBI",
+   "descrizione": "LONGHERONE RETE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 473,
+   "codice_articolo": "B0LONMOONT",
+   "descrizione": "LONGHERONE RETE MOOVIE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 474,
+   "codice_articolo": "B0PAGRFABI",
+   "descrizione": "PANNELLO GRANDE TORRE FANTASY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 475,
+   "codice_articolo": "B0PAGRMOOBI",
+   "descrizione": "PANNELLO GRANDE TORRE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 476,
+   "codice_articolo": "B0PANGOLBI",
+   "descrizione": "PANNELLI GOLOSONE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 477,
+   "codice_articolo": "B0PANOROBI",
+   "descrizione": "PANNELLO ORSO LETT. OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 478,
+   "codice_articolo": "B0PANPIKKBI",
+   "descrizione": "PANNELLO PIKKOLETTO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 479,
+   "codice_articolo": "B0PAPIFABI",
+   "descrizione": "PANNELLO PICCOLO TORRE FANTASY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 480,
+   "codice_articolo": "B0PAPIMOOBI",
+   "descrizione": "PANELLO PICCOLO TORRE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 481,
+   "codice_articolo": "B0PIEJIFPBI",
+   "descrizione": "PIEDINI JIUNIOR BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 482,
+   "codice_articolo": "B0PIEJIFPNT",
+   "descrizione": "PIEDINI JUNIOR NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 483,
+   "codice_articolo": "B0PIEMOBI",
+   "descrizione": "PIEDE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 484,
+   "codice_articolo": "B0PIOVABI",
+   "descrizione": "PIEDINO OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 485,
+   "codice_articolo": "B0REBABI1",
+   "descrizione": "RETE BACIO BIANCO 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 486,
+   "codice_articolo": "B0REBABI2",
+   "descrizione": "RETE BACIO BIANCO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 487,
+   "codice_articolo": "B0REDIVBI",
+   "descrizione": "RETE DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 488,
+   "codice_articolo": "B0REDO1253BI",
+   "descrizione": "RETE LETTINO DOLCEVITA 1253 BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 489,
+   "codice_articolo": "B0REDO140BI",
+   "descrizione": "RETE LET. DOLCEVITA 140 BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 490,
+   "codice_articolo": "B0REPIKBI",
+   "descrizione": "RETE LETTINO PIKKOLETTO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 491,
+   "codice_articolo": "B0REPIKNT",
+   "descrizione": "RETE LETTINO PIKKOLETTO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 492,
+   "codice_articolo": "B0RETEMIBI",
+   "descrizione": "RETE LETTINO MINI BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 493,
+   "codice_articolo": "B0RETEMINT",
+   "descrizione": "RETE LETTINO MINI NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 494,
+   "codice_articolo": "B0RETEMITO",
+   "descrizione": "RETE LETTINO MINI TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 495,
+   "codice_articolo": "B0RETEPR",
+   "descrizione": "RETE LETTINO PRIME BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 496,
+   "codice_articolo": "B0RETIAVBI",
+   "descrizione": "RETI PICCOLA AVANT BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 497,
+   "codice_articolo": "B0RETIBI",
+   "descrizione": "RETE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 498,
+   "codice_articolo": "B0RETIGR",
+   "descrizione": "RETI GRIGIO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 499,
+   "codice_articolo": "B0RETITO",
+   "descrizione": "RETI TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 500,
+   "codice_articolo": "B0RETLEOBI",
+   "descrizione": "RETE LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 501,
+   "codice_articolo": "B0RETRALEO",
+   "descrizione": "RETE TRASFORMABILE LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 502,
+   "codice_articolo": "B0RUEVOBI",
+   "descrizione": "RUOTA EVO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 503,
+   "codice_articolo": "B0RUEVONT",
+   "descrizione": "RUOTA EVO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 504,
+   "codice_articolo": "B0SPAUSTNT",
+   "descrizione": "SPONDA LETTINO AUSTIN",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 505,
+   "codice_articolo": "B0SPEVOBI",
+   "descrizione": "SPONDA LETT. EVO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 506,
+   "codice_articolo": "B0SPEVONT",
+   "descrizione": "SPONDA LETT. EVO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 507,
+   "codice_articolo": "B0SPFBABI1",
+   "descrizione": "SPONDA FISSA BACIO BIANCO 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 508,
+   "codice_articolo": "B0SPFBABI2",
+   "descrizione": "SPONDA FISSA BACIO BIANCO 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 509,
+   "codice_articolo": "B0SPFBAME1",
+   "descrizione": "SPONDA FISSA BACIO MENTA 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 510,
+   "codice_articolo": "B0SPFBAME2",
+   "descrizione": "SPONDA FISSA BACIO MENTA 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 511,
+   "codice_articolo": "B0SPFBAPE1",
+   "descrizione": "SPONDA FISSA BACIO PERLA 120X60",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 512,
+   "codice_articolo": "B0SPFBAPE2",
+   "descrizione": "SPONDA FISSA BACIO PERLA 140X70",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 513,
+   "codice_articolo": "B0SPFCUMBI",
+   "descrizione": "SPONDA FISSA CUORICINI BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 514,
+   "codice_articolo": "B0SPFCUMTO",
+   "descrizione": "SPONDA FISSA CUORICINI TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 515,
+   "codice_articolo": "B0SPFIAVAGBI",
+   "descrizione": "SPONDA FISSA LET. AVANT GRANDE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 516,
+   "codice_articolo": "B0SPFIAVAGNT",
+   "descrizione": "SPONDA FISSA LET. AVANT GRANDE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 517,
+   "codice_articolo": "B0SPFIAVAPBI",
+   "descrizione": "SPONDA FISSA LET. AVANT PICCOLA BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 518,
+   "codice_articolo": "B0SPFIAVAPNT",
+   "descrizione": "SPONDA FISSA LET. AVANT PICCOLA NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 519,
+   "codice_articolo": "B0SPFIBI",
+   "descrizione": "SPONDA FISSA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 520,
+   "codice_articolo": "B0SPFIBI1",
+   "descrizione": "SPONDA FISSA 450-500 BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 521,
+   "codice_articolo": "B0SPFIBILO1",
+   "descrizione": "SPONDA FISSA 450-500 LOVELY BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 522,
+   "codice_articolo": "B0SPFICOGIOBI",
+   "descrizione": "SPONDA FISSA CORTA GIOIA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 523,
+   "codice_articolo": "B0SPFIDSBI",
+   "descrizione": "SPONDA FISSA 500 DOLCESTELLA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 524,
+   "codice_articolo": "B0SPFIGRGIOBI",
+   "descrizione": "SPONDA FISSA GRANDE GIOIA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 525,
+   "codice_articolo": "B0SPFINT",
+   "descrizione": "SPONDA FISSA NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 526,
+   "codice_articolo": "B0SPFIOLBI",
+   "descrizione": "SPONDA FISSA OLLY DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 527,
+   "codice_articolo": "B0SPFIOLNT",
+   "descrizione": "SPONDA FISSA OLLY DIVANETTO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 528,
+   "codice_articolo": "B0SPFIOVBI",
+   "descrizione": "SPONDA FISSA LETT. OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 529,
+   "codice_articolo": "B0SPFIOVOLLBI",
+   "descrizione": "SPONDA FISSA OVALE OLLY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 530,
+   "codice_articolo": "B0SPFIPIGIOBI",
+   "descrizione": "SPONDA FISSA PICCOLA GIOIA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 531,
+   "codice_articolo": "B0SPFITO1",
+   "descrizione": "SPONDA FISSA  450-500 TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 532,
+   "codice_articolo": "B0SPFMDFDOBI",
+   "descrizione": "SPONDA FISSA MDF DOLCEVITA 140X70 BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 533,
+   "codice_articolo": "B0SPFMDFDOBI1",
+   "descrizione": "SPONDA FISSA MDF LETTINO DOLCEVITA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 534,
+   "codice_articolo": "B0SPFMDFDOCI",
+   "descrizione": "SPONDA FISSA MDF LETTINO DOLCEVITA CIPRIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 535,
+   "codice_articolo": "B0SPFMDFDOME",
+   "descrizione": "SPONDA FISSA MDF LETTINO DOLCEVITA MENTA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 536,
+   "codice_articolo": "B0SPFPIKBI",
+   "descrizione": "SPONDA FISSA PIKKOLETTO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 537,
+   "codice_articolo": "B0SPFPIKNT",
+   "descrizione": "SPONDA FISSA PIKKOLETTO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 538,
+   "codice_articolo": "B0SPFPRADBI",
+   "descrizione": "SPONDA FISSA PRIME DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 539,
+   "codice_articolo": "B0SPGRMOBI",
+   "descrizione": "SPONDA GRANDE LET..MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 540,
+   "codice_articolo": "B0SPJUBI",
+   "descrizione": "SPONDA JUNIOR BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 541,
+   "codice_articolo": "B0SPLEOBI",
+   "descrizione": "SPONDA LETT. CULLA  LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 542,
+   "codice_articolo": "B0SPLEONT",
+   "descrizione": "SPONDA LETT. CULLA LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 543,
+   "codice_articolo": "B0SPLEOSTO",
+   "descrizione": "SPONDA LETT. CULLA LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 544,
+   "codice_articolo": "B0SPLEOTO",
+   "descrizione": "SPONDA LETT. CULLA LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 545,
+   "codice_articolo": "B0SPMCUMBI",
+   "descrizione": "SPONDA MOBILE CUORICINI BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 546,
+   "codice_articolo": "B0SPMCUMTO",
+   "descrizione": "SPONDA MOBILE CUORICINI TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 547,
+   "codice_articolo": "B0SPMEMOBI",
+   "descrizione": "SPONDA MEDIA LET. MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 548,
+   "codice_articolo": "B0SPMOAVAGBI",
+   "descrizione": "SPONDA MOBILE LET. AVANT GRANDE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 549,
+   "codice_articolo": "B0SPMOAVAGNT",
+   "descrizione": "SPONDA MOBILE LET. AVANT GRANDE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 550,
+   "codice_articolo": "B0SPMOAVAPBI",
+   "descrizione": "SPONDA MOBILE LET. AVANT PICCOLA BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 551,
+   "codice_articolo": "B0SPMOAVAPNT",
+   "descrizione": "SPONDA MOBILE LET. AVANT PICCOLA NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 552,
+   "codice_articolo": "B0SPMOBI",
+   "descrizione": "SPONDA MOBILE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 553,
+   "codice_articolo": "B0SPMOBI1",
+   "descrizione": "SPONDA MOBILE 450 - 500 BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 554,
+   "codice_articolo": "B0SPMOBIL1",
+   "descrizione": "SPONDA MOBILE 450-500 LOVELY BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 555,
+   "codice_articolo": "B0SPMOCOGIOBI",
+   "descrizione": "SPONDA MOBILE CORTA GIOIA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 556,
+   "codice_articolo": "B0SPMODSBI",
+   "descrizione": "SPONDA MOBILE 500 DOLCESTELLA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 557,
+   "codice_articolo": "B0SPMOGRGIOBI",
+   "descrizione": "SPONDA MOBILE GRANDE GIOIA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 558,
+   "codice_articolo": "B0SPMOLUGIOBI",
+   "descrizione": "SPONDA MOBILE LUNGA GIOIA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 559,
+   "codice_articolo": "B0SPMONT",
+   "descrizione": "SPONDA MOBILE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 560,
+   "codice_articolo": "B0SPMOOLBI",
+   "descrizione": "SPONDA MOBILE OLLY DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 561,
+   "codice_articolo": "B0SPMOOLNT",
+   "descrizione": "SPONDA MOBILE OLLY DIVANETTO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 562,
+   "codice_articolo": "B0SPMOOVBI",
+   "descrizione": "SPONDA MOBILE LETT. OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 563,
+   "codice_articolo": "B0SPMOOVOLBI",
+   "descrizione": "SPONDA MOBILE OVALE OLLY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 564,
+   "codice_articolo": "B0SPMOTO1",
+   "descrizione": "SPONDA MOBILE 450 - 500 TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 565,
+   "codice_articolo": "B0SPMPIBI",
+   "descrizione": "SPONDA MOBILE PIKKOLETTO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 566,
+   "codice_articolo": "B0SPMPINT",
+   "descrizione": "SPONDA MOBILE PIKKOLETTO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 567,
+   "codice_articolo": "B0SPMPRADBI",
+   "descrizione": "SPONDA MOBILE PRIME DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 568,
+   "codice_articolo": "B0SPPIMOBI",
+   "descrizione": "SPONDA PICCOLA LET.  MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 569,
+   "codice_articolo": "B0SPPMDFDOBI",
+   "descrizione": "SPONDA PICCOLA MDF DOLCEVITA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 570,
+   "codice_articolo": "B0SPPMDFDOCI",
+   "descrizione": "SPONDA PICCOLA MDF DOLCEVITA CIPRIA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 571,
+   "codice_articolo": "B0SPPMDFDOME",
+   "descrizione": "SPONDA PICCOLA MDF DOLCEVITA MENTA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 572,
+   "codice_articolo": "B0SPSPOBI",
+   "descrizione": "SPONDINA BACIO 140X70 BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 573,
+   "codice_articolo": "B0SPTRFALEST",
+   "descrizione": "SPONDA TRASF. FASCIATOIO LET. LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 574,
+   "codice_articolo": "B0STBACIOVE",
+   "descrizione": "STECCHE LETTINO BACIO VERDE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 575,
+   "codice_articolo": "B0STECCHEBI",
+   "descrizione": "STECCHE BIANCHE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 576,
+   "codice_articolo": "B0STECCHENT",
+   "descrizione": "STECCHE NATURALI CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 577,
+   "codice_articolo": "B0STECINFBI",
+   "descrizione": "STECCHE LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 578,
+   "codice_articolo": "B0STEDOLTO",
+   "descrizione": "STECCHE LETTINO DOLCESTELLA TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 579,
+   "codice_articolo": "B0STELEOBI",
+   "descrizione": "STECCHE LET. CULLA LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 580,
+   "codice_articolo": "B0STELEONT",
+   "descrizione": "STECCHE LET. CULLA LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 581,
+   "codice_articolo": "B0STELEOST",
+   "descrizione": "STECCHE LET. LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 582,
+   "codice_articolo": "B0STELEOTO",
+   "descrizione": "STECCHE LET. CULLA LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 583,
+   "codice_articolo": "B0STELET",
+   "descrizione": "STECCHE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 584,
+   "codice_articolo": "B0STESPINFBI",
+   "descrizione": "STECCHE SPONDA LETTINO INFINTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 585,
+   "codice_articolo": "B0STESPINFVE",
+   "descrizione": "STECCHE SPONDA LETTINO INFINTO VERDE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 586,
+   "codice_articolo": "B0STETSINFBI",
+   "descrizione": "STECCHE TESTATA LETTINO INFINTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 587,
+   "codice_articolo": "B0STETSINFVE",
+   "descrizione": "STECCHE TESTATA LETTINO INFINTO VERDE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 588,
+   "codice_articolo": "B0STOVABI",
+   "descrizione": "STECCHE LETTINO OVALE BIANCO-CHOCO-GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 589,
+   "codice_articolo": "B0STOVACH",
+   "descrizione": "STECCHE LETTINO OVALE CHOCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 590,
+   "codice_articolo": "B0STOVAGR",
+   "descrizione": "STECCA LETTINO OVALE GREY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 591,
+   "codice_articolo": "B0TEMOONT",
+   "descrizione": "GAMBA TESTATA MOOVIE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 592,
+   "codice_articolo": "B0TESOSTO",
+   "descrizione": "SPALLIERA DOLCESTELLA TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 593,
+   "codice_articolo": "B0TOCOBI",
+   "descrizione": "TOP COMO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 594,
+   "codice_articolo": "B0TOCOTO",
+   "descrizione": "TOP COMO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 595,
+   "codice_articolo": "B0TOFABI",
+   "descrizione": "TORRRE FANTASY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 596,
+   "codice_articolo": "B0TRAFALEOBI",
+   "descrizione": "SPONDA TRASF. FASCIATOIO LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 597,
+   "codice_articolo": "B0TRAFALETO",
+   "descrizione": "SPONDA TRASF. FASC. LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 598,
+   "codice_articolo": "B0TRALELEOBI",
+   "descrizione": "SPONDA TRASF. LETTO LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 599,
+   "codice_articolo": "B0TRALELEONT",
+   "descrizione": "SPONDA TRASF. LETTO LEONARDO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 600,
+   "codice_articolo": "B0TRALELEOST",
+   "descrizione": "SPONDA TRASF. LETTO LEONARDO STONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 601,
+   "codice_articolo": "B0TRALELEOTO",
+   "descrizione": "SPONDA TRASF. LETTO LEONARDO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 602,
+   "codice_articolo": "B0TRATOMOOBI",
+   "descrizione": "TRAVERSO TORRE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 603,
+   "codice_articolo": "B0TRCAFABI",
+   "descrizione": "TRAVERSO CANALE FANTASY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 604,
+   "codice_articolo": "B0TRFACOBI",
+   "descrizione": "TRESSO FASCIATOIO COMO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 605,
+   "codice_articolo": "B0TRFALEOBI",
+   "descrizione": "TRAVERSO LETT. LEONARDO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 606,
+   "codice_articolo": "B0TRFASCOBI",
+   "descrizione": "TRAVERSO FASCIATOIO COMO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 607,
+   "codice_articolo": "B0TRFASCONT",
+   "descrizione": "TRAVERSO FASCIATOIO COMO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 608,
+   "codice_articolo": "B0TRIMBOV",
+   "descrizione": "IMBALLO TRASF. - RIDUZ. LETTO OVALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 609,
+   "codice_articolo": "B0TRIMBOVBI",
+   "descrizione": "IMBALLO TRASF. - RIDUZ. LETTO OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 610,
+   "codice_articolo": "B0TRPIOVBI",
+   "descrizione": "PIEDINO TRASF. - RIDUZ. LETTO OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 611,
+   "codice_articolo": "B0TRPIOVTO",
+   "descrizione": "PIEDINO TRASF. - RIDUZ. LETTO OVALE TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 612,
+   "codice_articolo": "B0TRSPOVBI",
+   "descrizione": "SPONDA TRASF. - RIDUZ. LETTO OVALE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 613,
+   "codice_articolo": "B0TRSPOVTO",
+   "descrizione": "SPONDA TRASF. - RIDUZ. LETTO OVALE TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 614,
+   "codice_articolo": "B0TRTSMOOBI",
+   "descrizione": "TRAVERSO TESTATA LETTINO MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 615,
+   "codice_articolo": "B0TRTSMOONT",
+   "descrizione": "TRAVERSO TESTATA LET. MOOVIE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 616,
+   "codice_articolo": "B0TSALICBI",
+   "descrizione": "TESTATA LETTINO ALICE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 617,
+   "codice_articolo": "B0TSAUSTNT",
+   "descrizione": "TESTATA LETTINO AUSTIN NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 618,
+   "codice_articolo": "B0TSAVABI",
+   "descrizione": "TESTATA LETTINO AVANT BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 619,
+   "codice_articolo": "B0TSAVANCA",
+   "descrizione": "TESTATA LETTINO AVANT CAFFE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 620,
+   "codice_articolo": "B0TSAVANT",
+   "descrizione": "TESTATA LETT. AVANT NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 621,
+   "codice_articolo": "B0TSAVAVE",
+   "descrizione": "TESTATA LETTINO AVANT VERDE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 622,
+   "codice_articolo": "B0TSBIGR",
+   "descrizione": "TESTATA LETTINO BIRICHINI GRIGIO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 623,
+   "codice_articolo": "B0TSBIRBBI",
+   "descrizione": "TESTATA LETTINO BIRBANTE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 624,
+   "codice_articolo": "B0TSCUORBI",
+   "descrizione": "TESTATA LETTINO CUORICINI BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 625,
+   "codice_articolo": "B0TSCUORNT",
+   "descrizione": "TESTATA LETTINO CUORICINI NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 626,
+   "codice_articolo": "B0TSCUORTO",
+   "descrizione": "TESTATA LETTINO CUORICINO TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 627,
+   "codice_articolo": "B0TSDOLBI",
+   "descrizione": "TESTATA LETTINO DOLCECUORE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 628,
+   "codice_articolo": "B0TSDOLTO",
+   "descrizione": "TESTATA LETTINO DOLCECUORE TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 629,
+   "codice_articolo": "B0TSDOSBI",
+   "descrizione": "TESTATA LETTINO DOLCESTELLA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 630,
+   "codice_articolo": "B0TSDOSTO",
+   "descrizione": "TESTATA LETTINO DOLCESTELLA TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 631,
+   "codice_articolo": "B0TSEVOBI",
+   "descrizione": "TESTATA LETTINO EVO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 632,
+   "codice_articolo": "B0TSEVONT",
+   "descrizione": "TESTATA LETTINO EVO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 633,
+   "codice_articolo": "B0TSFELIBI",
+   "descrizione": "TESTATA LETTINO FELICITY BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 634,
+   "codice_articolo": "B0TSGOBI",
+   "descrizione": "TESTATA LETTINO GOLOSONE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 635,
+   "codice_articolo": "B0TSHTBI",
+   "descrizione": "TESTATA LETTINO HAPPY TOUR BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 636,
+   "codice_articolo": "B0TSINFBI",
+   "descrizione": "TESTATA LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 637,
+   "codice_articolo": "B0TSLOVBI",
+   "descrizione": "TESTATA LETTINO LOVELY BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 638,
+   "codice_articolo": "B0TSLUCBI",
+   "descrizione": "TESTATA LETTINO LUCY BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 639,
+   "codice_articolo": "B0TSMASBI",
+   "descrizione": "TESTATA LETTINO MASCOTTE BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 640,
+   "codice_articolo": "B0TSMOADIBI",
+   "descrizione": "TESTATA LETTINO MOD. A DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 641,
+   "codice_articolo": "B0TSMOADIVE",
+   "descrizione": "TESTATA MODELLO A DIVANETTO VERDE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 642,
+   "codice_articolo": "B0TSMODAGR",
+   "descrizione": "TESTATA LETTINO MOD. A GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 643,
+   "codice_articolo": "B0TSMODARO",
+   "descrizione": "TESTATA LETTINO MOD. A ROSA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 644,
+   "codice_articolo": "B0TSMODATO",
+   "descrizione": "TESTATA LETTINO MOD. A TORTORA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 645,
+   "codice_articolo": "B0TSMYDRBI",
+   "descrizione": "TESTATA LETTINO MY DREAM BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 646,
+   "codice_articolo": "B0TSMYLITTG",
+   "descrizione": "TESTATA LETTINO MY LITTLELOVE GRIGIO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 647,
+   "codice_articolo": "B0TSPATBI",
+   "descrizione": "TESTATA LETTINO PATTY BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 648,
+   "codice_articolo": "B0TSPIAMBI",
+   "descrizione": "TESTATA LETTINO PICCOLI AMICI BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 649,
+   "codice_articolo": "B0TSPIKBI",
+   "descrizione": "TESTATA LETTINO PIKKOLETTO BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 650,
+   "codice_articolo": "B0TSPIKDBI",
+   "descrizione": "TESTATA LETTINO PIKKOLETTO DOLCESTELLA BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 651,
+   "codice_articolo": "B0TSPIKNT",
+   "descrizione": "TESTATA LETTINO PIKKOLETTO NATURALE CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 652,
+   "codice_articolo": "B0TSPRABI",
+   "descrizione": "TESTATA LETTINO PRAIM BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 653,
+   "codice_articolo": "B0TSPRANT",
+   "descrizione": "TESTATA LETTINO PRAIM NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 654,
+   "codice_articolo": "B0TSTEDBI",
+   "descrizione": "TESTATA LETTINO TED DIVANETTO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 655,
+   "codice_articolo": "B0TSTEOBI",
+   "descrizione": "TESTATA LETTINO TEODORO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 656,
+   "codice_articolo": "B0ZOCCINFBI",
+   "descrizione": "PROLUNGA-ZOCCOLO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 657,
+   "codice_articolo": "C0BI",
+   "descrizione": "CASSETTI ASSEMBLATI BIANCHI CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 658,
+   "codice_articolo": "C0NT",
+   "descrizione": "CASSETTI ASSEMBLATI NATURALI CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 659,
+   "codice_articolo": "C0TO",
+   "descrizione": "CASSETTI ASSEMBLATI TORTORA CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 660,
+   "codice_articolo": "BER00512",
+   "descrizione": "EL.SPONDA MOBILE LET.OLLY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 661,
+   "codice_articolo": "BER00513",
+   "descrizione": "EL.SPONDA FISSA LET.OLLY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 670,
+   "codice_articolo": "BER00398",
+   "descrizione": "EL.STECCA LETTINO  v",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 671,
+   "codice_articolo": "BER00232",
+   "descrizione": "EL.RETI",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 672,
+   "codice_articolo": "BER00433",
+   "descrizione": "EL.TESTATA SX LETT.GOLOSONE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 673,
+   "codice_articolo": "BER00613",
+   "descrizione": "EL.TESTATA AVANT   v",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 674,
+   "codice_articolo": "BER00240",
+   "descrizione": "EL.SPONDA NS FISSA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 675,
+   "codice_articolo": "BER00244",
+   "descrizione": "EL.SPONDA NS MOBILE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 676,
+   "codice_articolo": "BER00238",
+   "descrizione": "EL.LISTELLO RETE LETTINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 677,
+   "codice_articolo": "BER00635",
+   "descrizione": "EL.PANNELLO PIKKOLETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 678,
+   "codice_articolo": "BER00534",
+   "descrizione": "EL.PROLUNGA LONGHERONE LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 679,
+   "codice_articolo": "BER00468",
+   "descrizione": "EL.TESTATA LETT.PIKKOLETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 680,
+   "codice_articolo": "BER00491",
+   "descrizione": "EL.TESTATA LET.PIKKOLETTO D.STELLA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 681,
+   "codice_articolo": "BER00470",
+   "descrizione": "EL.SPONDA MOBILE LET.PIKKOLETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 682,
+   "codice_articolo": "BER00469",
+   "descrizione": "EL.SPONDA FISSA LET.PIKKOLETTO NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 683,
+   "codice_articolo": "BER00379",
+   "descrizione": "EL.TESTATA LETTINO CUORICINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 684,
+   "codice_articolo": "B0RETENT",
+   "descrizione": "RETE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 685,
+   "codice_articolo": "B0REDIVNT",
+   "descrizione": "RETE DIVANETTO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 687,
+   "codice_articolo": "BER00531",
+   "descrizione": "EL.BLOCCHETTO SPONDA LET.INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 688,
+   "codice_articolo": "BER00514",
+   "descrizione": "EL.TESTATA LET.HAPPY TOUR",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 689,
+   "codice_articolo": "BER00701",
+   "descrizione": "EL.SPONDA FISSA LET.CUORICINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 690,
+   "codice_articolo": "BER00700",
+   "descrizione": "EL.SPONDA MOBILE LET.CUORICINO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 691,
+   "codice_articolo": "BER00582",
+   "descrizione": "EL.LISTELLO RETE DIVANETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 692,
+   "codice_articolo": "BER00539",
+   "descrizione": "EL.LISTELLO RETE LETTO INFINITO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:54:52.93599+00:00"
+  },
+  {
+   "id": 698,
+   "codice_articolo": "BER00328",
+   "descrizione": "EL.TESTATA LETTINO DOLCE CUORE 500",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-08-10T18:55:54.214+00:00"
+  },
+  {
+   "id": 701,
+   "codice_articolo": "BER00636",
+   "descrizione": "EL.SPONDA PICCOLA FISSA AVANT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-03T20:34:23.861+00:00"
+  },
+  {
+   "id": 702,
+   "codice_articolo": "BER00580",
+   "descrizione": "EL.SPONDA DIVANETTO MOBILE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-03T20:34:24.438+00:00"
+  },
+  {
+   "id": 703,
+   "codice_articolo": "BER00702",
+   "descrizione": "EL.TESTATA SALLY/RUDY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-03T20:34:24.894+00:00"
+  },
+  {
+   "id": 704,
+   "codice_articolo": "B0TSSA/RUNT",
+   "descrizione": "TESTATA LETTINO SALLY/RUDY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-11T07:32:03.597+00:00"
+  },
+  {
+   "id": 705,
+   "codice_articolo": "B0TSSA/RUBI",
+   "descrizione": "TESTATA LETTINO SALLY/RUDY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-11T07:32:30.421+00:00"
+  },
+  {
+   "id": 709,
+   "codice_articolo": "B0SPPETERBI",
+   "descrizione": "SPONDA PICCOLA LETTINO ETERNITY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-28T09:46:41.033+00:00"
+  },
+  {
+   "id": 711,
+   "codice_articolo": "B0TSETERNNT",
+   "descrizione": "TESTATA LETTINO ETERNITY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-29T11:27:24.24+00:00"
+  },
+  {
+   "id": 717,
+   "codice_articolo": "B0TSETERBI",
+   "descrizione": "TESTATA LETTINO ETERNITY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-09-29T11:33:33.865+00:00"
+  },
+  {
+   "id": 719,
+   "codice_articolo": "B0RETIETERBI",
+   "descrizione": "RETI LETTINO ETERNITY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:49:19.240888+00:00"
+  },
+  {
+   "id": 720,
+   "codice_articolo": "B0RETIETERNT",
+   "descrizione": "RETE LETTINO ETERNITY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:49:19.240888+00:00"
+  },
+  {
+   "id": 721,
+   "codice_articolo": "B0SPGRETEBI",
+   "descrizione": "SPONDA GRANDE ETERNITY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:49:19.240888+00:00"
+  },
+  {
+   "id": 722,
+   "codice_articolo": "B0SPGRETENT",
+   "descrizione": "SPONDA GRANDE LETTINO ETERNITY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:49:19.240888+00:00"
+  },
+  {
+   "id": 723,
+   "codice_articolo": "B0SPPETERNT",
+   "descrizione": "SPONDA PICCOLA LETTINO ETERNITY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:49:19.240888+00:00"
+  },
+  {
+   "id": 724,
+   "codice_articolo": "B0REINFBI",
+   "descrizione": "RETE LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 725,
+   "codice_articolo": "B0PRLREBI",
+   "descrizione": "PROLUNGA LONGHERONE RETE INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 726,
+   "codice_articolo": "B0PRLRENT",
+   "descrizione": "PROLUNGA LONGHERONE RETE INFINITO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 727,
+   "codice_articolo": "B0SPFIGRINFBI",
+   "descrizione": "SPONDA FISSA GRANDE LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 728,
+   "codice_articolo": "B0SPFIPIINFBI",
+   "descrizione": "SPONDA FISSA PICCOLA LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 729,
+   "codice_articolo": "B0SPMOGRINFBI",
+   "descrizione": "SPONDA MOBILE GRANDE LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 730,
+   "codice_articolo": "B0SPMOPIINFBI",
+   "descrizione": "SPONDA MOBILE PICCOLA LETTINO INFINITO BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 731,
+   "codice_articolo": "B0PAGRMOOGR",
+   "descrizione": "PANNELLO GRANDE TORRE MOOVIE GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 732,
+   "codice_articolo": "B0PAPIMOOGR",
+   "descrizione": "PANNELLO PICCOLO TORRE MOOVIE GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 733,
+   "codice_articolo": "B0TOMOBI",
+   "descrizione": "TORRE MOOVIE BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 734,
+   "codice_articolo": "B0TOMOGR",
+   "descrizione": "TORRE MOOVIE GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 735,
+   "codice_articolo": "B0TRATOMOOGR",
+   "descrizione": "TRAVERSO TORRE MOOVIE GRIGIO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 736,
+   "codice_articolo": "B0SPOGIBI",
+   "descrizione": "SPONDINA GIOIA 140X70 BIANCO CER",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 737,
+   "codice_articolo": "B0TSADIISNT",
+   "descrizione": "TESTATA LETTINO ADI ISRAELE NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 738,
+   "codice_articolo": "B0HTSSALRUBI",
+   "descrizione": "H PER TESTATA LETTINO SALLY RUDY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-04T01:53:32.173481+00:00"
+  },
+  {
+   "id": 740,
+   "codice_articolo": "CONSUMO",
+   "descrizione": "MATERIALE DI CONSUMO COLLA/REGGIA",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-07T23:59:13.25511+00:00"
+  },
+  {
+   "id": 741,
+   "codice_articolo": "B0SPFCUMNT",
+   "descrizione": "SPONDA FISSA CUORICINI NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:07:21.47+00:00"
+  },
+  {
+   "id": 742,
+   "codice_articolo": "B0SPMCUMNT",
+   "descrizione": "SPONDA MOBILE CUORICINI NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:07:38.944+00:00"
+  },
+  {
+   "id": 743,
+   "codice_articolo": "B0MARUDBI",
+   "descrizione": "MANIGLIA SALLY/RUDY BIANCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:11:55.965+00:00"
+  },
+  {
+   "id": 744,
+   "codice_articolo": "B0MARUDNT",
+   "descrizione": "MANIGLIA SALLY/RUDY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:12:24.257+00:00"
+  },
+  {
+   "id": 745,
+   "codice_articolo": "BER00680",
+   "descrizione": "EL.SPONDA CORTA MOD.ETERNITY BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:49.13+00:00"
+  },
+  {
+   "id": 746,
+   "codice_articolo": "BER00681",
+   "descrizione": "EL.SPONDA LUNGA MOD.ETERNITY BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:50.038+00:00"
+  },
+  {
+   "id": 747,
+   "codice_articolo": "BER00678",
+   "descrizione": "EL.TESTATA MOD.ETERNITY NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:50.314+00:00"
+  },
+  {
+   "id": 748,
+   "codice_articolo": "BER00462",
+   "descrizione": "EL.SPONDA MOBILE OVALE OLLY BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:50.57+00:00"
+  },
+  {
+   "id": 749,
+   "codice_articolo": "BER00463",
+   "descrizione": "EL.SPONDA FISSA OVALE OLLY   BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:50.813+00:00"
+  },
+  {
+   "id": 750,
+   "codice_articolo": "BER00522",
+   "descrizione": "EL.TRAVERSINO RETE ETERNITY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:51.143+00:00"
+  },
+  {
+   "id": 751,
+   "codice_articolo": "BER00679",
+   "descrizione": "EL.LONGHERONE MOD.ETERNITY NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:52:51.375+00:00"
+  },
+  {
+   "id": 752,
+   "codice_articolo": "BER00637",
+   "descrizione": "EL.SPONDA GRANDE  AVANT FISS BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:54:07.224+00:00"
+  },
+  {
+   "id": 753,
+   "codice_articolo": "BER00704",
+   "descrizione": "EL.H PER TESTATA SALLY/RUDY",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:54:08.749+00:00"
+  },
+  {
+   "id": 754,
+   "codice_articolo": "BER00672",
+   "descrizione": "EL.FONDO CASSETTO LETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:54:08.977+00:00"
+  },
+  {
+   "id": 755,
+   "codice_articolo": "BER00673",
+   "descrizione": "EL.DIVISORI CASSETTO LETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:54:09.204+00:00"
+  },
+  {
+   "id": 756,
+   "codice_articolo": "BER00675",
+   "descrizione": "EL.FIANCO SX CASSETTO LETTO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-12T14:54:09.531+00:00"
+  },
+  {
+   "id": 757,
+   "codice_articolo": "B0LONGETERNT",
+   "descrizione": "LONGHERONE LETTINO ETERNITY NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-13T09:17:30.22+00:00"
+  },
+  {
+   "id": 760,
+   "codice_articolo": "B0TSINFNT",
+   "descrizione": "TESTATA LETTINO INFINITO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-21T13:29:35.931+00:00"
+  },
+  {
+   "id": 761,
+   "codice_articolo": "B0SPFIGRINFNT",
+   "descrizione": "SPONDA FISSA GRANDE INFINITO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-21T13:30:37.683+00:00"
+  },
+  {
+   "id": 762,
+   "codice_articolo": "B0SPMOGRINFNT",
+   "descrizione": "SPONDA MOBILE GRANDE INFINITO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-21T13:30:58.83+00:00"
+  },
+  {
+   "id": 763,
+   "codice_articolo": "B0SPFIPIINFNT",
+   "descrizione": "SPONDA FISSA PICCOLA INFINITO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-21T13:31:34.505+00:00"
+  },
+  {
+   "id": 764,
+   "codice_articolo": "B0SPMOPIINFNT",
+   "descrizione": "SPONDA MOBILE PICCOLA INFINITO NATURALE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-21T13:32:04.904+00:00"
+  },
+  {
+   "id": 765,
+   "codice_articolo": "B0TSETERNO",
+   "descrizione": "TESTATA LETTINO ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-29T20:07:48.854+00:00"
+  },
+  {
+   "id": 766,
+   "codice_articolo": "B0SPPETERNO",
+   "descrizione": "SPONDA PICCOLA LETTINO ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-29T20:08:09.572+00:00"
+  },
+  {
+   "id": 767,
+   "codice_articolo": "B0SPGRETENO",
+   "descrizione": "SPONDA GRANDE LETTINO ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-29T20:09:02.053+00:00"
+  },
+  {
+   "id": 768,
+   "codice_articolo": "B0LONGETERNO",
+   "descrizione": "LONGHERONE LETTINO ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-10-29T20:59:28.873+00:00"
+  },
+  {
+   "id": 769,
+   "codice_articolo": "BER00678BI",
+   "descrizione": "EL.TESTATA MOD.ETERNITY BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.298524+00:00"
+  },
+  {
+   "id": 770,
+   "codice_articolo": "BER00678NO",
+   "descrizione": "EL.TESTATA MOD.ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.45585+00:00"
+  },
+  {
+   "id": 771,
+   "codice_articolo": "BER00678NT",
+   "descrizione": "EL.TESTATA MOD.ETERNITY NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.538034+00:00"
+  },
+  {
+   "id": 772,
+   "codice_articolo": "BER00680BI",
+   "descrizione": "EL.SPONDA CORTA MOD.ETERNITY BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.625419+00:00"
+  },
+  {
+   "id": 773,
+   "codice_articolo": "BER00680NO",
+   "descrizione": "EL.SPONDA CORTA MOD.ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.710607+00:00"
+  },
+  {
+   "id": 774,
+   "codice_articolo": "BER00680NT",
+   "descrizione": "EL.SPONDA CORTA MOD.ETERNITY NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.79734+00:00"
+  },
+  {
+   "id": 775,
+   "codice_articolo": "BER00681BI",
+   "descrizione": "EL.SPONDA LUNGA MOD.ETERNITY BCO",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.866891+00:00"
+  },
+  {
+   "id": 776,
+   "codice_articolo": "BER00681NO",
+   "descrizione": "EL.SPONDA LUNGA MOD.ETERNITY NOCE",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:13.942617+00:00"
+  },
+  {
+   "id": 777,
+   "codice_articolo": "BER00681NT",
+   "descrizione": "EL.SPONDA LUNGA MOD.ETERNITY NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T01:36:14.013583+00:00"
+  },
+  {
+   "id": 778,
+   "codice_articolo": "BER00538BI",
+   "descrizione": "LAC",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T19:17:52.235+00:00"
+  },
+  {
+   "id": 779,
+   "codice_articolo": "BER00537BI",
+   "descrizione": "LAC",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T19:20:19.995+00:00"
+  },
+  {
+   "id": 780,
+   "codice_articolo": "BER00538NT",
+   "descrizione": "NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T19:20:46.685+00:00"
+  },
+  {
+   "id": 781,
+   "codice_articolo": "BER00537NT",
+   "descrizione": "NAT",
+   "cliente": "BERGAMASCO",
+   "created_at": "2026-11-06T19:21:44.006+00:00"
+  }
+ ],
+ "verniciato_pikkoletto": [
+  {
+   "id": 596,
+   "created_at": "2026-10-12T14:14:22.173",
+   "codice_articolo": "B0SPFPIKBI",
+   "descrizione": "SPONDA FISSA PIKKOLETTO BIANCO CER",
+   "quantita": 166,
+   "note": "",
+   "data_inserimento": "2026-10-12",
+   "cliente": "BERGAMASCO",
+   "sequenza": "90+76",
+   "inserito_da": null
+  },
+  {
+   "id": 598,
+   "created_at": "2026-10-12T14:14:59.328",
+   "codice_articolo": "B0SPMPIBI",
+   "descrizione": "SPONDA MOBILE PIKKOLETTO BIANCO CER",
+   "quantita": 90,
+   "note": "",
+   "data_inserimento": "2026-10-12",
+   "cliente": "BERGAMASCO",
+   "sequenza": "90",
+   "inserito_da": null
+  },
+  {
+   "id": 685,
+   "created_at": "2026-10-21T13:35:21.845",
+   "codice_articolo": "B0SPMPIBI",
+   "descrizione": "SPONDA MOBILE PIKKOLETTO BIANCO CER",
+   "quantita": 90,
+   "note": "",
+   "data_inserimento": "2026-10-20",
+   "cliente": "BERGAMASCO",
+   "sequenza": "90",
+   "inserito_da": "VALENTINA"
+  }
+ ]
+}

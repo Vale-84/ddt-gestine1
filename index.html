@@ -8116,8 +8116,9 @@ function calcolaGiacenzeMag(ent,usc,abb,cliente){
   return Object.values(map).map(function(a){a.gia=a.ric-a.spe;a.daNova=false;return a;});
 }
 // Codici che non sono merce (es. CONSUMO, materiale di consumo Bergamasco):
-// non contano nel Magazzino e non hanno l'etichetta MAG
-var CODICI_FUORI_MAG=['CONSUMO'];
+// non contano nel Magazzino e non hanno l'etichetta MAG.
+// B0IMBLETTI / B0IMBETER: righe "imballo lettino" (servizio, non pezzi)
+var CODICI_FUORI_MAG=['CONSUMO','B0IMBLETTI','B0IMBETER'];
 function fuoriMag(cod){return CODICI_FUORI_MAG.indexOf(String(cod||'').trim().toUpperCase())>=0;}
 // Abbinamenti BER (uscite di AZZURRA): B0 -> BER, l'ultimo abbinamento vince
 function b0ToBerMag(abb){
