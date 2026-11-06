@@ -9409,6 +9409,44 @@ function testoAvvisiColore(avvisi){
   return avvisi.length?' ⚠ Colore non riconosciuto, restano sul codice originale: '+avvisi.join(' · '):'';
 }
 
+// Descrizione dell'articolo di un codice app: descrizione del BER senza le parole colore delle
+// sue regole + la prima parola (per id) della regola del codice app.
+// Es. BER00678 "EL.TESTATA MOD.ETERNITY NAT" + BER00678BI (BCO) -> "EL.TESTATA MOD.ETERNITY BCO"
+function descArticoloColore(descBer,regole,codiceBer,codiceApp){
+  var mie=regole.filter(function(r){return _ucCol(r.codice_ber)===codiceBer;}).sort(function(a,b){return (Number(a.id)||0)-(Number(b.id)||0);});
+  var colori={};mie.forEach(function(r){paroleColore(r.parola).forEach(function(w){colori[w]=true;});});
+  var base=String(descBer||'').split(/\s+/).filter(Boolean).map(function(tok){
+    // Toglie la parola colore anche attaccata a un punto ("ETERNITY.NAT" resta "ETERNITY.")
+    return tok.split(/([^A-Za-z0-9]+)/).filter(function(p){return !colori[_ucCol(p)];}).join('');
+  }).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+  var prima=mie.find(function(r){return _ucCol(r.codice_app)===codiceApp;});
+  return (base+' '+(prima?_ucCol(prima.parola):'')).trim();
+}
+// Crea in articoli i codici app delle regole che mancano (cliente BERGAMASCO).
+// → numero di articoli creati, null se la lettura non e' riuscita
+async function creaArticoliColoreMancanti(){
+  if(getCliente()!=='BERGAMASCO')return 0;
+  var reg=await caricaRegoleColore(true);
+  if(!reg)return null;
+  if(!reg.length)return 0;
+  var codici=[];
+  reg.forEach(function(r){[_ucCol(r.codice_ber),_ucCol(r.codice_app)].forEach(function(c){if(c&&codici.indexOf(c)<0)codici.push(c);});});
+  var art=await apiGetTutto('articoli','codice_articolo=in.('+codici.map(encodeURIComponent).join(',')+')&order=id.asc');
+  if(!art)return null;
+  var esist={},descArt={};
+  art.forEach(function(a){var k=_ucCol(a.codice_articolo);esist[k]=true;if(a.descrizione&&!descArt[k])descArt[k]=a.descrizione;});
+  var creati=0,fatti={};
+  for(var i=0;i<reg.length;i++){
+    var ber=_ucCol(reg[i].codice_ber),app=_ucCol(reg[i].codice_app);
+    if(!app||esist[app]||fatti[app])continue;
+    fatti[app]=true;
+    var desc=descArticoloColore(descArt[ber]||'',reg,ber,app);
+    if(await apiPost('articoli',{codice_articolo:app,descrizione:desc}))creati++;
+  }
+  if(creati)await caricaArticoli();
+  return creati;
+}
+
 // Scheda "Codici per colore" nella pagina Abbinamenti BERGAMASCO
 async function caricaRegoleColoreUI(){
   var tb=document.getElementById('rcol-tbody');if(!tb)return;
@@ -9433,7 +9471,8 @@ async function aggiungiRegolaColore(){
   var r=await apiPost('regole_colore_ber',{codice_ber:ber,parola:parola,codice_app:app});
   if(!r){alert('Errore salvataggio regola.');return;}
   document.getElementById('rcol-parola').value='';document.getElementById('rcol-app').value='';
-  showMsg('msg-abbinamenti-ber','Regola salvata: '+ber+' + "'+parola+'" → '+app+'. Ricorda l\'abbinamento '+app+' → B0.','ok');
+  var nArt=await creaArticoliColoreMancanti();
+  showMsg('msg-abbinamenti-ber','Regola salvata: '+ber+' + "'+parola+'" → '+app+'.'+(nArt?' Creato l\'articolo '+app+'.':'')+(nArt===null?' ⚠ Articolo non verificato (errore di collegamento).':'')+' Ricorda l\'abbinamento '+app+' → B0.',nArt===null?'err':'ok');
   caricaRegoleColoreUI();
 }
 async function eliminaRegolaColore(id){
@@ -9480,7 +9519,8 @@ async function eseguiConversioneColore(){
   }
   _rcolAnteprima=null;
   document.getElementById('rcol-conv').innerHTML='';
-  showMsg('msg-abbinamenti-ber',ok+' righe convertite'+(ko?' — '+ko+' errori, riprova':'')+'.',ko?'err':'ok');
+  var nArt=await creaArticoliColoreMancanti();
+  showMsg('msg-abbinamenti-ber',ok+' righe convertite'+(ko?' — '+ko+' errori, riprova':'')+'.'+(nArt?' Creati '+nArt+' articoli per i codici per colore.':'')+(nArt===null?' ⚠ Articoli non verificati (errore di collegamento).':''),ko||nArt===null?'err':'ok');
 }
 
 // ── ABBINAMENTI BERGAMASCO (abbinamenti_ber: codice_ber -> codice_b0) ──
