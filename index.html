@@ -3055,6 +3055,8 @@ async function verificaVerniciatoImballo(){
     // da Verniciato direttamente al DDT, non e' un'anomalia).
     var flagVernImb=isAz?vTot!==iTot:(iTot!==0&&vTot!==iTot);
     var flagBypass=isAz&&wTot>0&&iTot===0;
+    // Imballo parziale: si puo' aggiungere solo la differenza WA − Imballo.
+    var flagAllinea=isAz&&iTot>0&&iTot<wTot;
     var flagImbWau=isAz&&!flagBypass&&iTot>0&&wTot>0&&iTot!==wTot;
     // Riferimento automatico: il maggiore tra WA Uscita e Imballo (a parita' WA).
     // BERGAMASCO senza Imballo: Verniciato, che va direttamente al DDT.
@@ -3075,7 +3077,7 @@ async function verificaVerniciatoImballo(){
       vern:vTot,imb:iTot,wau:wTot,ddt:dTot,riporto:v?v.riporto:0,
       fonteEtich:fonteEtich,rif:rif,daFare:daFare,daFareMostrato:daFareMostrato,
       saldo:saldo,ddtEntTot:deTot,ddtUscTot:duTot,superaCarico:superaCarico,
-      flagVernImb:flagVernImb,flagBypass:flagBypass,flagImbWau:flagImbWau,ddtNeg:ddtNeg,
+      flagVernImb:flagVernImb,flagBypass:flagBypass,flagAllinea:flagAllinea,flagImbWau:flagImbWau,ddtNeg:ddtNeg,
       anomalo:flagVernImb||flagBypass||flagImbWau||ddtNeg||superaCarico||saldo<0
     };
   }).filter(function(a){return a.soloSaldo||a.vern!==0||a.imb!==0||a.wau!==0||a.ddt!==0;});
@@ -3110,6 +3112,11 @@ async function verificaVerniciatoImballo(){
       var descEsc=String(a.desc||'').replace(/'/g,"\\'");
       badges+='<span class="badge" style="background:#E6F1FB;color:#0C447C;margin-right:4px;">↪ Bypass Imballo</span>'
         +'<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEsc+'\',\''+descEsc+'\')">+ Imballo</button>';
+    }
+    if(a.flagAllinea){
+      var codEscA=String(a.cod||'').replace(/'/g,"\\'");
+      var descEscA=String(a.desc||'').replace(/'/g,"\\'");
+      badges+='<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEscA+'\',\''+descEscA+'\')">+ Imballo '+(a.wau-a.imb)+'</button>';
     }
     if(!badges&&!a.ddtNeg&&!a.superaCarico&&a.saldo>=0)badges='<span class="badge badge-ok">✓ OK</span>';
     // Il valore usato come riferimento e' evidenziato in verde.
@@ -3172,6 +3179,7 @@ function esportaVerificaVerniciatoImballoExcel(){
     if(a.flagVernImb)stato.push('Vern≠Imb '+fmtDiffSegno(a.vern-a.imb));
     if(a.flagImbWau)stato.push('Imb≠WA '+fmtDiffSegno(a.imb-a.wau));
     if(a.flagBypass)stato.push('Bypass Imballo');
+    if(a.flagAllinea)stato.push('Allineabile a WA '+fmtDiffSegno(a.imb-a.wau));
     if(a.superaCarico)stato.push('Supera il carico (da fare '+a.daFare+')');
     if(a.saldo<0)stato.push('Manca entrata?');
     riga['Stato']=stato.length?stato.join(', '):'OK';
@@ -3210,6 +3218,12 @@ async function aggiungiBypassAImballo(cod, desc){
     var righeImb=imb.filter(function(r){
       return String(r.codice_articolo||r.articolo||'').trim().toLowerCase()===key;
     });
+    // Totali con lo stesso filtro "fino al giorno" della tabella. Chiudi Mese toglie gia'
+    // le righe chiuse da WA e Imballo, quindi qui c'e' solo il periodo aperto.
+    var totWA=righeWA.reduce(function(s,r){return s+(Number(r.quantita)||0);},0);
+    var totImb=righeImb.filter(function(r){return rigaFino(r,fino);})
+      .reduce(function(s,r){return s+(Number(r.totale)||0);},0);
+    if(totImb!==0){await allineaImballoAWA(cod,desc,fino,righeWA,totWA,totImb);return;}
     var idLegati={},libere=[];
     righeImb.forEach(function(r){
       var n=String(r.note||''),p=n.indexOf(BYPASS_NOTA);
@@ -3244,6 +3258,46 @@ async function aggiungiBypassAImballo(cod, desc){
     caricaImballo();
     verificaVerniciatoImballo();
   }finally{_bypassInCorso=false;}
+}
+
+// Imballo parziale (0 < Imballo < WA): aggiunge solo WA − Imballo, dalla riga WA piu'
+// recente a ritroso, ogni pezzo con la data della sua riga WA; nota "Allineato a WA #id".
+var ALLINEA_NOTA='Allineato a WA #';
+async function allineaImballoAWA(cod,desc,fino,righeWA,totWA,totImb){
+  var diff=totWA-totImb;
+  var intest='Allinea Imballo a WA – '+cod+(desc?' '+desc:'')+(fino?'\n(WA Uscita e Imballo fino al '+fmtDataGMA(fino)+')':'')+'\n';
+  if(diff<=0){alert(intest+'\nImballo '+totImb+' già uguale o superiore al WA '+totWA+': non aggiungo niente.');return;}
+  var ord=righeWA.slice().sort(function(a,b){
+    var da=dataRigaLav(a),db=dataRigaLav(b);
+    if(da!==db)return da<db?1:-1;
+    return (Number(b.id)||0)-(Number(a.id)||0);
+  });
+  var daCreare=[],resto=diff,senzaData=0;
+  for(var i=0;i<ord.length&&resto>0;i++){
+    var q=Number(ord[i].quantita)||0,d=dataRigaLav(ord[i]);
+    if(q<=0)continue;
+    if(!d){senzaData++;continue;}
+    var n=Math.min(q,resto);
+    daCreare.push({wa:ord[i],data:d,qty:n,parziale:n<q,qWA:q});
+    resto-=n;
+  }
+  var tot=daCreare.reduce(function(s,x){return s+x.qty;},0);
+  if(!daCreare.length){alert(intest+'\nNessuna riga WA con data utilizzabile: non aggiungo niente.');return;}
+  var testo=intest+'Imballo '+totImb+' → WA '+totWA+': aggiungo '+tot+' pz\n\n'
+    +daCreare.map(function(x){return '  '+fmtDataGMA(x.data)+'  –  '+x.qty+' pz'+(x.parziale?'   (parte di una riga WA da '+x.qWA+')':'');}).join('\n')
+    +(senzaData?'\n\nRighe WA senza data, saltate: '+senzaData:'')
+    +(tot<diff?'\n\nAttenzione: coperti solo '+tot+' pz su '+diff+'.':'')
+    +'\n\nOK per salvare, Annulla per non fare niente.';
+  if(!confirm(testo))return;
+  var cl=getCliente(),ora=new Date().toISOString();
+  var righe=daCreare.map(function(x){
+    return {codice_articolo:cod,articolo:desc,sequenza:String(x.qty),totale:x.qty,
+      note:ALLINEA_NOTA+x.wa.id,data_inserimento:x.data,cliente:cl,created_at:ora};
+  });
+  var r=await apiPost('imballo',righe);
+  if(!r)return;
+  caricaImballo();
+  verificaVerniciatoImballo();
 }
 
 async function verificaTutto(){
