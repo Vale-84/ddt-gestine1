@@ -4655,12 +4655,34 @@ async function caricaApertiBer(){
   var chkSolo=document.getElementById('rc-solo-diff-ber');
   var soloDiff=ctrl&&chkSolo&&chkSolo.checked;
   var nCol=ctrl?8:6;
-  var righe=Object.keys(mE).map(function(k){
+  // Codici per colore (regole_colore_ber): BER00678BI/NO/NT stanno su UNA riga col codice di
+  // Nova BER00678, cosi' si confrontano con la riga Nova; il dettaglio per colore resta sotto.
+  var regOk=!!(await caricaRegoleColore(true));
+  var gruppiCol={},righe=[];
+  function rigaAperti(cod,desc,totE,sped,b0s,senzaAbb,parti){
+    var aperto=totE-sped,nova=ctrl?(mNova[cod]||0):null;
+    return {cod:cod,desc:desc,totE:totE,sped:sped,aperto:aperto,nova:nova,diff:ctrl?aperto-nova:null,b0s:b0s,senzaAbb:senzaAbb,parti:parti||null};
+  }
+  Object.keys(mE).forEach(function(k){
     var e=mE[k];var sped=fifo.lavoratiPerBer[k]||0;
     var b0s=fifo.berToB0[k]||[];
-    var aperto=e.totE-sped,nova=ctrl?(mNova[k]||0):null;
-    return {cod:k,desc:e.desc,totE:e.totE,sped:sped,aperto:aperto,nova:nova,diff:ctrl?aperto-nova:null,b0s:b0s,senzaAbb:!b0s.length&&!fifo.b0ToBer[k]};
-  }).filter(function(r){return (r.aperto!==0||(ctrl&&r.nova!==0))&&(!soloDiff||r.diff!==0);});
+    var kn=regOk?codiceNovaColore(k):k;
+    if(regOk&&(kn!==k||codiciAppColore(k).length)){
+      var g=gruppiCol[kn]||(gruppiCol[kn]={desc:'',totE:0,sped:0,b0s:[],parti:[]});
+      g.totE+=e.totE;g.sped+=sped;
+      if(kn===k){if(e.desc)g.desc=e.desc;if(e.totE||sped)g.parti.push({cod:k,aperto:e.totE-sped});}
+      else{g.parti.push({cod:k,aperto:e.totE-sped});if(!g.descParte&&e.desc)g.descParte=e.desc;}
+      b0s.forEach(function(b){if(g.b0s.indexOf(b)<0)g.b0s.push(b);});
+      return;
+    }
+    righe.push(rigaAperti(k,e.desc,e.totE,sped,b0s,!b0s.length&&!fifo.b0ToBer[k]));
+  });
+  Object.keys(gruppiCol).forEach(function(kn){
+    var g=gruppiCol[kn];
+    g.parti.sort(function(a,b){return a.cod.localeCompare(b.cod);});
+    righe.push(rigaAperti(kn,g.desc||g.descParte||'',g.totE,g.sped,g.b0s,!g.b0s.length,g.parti));
+  });
+  righe=righe.filter(function(r){return (r.aperto!==0||(ctrl&&r.nova!==0))&&(!soloDiff||r.diff!==0);});
   righe.sort(function(a,b){return (a.desc||a.cod).localeCompare(b.desc||b.cod,'it');});
   var senza=Object.keys(fifo.uscNonAssegnate).map(function(b0){
     return {b0:b0,desc:fifo.descB0[b0]||'',qta:fifo.uscNonAssegnate[b0],bers:(fifo.b0ToBer[b0]||[]).slice()};
@@ -4671,7 +4693,8 @@ async function caricaApertiBer(){
     var badge=r.senzaAbb?'<br><span class="badge badge-warn" style="margin-top:3px;">nessun abbinamento</span>':'';
     var colNova=ctrl?('<td style="text-align:right;">'+r.nova+'</td>'
       +'<td style="text-align:right;'+(r.diff!==0?'background:#FDECEA;color:#C00000;font-weight:bold;':'')+'">'+(r.diff>0?'+':'')+r.diff+'</td>'):'';
-    return '<tr><td><strong>'+r.cod+'</strong></td><td>'+(r.desc||'')+'</td>'
+    var parti=r.parti&&r.parti.length?'<div style="font-size:11px;color:#0C447C;margin-top:2px;" title="Codici per colore (regole_colore_ber): aperto di ciascuno">'+r.parti.map(function(p){return escAbb(p.cod)+' '+p.aperto;}).join(' · ')+'</div>':'';
+    return '<tr><td><strong>'+r.cod+'</strong>'+parti+'</td><td>'+(r.desc||'')+'</td>'
       +'<td style="text-align:right;">'+r.totE+'</td><td style="text-align:right;">'+r.sped+'</td>'
       +'<td style="text-align:right;"><span class="badge '+(r.aperto>0?'badge-warn':(r.aperto<0?'badge-err':'badge-ok'))+'">'+r.aperto+'</span></td>'
       +colNova
@@ -4697,6 +4720,7 @@ function esportaApertiBerExcel(){
     if(_apertiBerCtrl){o['Nova']=r.nova;o['Differenza']=r.diff;}
     o['B0 abbinati']=r.b0s.join(', ');
     o['Note']=r.senzaAbb?'nessun abbinamento':(r.aperto<0?'verificare':(r.aperto>0?'da lavorare/spedire':''));
+    if(r.parti&&r.parti.length)o['Note']=(o['Note']?o['Note']+' — ':'')+'codici per colore: '+r.parti.map(function(p){return p.cod+' '+p.aperto;}).join(', ');
     return o;
   });
   if(!r1.length)r1=[{'Codice BER':'Nessun articolo aperto'}];
@@ -10348,6 +10372,13 @@ function distanzaExtra(a,b){
   }
   return prev[b.length];
 }
+// Parole di una descrizione, senza ordine né doppioni: maiuscolo, punteggiatura/trattini/"/" come
+// separatori ("554/.../2140" -> 554, 2140; " — " delle note tolto). Per abbinare le righe "*".
+function paroleDescFattExtra(s){
+  var out=[];
+  String(s||'').toUpperCase().split(/[^A-Z0-9À-Ü]+/).forEach(function(w){if(w&&out.indexOf(w)<0)out.push(w);});
+  return out;
+}
 function somiglianzaExtra(a,b){var n=Math.max(a.length,b.length);return n?1-distanzaExtra(a,b)/n:1;}
 function stessoNumExtra(a,b,dec){return Math.round(Number(a)*dec)===Math.round(Number(b)*dec);}
 // Numeri nei messaggi: sempre col punto delle migliaia (1.281), anche dove il browser non lo mette
@@ -10459,6 +10490,21 @@ function confrontaFatturaExtra(fattura,lavori,opz){
   // 1) stessa quantità e descrizione identica  2) stessa quantità e descrizione simile  3) quantità diversa ma descrizione molto simile
   perExtra.forEach(function(e){if(!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].d===0)abbina(e,c,false);});
   perExtra.forEach(function(e){if(e.app||!e.ddtCaricato||isNaN(e.riga.quantita))return;var c=candidate(e,true);if(c.length&&c[0].s>=0.75)abbina(e,c,false);});
+  // 2b) righe "*": stessa quantità e stesse parole in ordine diverso (descrizione intera, RIF compreso:
+  // es. "NR. 2 PEDANE..." prima del RIF in fattura e dopo il RIF nell'app). Parole in comune / parole
+  // della descrizione più lunga >= 0,8; vince chi ne ha di più in comune; a pari merito non si abbina.
+  perExtra.forEach(function(e){
+    if(e.app||e.codiceVero||!e.ddtCaricato||isNaN(e.riga.quantita))return;
+    var pf=paroleDescFattExtra(e.riga.descrizione+' '+e.riga.note.join(' '));
+    if(!pf.length)return;
+    var c=candidate(e,true).map(function(x){
+      var pa=paroleDescFattExtra(x.l.descrizione),comuni=pa.filter(function(w){return pf.indexOf(w)>=0;}).length;
+      return{x:x,comuni:comuni,punti:comuni/Math.max(pf.length,pa.length)};
+    }).filter(function(y){return y.punti>=0.8;}).sort(function(a,b){return b.comuni-a.comuni||b.punti-a.punti;});
+    // Dubbio: un'altra candidata con le stesse parole in comune e lo stesso punteggio
+    if(!c.length||(c.length>1&&c[1].comuni===c[0].comuni&&Math.abs(c[1].punti-c[0].punti)<1e-9))return;
+    abbina(e,[c[0].x],false);e.incerto=false;e.perParole=true;
+  });
   perExtra.forEach(function(e){if(e.app||!e.ddtCaricato)return;var c=candidate(e,false);if(c.length&&c[0].s>=0.85)abbina(e,c,true);});
 
   // ── Quantità in fattura per DDT + codice (righe con codice di AZZURRA/BERGAMASCO)
@@ -10516,6 +10562,7 @@ function confrontaFatturaExtra(fattura,lavori,opz){
       }else bene(e,'quantità uguale all\'app');
       if(e.qtaDiversa){e.motivi=e.motivi.filter(function(m){return m.s!=='quantità uguale all\'app';});arancio(e,'quantità diversa: in fattura '+qtaFattExtra(r.quantita)+', nell\'app '+qtaFattExtra(e.app.quantita));}
       if(e.incerto)arancio(e,'abbinamento incerto: controlla la riga');
+      if(e.perParole)e.motivi.push({t:'',s:'abbinata per parole uguali (ordine diverso)'});
       if(e.somiglianza<1)e.motivi.push({t:'',s:'nell\'app: '+String(e.app.descrizione).split(' — ')[0]});
     }else if(r.ddt){
       arancio(e,!e.ddtCaricato?'DDT non caricato nell\'app':'riga non trovata nel DDT dell\'app');
