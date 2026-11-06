@@ -5088,6 +5088,23 @@ async function aggiornaConfrrontoBer(){
     arr.forEach(function(r){var d=dataRigaLav(r);if(d&&(!inizio||d<inizio))inizio=d;});
   });
   function ddtNelPeriodo(r){var d=dataDDTBer(r);return !!inizio&&!!d&&d>=inizio&&(!fino||d<=fino);}
+  // Cassetto letto (C0BI/C0NT) fuori dal Confronto finche' non c'e' la distinta del cassetto
+  function fuoriConfronto(r){return FUORI_CONFRONTO_BER.indexOf((r.codice_articolo||'').trim().toUpperCase())>=0;}
+  vern=vern.filter(function(r){return !fuoriConfronto(r);});
+  imb=imb.filter(function(r){return !fuoriConfronto(r);});
+  ddtu=ddtu.filter(function(r){return !fuoriConfronto(r);});
+  // Storia completa (fino al giorno, se attivo) per il controllo "carico prima del periodo"
+  var entSempre={},uscPrima={};
+  ddte.forEach(function(r){
+    var d=dataDDTBer(r),k=(r.codice_articolo||'').trim().toUpperCase();
+    if(!k||(fino&&d&&d>fino))return;
+    entSempre[k]=(entSempre[k]||0)+(Number(r.quantita_ddt)||0);
+  });
+  ddtu.forEach(function(r){
+    var d=dataDDTBer(r),k=(r.codice_articolo||'').trim().toUpperCase();
+    if(!k||!inizio||!d||d>=inizio)return;
+    uscPrima[k]=(uscPrima[k]||0)+(Number(r.quantita_ddt)||0);
+  });
   ddte=ddte.filter(ddtNelPeriodo);
   ddtu=ddtu.filter(ddtNelPeriodo);
   var periodoElBer=document.getElementById('rc-periodo-info');
@@ -5170,12 +5187,13 @@ async function aggiornaConfrrontoBer(){
 
   var mDDTE={};          // B0 da solo: totale dei suoi BER
   var b0Gruppo={};       // B0 in un gruppo -> gruppo
+  var b0SoloBers={};     // B0 da solo -> i suoi BER
   var gruppi=[];
   function haMov(b0){return (mVern[b0]&&mVern[b0].tot>0)||(mImb[b0]&&mImb[b0].tot>0)||(mDDTU[b0]&&mDDTU[b0].tot>0);}
   Object.keys(compo).forEach(function(rt){
     var c=compo[rt];c.bers.sort();c.b0s.sort();
     var ent=c.bers.reduce(function(s,b){return s+(berEntrata[b]||0);},0);
-    if(c.b0s.length===1){mDDTE[c.b0s[0]]=(mDDTE[c.b0s[0]]||0)+ent;return;}
+    if(c.b0s.length===1){mDDTE[c.b0s[0]]=(mDDTE[c.b0s[0]]||0)+ent;b0SoloBers[c.b0s[0]]=c.bers;return;}
     var g={cod:c.bers.join(' + '),bers:c.bers,b0s:c.b0s,ent:ent};
     c.b0s.forEach(function(b0){b0Gruppo[b0]=g;});
     gruppi.push(g);
@@ -5201,8 +5219,9 @@ async function aggiornaConfrrontoBer(){
     // Vern≠Imb solo se c'e' Imballo (come nel Confronto Produzione).
     var vernImbDiff=imbTot!==0&&vernTot!==imbTot;
     var stato='ok',badge='✓ Ok',colore='';
-    var mancante=(!g&&ddtE===0&&!fuoriMag(k))?qtaCaricoMancante(vernDDT,imbTot,ddtU):0;
-    if(mancante>0){stato='carico';badge='⚠️ CARICO MANCANTE '+mancante;colore='#fde2e2';}
+    var cm=(!g&&ddtE===0&&!fuoriMag(k))?caricoMancante(qtaCaricoMancante(vernDDT,imbTot,ddtU),b0SoloBers[k]||[],[k]):null;
+    if(cm&&cm.scoperto>0){stato='carico';badge='⚠️ CARICO MANCANTE '+cm.scoperto;colore='#fde2e2';}
+    else if(cm&&cm.prima>0){badge=BADGE_CARICO_PRIMA;}
     else if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
     // B0 di un gruppo: il DDT Entrata si controlla sulla riga del gruppo
     else if(!g&&ddtE>0&&ddtE!==vernDDT){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
@@ -5215,6 +5234,17 @@ async function aggiornaConfrrontoBer(){
   // Carico 0 ma pezzi lavorati o spediti nel periodo: quantita' senza carico = la piu' alta
   // tra Verniciato (senza riporti, entrati col mese prima), Imballo e DDT Uscita.
   function qtaCaricoMancante(vernDDT,imb,ddtU){return Math.max(vernDDT,imb,ddtU,0);}
+  // Prima dell'avviso: il carico arrivato prima del periodo e non ancora uscito (tutti i DDT
+  // Entrata dei BER - DDT Uscita dei loro B0 fatti prima del periodo) copre la quantita'?
+  // {scoperto: pezzi senza carico, prima: pezzi coperti da un carico prima del periodo}
+  function caricoMancante(qta,bers,b0s){
+    if(qta<=0)return {scoperto:0,prima:0};
+    var saldo=bers.reduce(function(s,b){return s+(entSempre[b]||0);},0)
+      -b0s.reduce(function(s,b){return s+(uscPrima[b]||0);},0);
+    var coperto=Math.max(0,Math.min(qta,saldo));
+    return {scoperto:qta-coperto,prima:coperto};
+  }
+  var BADGE_CARICO_PRIMA='<span style="color:#888;" title="DDT Entrata 0 nel periodo: i pezzi sono coperti da un carico arrivato prima del periodo">✓ Carico prima del periodo</span>';
 
   // Blocchi: un B0 da solo, oppure riga di gruppo + i suoi B0 con movimenti (sempre insieme)
   var blocchi=[];
@@ -5230,8 +5260,9 @@ async function aggiornaConfrrontoBer(){
     var fonteE=vernDDT!==0?'Vern':'Usc';
     var rifE=vernDDT!==0?vernDDT:s.ddtU;
     var stato='ok',badge='✓ Ok',colore='';
-    var mancanteG=g.ent===0?qtaCaricoMancante(vernDDT,s.imb,s.ddtU):0;
-    if(mancanteG>0){stato='carico';badge='⚠️ CARICO MANCANTE '+mancanteG+' (gruppo)';colore='#fde2e2';}
+    var cmG=g.ent===0?caricoMancante(qtaCaricoMancante(vernDDT,s.imb,s.ddtU),g.bers,g.b0s):null;
+    if(cmG&&cmG.scoperto>0){stato='carico';badge='⚠️ CARICO MANCANTE '+cmG.scoperto+' (gruppo)';colore='#fde2e2';}
+    else if(cmG&&cmG.prima>0){badge=BADGE_CARICO_PRIMA;}
     else if(g.ent>0&&g.ent!==rifE){stato='ddtvern';badge='⚠️ DDT≠'+(fonteE==='Vern'?'Vern':'Usc')+' (gruppo)';colore='#fff3e0';}
     var testa={tipo:'gruppo',gruppo:g.cod,cod:g.cod,desc:descBer[g.bers.filter(function(b){return berEntrata[b];})[0]||g.bers[0]]||'',
       nB0:g.b0s.length,vern:s.vern,riporto:s.riporto,imb:s.imb,ddtE:g.ent,ddtU:s.ddtU,
@@ -8255,6 +8286,8 @@ function calcolaGiacenzeMag(ent,usc,abb,cliente){
 // non contano nel Magazzino e non hanno l'etichetta MAG.
 // B0IMBLETTI / B0IMBETER: righe "imballo lettino" (servizio, non pezzi)
 var CODICI_FUORI_MAG=['CONSUMO','B0IMBLETTI','B0IMBETER'];
+// Fuori dal Confronto BERGAMASCO: cassetto letto, finche' non c'e' la distinta del cassetto
+var FUORI_CONFRONTO_BER=['C0BI','C0NT'];
 function fuoriMag(cod){return CODICI_FUORI_MAG.indexOf(String(cod||'').trim().toUpperCase())>=0;}
 // Abbinamenti BER (uscite di AZZURRA): B0 -> BER, l'ultimo abbinamento vince
 function b0ToBerMag(abb){
