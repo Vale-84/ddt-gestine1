@@ -1021,6 +1021,9 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <h2>Importa Inevasi Nova</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">File Excel Nova (con righe di metadati tipo "Dati origine"/"Ordinato per"/"Compressione"/"Range date"/"Filtro conto" da ignorare). Per ogni CodArt somma tutte le "Qtà Ine" del file e aggiorna solo la giacenza iniziale, non tocca l'abbinamento codice A0. I codici con inevaso che non compaiono nel file vengono azzerati (con conferma).</p>
     <p id="abz-ultimo-import" style="font-size:12px;color:#888;margin-bottom:12px;"></p>
+    <label for="abz-scalate-fino">Uscite scalate in Nova fino al</label>
+    <input type="date" id="abz-scalate-fino" style="margin-bottom:6px;">
+    <p style="font-size:12px;color:#666;margin-bottom:12px;">In Nova devono essere scalate tutte le uscite fino a questa data e nessuna dopo. Il file deve avere le colonne DataDocum e Qtà TOT: i carichi con DataDocum dopo questa data vengono tolti dagli inevasi per il saldo di Controllo Date e Saldo carico del Confronto.</p>
     <button type="button" class="pdf-drop" style="width:100%;border:none;background:#EEF4FF;" onclick="document.getElementById('abz-imp-giac-inp').click()">
       <p>Tocca qui per caricare Excel (.xlsx)</p>
       <small>oppure trascinalo qui</small>
@@ -2928,7 +2931,8 @@ async function verificaWAImballo(){
 // Casella "DA FARE IN DDT" del Confronto Produzione: riferimento (il maggiore tra WA
 // Uscita e Imballo) meno i DDT Uscita del periodo. Il negativo resta visibile in rosso:
 // vuol dire piu' DDT che pezzi prodotti, da controllare. Se supera il saldo carico
-// (DDT Entrata − DDT Uscita di sempre) il numero e' limitato al saldo, con avviso;
+// (BERGAMASCO: DDT Entrata − DDT Uscita di sempre; AZZURRA: inevasi Nova alla data X +
+// DDT dopo X, vedi getSaldoNovaAzzurra) il numero e' limitato al saldo, con avviso;
 // con saldo negativo resta il valore pieno (sempre con avviso).
 function htmlDaFareDDT(a){
   var n=a.daFareMostrato;
@@ -2967,6 +2971,19 @@ async function verificaVerniciatoImballo(){
   ddtu=ddtu.filter(ddtFino);
   ddte=ddte.filter(ddtFino);
 
+  // AZZURRA: saldo carico dagli inevasi Nova alla data X (getSaldoNovaAzzurra) + DDT
+  // Entrata − DDT Uscita dell'app con data > X (fino a "Fino al giorno"). Senza X, o con
+  // "Fino al giorno" entro X: saldo non disponibile (avviso, nessun "supera il carico").
+  var nova=null,saldoNovaOk=true,avvisoSaldo='';
+  if(isAz){
+    nova=await getSaldoNovaAzzurra();
+    if(!nova)avvisoSaldo='Inevasi Nova non letti (errore di connessione): saldo carico non disponibile.';
+    else if(!nova.x)avvisoSaldo='Inevasi Nova non caricati con la data "Uscite scalate in Nova fino al": saldo carico non disponibile. Carica il file inevasi in Abbinamenti AZZURRA.';
+    else if(fino&&fino<=nova.x)avvisoSaldo='"Fino al giorno" è entro il '+fmtDataGMA(nova.x)+' (uscite scalate negli inevasi Nova): saldo carico non disponibile.';
+    saldoNovaOk=!avvisoSaldo;
+  }
+  function ddtDopoX(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !nova||!nova.x||(d&&d>nova.x);}
+
   // Inizio periodo: WA, Imballo e Verniciato si svuotano a fine mese, quindi la riga
   // piu' vecchia rimasta in una delle tre liste segna l'inizio del mese in corso.
   // Liste tutte vuote: nessun periodo (nessun DDT Uscita conta come "del mese").
@@ -2998,14 +3015,21 @@ async function verificaVerniciatoImballo(){
   ddtu.forEach(function(r){
     if(!r.codice_articolo)return;
     var c=codDDT(r);
-    sommaDDT(mapDDTUTot,c,r);
+    if(ddtDopoX(r))sommaDDT(mapDDTUTot,c,r);
     var d=(r.data_ddt||r.created_at||'').slice(0,10);
     if(inizio&&d&&d>=inizio)sommaDDT(mapDDT,c,r);
   });
   ddte.forEach(function(r){
     if(!r.codice_articolo)return;
-    sommaDDT(mapDDTE,codDDT(r),r);
+    if(ddtDopoX(r))sommaDDT(mapDDTE,codDDT(r),r);
   });
+  // Saldo carico per chiave (minuscola, come le altre mappe); null = non disponibile
+  function saldoCarico(k){
+    if(!saldoNovaOk)return null;
+    var s0=0;
+    if(nova){var kU=k.toUpperCase();s0=nova.saldoX[kU]||0;}
+    return s0+(mapDDTE[k]?mapDDTE[k].tot:0)-(mapDDTUTot[k]?mapDDTUTot[k].tot:0);
+  }
 
   var mapImb={};
   imb.forEach(function(r){
@@ -3043,9 +3067,11 @@ async function verificaVerniciatoImballo(){
   Object.keys(mapDDT).forEach(function(k){keys[k]=true;});
   // Anche i codici senza movimenti nel mese ma con saldo carico negativo.
   var keysSaldo={};
-  Object.keys(mapDDTE).concat(Object.keys(mapDDTUTot)).forEach(function(k){
-    var s=(mapDDTE[k]?mapDDTE[k].tot:0)-(mapDDTUTot[k]?mapDDTUTot[k].tot:0);
-    if(s<0&&!keys[k]){keys[k]=true;keysSaldo[k]=true;}
+  var keysPerSaldo=Object.keys(mapDDTE).concat(Object.keys(mapDDTUTot));
+  if(nova&&saldoNovaOk)keysPerSaldo=keysPerSaldo.concat(Object.keys(nova.saldoX).map(function(k){return k.toLowerCase();}));
+  keysPerSaldo.forEach(function(k){
+    var s=saldoCarico(k);
+    if(s!==null&&s<0&&!keys[k]){keys[k]=true;keysSaldo[k]=true;}
   });
   var list=Object.keys(keys).map(function(key){
     var v=mapVern[key],i=mapImb[key],w=mapWA[key],dd=mapDDT[key];
@@ -3066,19 +3092,20 @@ async function verificaVerniciatoImballo(){
     else if(!isAz&&vTot!==0){fonteEtich='Vern';rif=vTot;}
     else {fonteEtich=isAz?'WA':'Imballo';rif=0;}
     var daFare=rif-dTot;
-    var saldo=deTot-duTot;
-    var superaCarico=daFare>0&&daFare>saldo;
+    var saldo=saldoCarico(key);
+    var saldoNova=nova&&saldoNovaOk?(nova.saldoX[key.toUpperCase()]||0):null;
+    var superaCarico=saldo!==null&&daFare>0&&daFare>saldo;
     var daFareMostrato=superaCarico&&saldo>=0?saldo:daFare;
     var ddtNeg=daFare<0;
     return {
-      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||(dd&&dd.cod)||(mapDDTE[key]&&mapDDTE[key].cod)||(mapDDTUTot[key]&&mapDDTUTot[key].cod)||'',
+      cod:(v&&v.cod)||(i&&i.cod)||(w&&w.cod)||(dd&&dd.cod)||(mapDDTE[key]&&mapDDTE[key].cod)||(mapDDTUTot[key]&&mapDDTUTot[key].cod)||key.toUpperCase(),
       desc:(v&&v.desc)||(i&&i.desc)||(w&&w.desc)||(dd&&dd.desc)||(mapDDTE[key]&&mapDDTE[key].desc)||(mapDDTUTot[key]&&mapDDTUTot[key].desc)||'',
       soloSaldo:!!keysSaldo[key],
       vern:vTot,imb:iTot,wau:wTot,ddt:dTot,riporto:v?v.riporto:0,
       fonteEtich:fonteEtich,rif:rif,daFare:daFare,daFareMostrato:daFareMostrato,
-      saldo:saldo,ddtEntTot:deTot,ddtUscTot:duTot,superaCarico:superaCarico,
+      saldo:saldo,saldoNova:saldoNova,ddtEntTot:deTot,ddtUscTot:duTot,superaCarico:superaCarico,
       flagVernImb:flagVernImb,flagBypass:flagBypass,flagAllinea:flagAllinea,flagImbWau:flagImbWau,ddtNeg:ddtNeg,
-      anomalo:flagVernImb||flagBypass||flagImbWau||ddtNeg||superaCarico||saldo<0
+      anomalo:flagVernImb||flagBypass||flagImbWau||ddtNeg||superaCarico||(saldo!==null&&saldo<0)
     };
   }).filter(function(a){return a.soloSaldo||a.vern!==0||a.imb!==0||a.wau!==0||a.ddt!==0;});
 
@@ -3091,7 +3118,9 @@ async function verificaVerniciatoImballo(){
 
   var periodoHtml='<div style="margin-bottom:8px;font-size:14px;font-weight:bold;color:#5B2C8D;">'
     +(inizio?'Periodo dal '+fmtDataGMA(inizio)+(fino?' al '+fmtDataGMA(fino):''):'Nessun periodo: WA, Imballo e Verniciato sono vuoti'+(fino?' fino al '+fmtDataGMA(fino):''))+'</div>'
-    +(fino?'<div style="margin-bottom:8px;font-size:12px;color:#C55A11;">Filtro attivo: righe e DDT dopo il '+fmtDataGMA(fino)+' non contati.</div>':'');
+    +(fino?'<div style="margin-bottom:8px;font-size:12px;color:#C55A11;">Filtro attivo: righe e DDT dopo il '+fmtDataGMA(fino)+' non contati.</div>':'')
+    +(avvisoSaldo?'<div class="warn-box">⚠️ '+avvisoSaldo+'</div>'
+      :(nova?'<div style="margin-bottom:8px;font-size:12px;color:#666;">Saldo carico = inevasi Nova con uscite scalate fino al '+fmtDataGMA(nova.x)+' + DDT Entrata − DDT Uscita dell\'app dopo il '+fmtDataGMA(nova.x)+'.</div>':''));
 
   if(!list.length&&!senzaCodiceWA.length){
     res.innerHTML=periodoHtml+'<div class="ok-box">✅ Nessun articolo con movimenti da confrontare.</div>';return;
@@ -3118,16 +3147,20 @@ async function verificaVerniciatoImballo(){
       var descEscA=String(a.desc||'').replace(/'/g,"\\'");
       badges+='<button class="btn btn-sm btn-blue" style="width:auto;padding:2px 8px;font-size:11px;" onclick="aggiungiBypassAImballo(\''+codEscA+'\',\''+descEscA+'\')">+ Imballo '+(a.wau-a.imb)+'</button>';
     }
-    if(!badges&&!a.ddtNeg&&!a.superaCarico&&a.saldo>=0)badges='<span class="badge badge-ok">✓ OK</span>';
+    if(!badges&&!a.ddtNeg&&!a.superaCarico&&!(a.saldo!==null&&a.saldo<0))badges='<span class="badge badge-ok">✓ OK</span>';
     // Il valore usato come riferimento e' evidenziato in verde.
     var hiImb=a.fonteEtich==='Imballo'&&a.rif!==0?'background:#C6EFCE;font-weight:bold;':'';
     var hiWa=a.fonteEtich==='WA'&&a.rif!==0?'background:#C6EFCE;font-weight:bold;':'';
     var celImb='<td style="text-align:right;'+hiImb+'">'+a.imb+'</td>';
     var celWau=isAz?('<td style="text-align:right;'+(hiWa||colWau)+'">'+a.wau+'</td>'):'';
     var celDaFare='<td style="text-align:right;background:#E8F5E9;white-space:normal;min-width:110px;">'+htmlDaFareDDT(a)+'</td>';
-    var celSaldo='<td style="text-align:right;white-space:normal;min-width:90px;" title="DDT Entrata '+a.ddtEntTot+' − DDT Uscita '+a.ddtUscTot+' (tutte le date)">'
-      +'<div style="font-size:16px;font-weight:bold;'+(a.saldo<0?'color:#C62828;':'')+'">'+a.saldo+'</div>'
-      +(a.saldo<0?'<div style="font-size:11px;color:#C62828;">manca entrata?</div>':'')
+    var titSaldo=a.saldo===null?'Saldo carico non disponibile: vedi avviso'
+      :(a.saldoNova!==null?'Inevasi Nova al '+fmtDataGMA(nova.x)+' '+a.saldoNova+' + DDT Entrata '+a.ddtEntTot+' − DDT Uscita '+a.ddtUscTot+' (dopo il '+fmtDataGMA(nova.x)+')'
+        :'DDT Entrata '+a.ddtEntTot+' − DDT Uscita '+a.ddtUscTot+' (tutte le date)');
+    var celSaldo='<td style="text-align:right;white-space:normal;min-width:90px;" title="'+titSaldo+'">'
+      +(a.saldo===null?'<div style="font-size:16px;color:#888;">—</div>'
+        :'<div style="font-size:16px;font-weight:bold;'+(a.saldo<0?'color:#C62828;':'')+'">'+a.saldo+'</div>'
+          +(a.saldo<0?'<div style="font-size:11px;color:#C62828;">manca entrata?</div>':''))
       +'</td>';
     return '<tr>'
       +'<td><strong>'+(a.cod||'—')+'</strong></td>'
@@ -3174,14 +3207,14 @@ function esportaVerificaVerniciatoImballoExcel(){
     riga['Riferimento']=a.fonteEtich+' '+a.rif;
     riga['DDT Uscita (mese)']=a.ddt;
     riga['Da fare in DDT']=a.daFareMostrato;
-    riga['Saldo carico']=a.saldo;
+    riga['Saldo carico']=a.saldo===null?'—':a.saldo;
     var stato=[];
     if(a.flagVernImb)stato.push('Vern≠Imb '+fmtDiffSegno(a.vern-a.imb));
     if(a.flagImbWau)stato.push('Imb≠WA '+fmtDiffSegno(a.imb-a.wau));
     if(a.flagBypass)stato.push('Bypass Imballo');
     if(a.flagAllinea)stato.push('Allineabile a WA '+fmtDiffSegno(a.imb-a.wau));
     if(a.superaCarico)stato.push('Supera il carico (da fare '+a.daFare+')');
-    if(a.saldo<0)stato.push('Manca entrata?');
+    if(a.saldo!==null&&a.saldo<0)stato.push('Manca entrata?');
     riga['Stato']=stato.length?stato.join(', '):'OK';
     riga['Periodo dal']=periodo;
     if(_verificaVernImbUltimoRis.fino)riga['Fino al']=fmtDataGMA(_verificaVernImbUltimoRis.fino);
@@ -4571,6 +4604,29 @@ async function getGiacenzaNovaPerA0(){
   return mGiac;
 }
 
+// Saldo AZZURRA a fine giornata X dagli inevasi Nova (Controllo Date e Saldo carico del
+// Confronto). X = "Uscite scalate in Nova fino al", salvata con l'import Inevasi Nova.
+// saldoX per codice = somma Qta Ine di tutte le righe del file (giacenza_iniziale)
+// − somma Qta TOT delle righe con DataDocum > X (qta_tot_dopo_x), codici IA -> A0
+// (IA senza A0: resta il codice IA, come in Controllo Date e Confronto). Da X in poi
+// contano i DDT dell'app con data > X. x='' = inevasi non caricati con la data X:
+// i chiamanti mostrano un avviso invece del saldo. null = errore di connessione.
+async function getSaldoNovaAzzurra(){
+  var imp=await apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('inevasi_nova_scalate_fino_AZZURRA')+'&select=valore&limit=1');
+  var abz=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');
+  if(!imp||!abz)return null;
+  abzCache=abz;
+  var x=imp.length?String(imp[0].valore||'').slice(0,10):'';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(x))x='';
+  var saldoX={};
+  abz.forEach(function(r){
+    var ia=(r.codice_ia||'').trim().toUpperCase();if(!ia)return;
+    var k=(r.codice_a0||'').trim().toUpperCase()||ia;
+    saldoX[k]=(saldoX[k]||0)+(Number(r.giacenza_iniziale)||0)-(Number(r.qta_tot_dopo_x)||0);
+  });
+  return {x:x,saldoX:saldoX};
+}
+
 // Controllo inevasi Nova (solo Articoli Aperti BERGAMASCO): salvato solo su questo dispositivo, per cliente.
 function leggiControlloNovaSalvato(){
   try{return JSON.parse(localStorage.getItem('controllo_nova_'+getCliente())||'null');}catch(e){return null;}
@@ -5537,7 +5593,29 @@ async function caricaControlloDate(){
   var ddtu=await apiGetTutto('ddt_uscita');
   if(!ddte||!ddtu){msgTb('Errore connessione');return;}
   var abb=isBer?await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc'):null;
-  if(!isBer&&!abzCache.length){var dAbz=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');if(dAbz)abzCache=dAbz;}
+
+  // AZZURRA: lo storico DDT dell'app non e' completo, quindi il saldo parte dagli inevasi
+  // Nova alla data X ("Uscite scalate in Nova fino al", getSaldoNovaAzzurra) e da li'
+  // contano solo i DDT dell'app con data > X. Senza X, o con il mese che inizia entro X:
+  // avviso invece del controllo (il saldo non sarebbe affidabile).
+  var nova=null,xData=null;
+  if(!isBer){
+    nova=await getSaldoNovaAzzurra();
+    if(!nova){msgTb('Errore connessione');return;}
+    var isoInizio=pm[0]+'-'+pm[1]+'-01';
+    var avvisoNova=!nova.x
+      ?'Inevasi Nova non caricati con la data "Uscite scalate in Nova fino al": carica il file inevasi in Abbinamenti AZZURRA per avere il saldo.'
+      :(isoInizio<=nova.x?'Gli inevasi Nova sono con uscite scalate fino al '+fmtDataGMA(nova.x)+': il saldo è disponibile solo per i mesi che iniziano dopo questa data.':'');
+    if(avvisoNova){
+      cdDatiTutti=null;
+      ['cd-contatore','cd-storico','cd-non-abbinati'].forEach(function(id){var el=document.getElementById(id);if(el){el.innerHTML='';if(id!=='cd-contatore')el.style.display='none';}});
+      var cont0=document.getElementById('cd-contatore');
+      if(cont0)cont0.innerHTML='<div class="warn-box">⚠️ '+avvisoNova+'</div>';
+      msgTb('Saldo non disponibile: vedi avviso.');
+      return;
+    }
+    xData=parseDataIta(nova.x);
+  }
 
   // AZZURRA: codice IA (Nova) -> codice A0 da abbinamenti_azzurra, cosi' entrate e uscite
   // dello stesso articolo finiscono nello stesso saldo anche se registrate con codici diversi
@@ -5586,6 +5664,7 @@ async function caricaControlloDate(){
     }
     var qta=Number(r.quantita_ddt)||0;
     if(!dP||qta<=0)return;
+    if(xData&&dP<=xData)return; // AZZURRA: carichi fino a X gia' negli inevasi Nova
     var gk=isBer?(gruppoPadre['E:'+key]?gTrova('E:'+key):'E:'+key):key;
     gruppo(gk).entrate.push({id:r.id||0,data:dP,dataStr:r.data_ddt,numero:r.numero_ddt||'',qta:qta,residuo:qta});
   });
@@ -5599,6 +5678,7 @@ async function caricaControlloDate(){
     var codRaw=(r.codice_articolo||'').trim();
     var qta=Number(r.quantita_ddt)||0;
     if(!dataU||!codRaw||qta<=0)return;
+    if(xData&&dataU<=xData)return; // AZZURRA: uscite fino a X gia' scalate negli inevasi Nova
     var gk,codU,codSugg;
     if(isBer){
       codU=codRaw.toUpperCase();
@@ -5623,6 +5703,22 @@ async function caricaControlloDate(){
       desc:r.descrizione||artDesc[codU]||''
     });
   });
+
+  // AZZURRA: saldo inevasi Nova alla data X come movimento di apertura. Positivo = un
+  // carico alla data X che copre per primo le uscite; negativo = un ammanco alla data X
+  // (uscita di apertura, non mostrata come riga) che i carichi dopo X coprono per primi.
+  // Anche i codici con saldo X negativo senza movimenti dopo X (vanno nello Storico).
+  if(nova){
+    Object.keys(nova.saldoX).forEach(function(k){if(nova.saldoX[k]<0)gruppo(k);});
+    Object.keys(gruppi).forEach(function(k){
+      var s0=nova.saldoX[k]||0;
+      if(s0>0)gruppi[k].entrate.push({id:0,data:xData,dataStr:nova.x,numero:'Inevasi Nova',qta:s0,residuo:s0});
+      else if(s0<0)gruppi[k].uscite.push({
+        id:0,data:xData,dataStr:nova.x,numero:'saldo negativo inevasi Nova',qta:-s0,
+        cod:k,codBase:k,codSugg:k,desc:artDesc[k]||'',apertura:true
+      });
+    });
+  }
 
   var righe=[],storico=[],blocchi=[];
   function perData(a,b){return (a.data.getTime()-b.data.getTime())||(a.id-b.id);}
@@ -5704,6 +5800,7 @@ async function caricaControlloDate(){
 
   cdDatiTutti={
     righe:righe,blocchi:blocchi,storico:storico,nonAbbinati:Object.values(nonAbbinatiSet),
+    novaX:nova?nova.x:'',
     meseLbl:inizioMese.toLocaleDateString('it-IT',{month:'long',year:'numeric'})
   };
   renderControlloDate();
@@ -5729,7 +5826,8 @@ function renderControlloDate(){
     cont.innerHTML=(nAnomalie>0
       ?'<div class="warn-box">⚠️ <strong>'+nAnomalie+'</strong> anomalie in '+cdDatiTutti.meseLbl+': DDT Uscita che portano il saldo sotto zero (pezzi spediti prima del carico).</div>'
       :'<div class="ok-box">✅ Nessuna anomalia in '+cdDatiTutti.meseLbl+'.</div>')
-      +(storico.length?'<div class="warn-box no-print">🕘 <strong>'+storico.length+'</strong> codici con saldo già negativo a inizio mese: vedi "Storico da verificare" (non contati nelle anomalie del mese).</div>':'');
+      +(storico.length?'<div class="warn-box no-print">🕘 <strong>'+storico.length+'</strong> codici con saldo già negativo a inizio mese: vedi "Storico da verificare" (non contati nelle anomalie del mese).</div>':'')
+      +(cdDatiTutti.novaX?'<div style="font-size:12px;color:#666;margin-top:6px;">Saldo da inevasi Nova con uscite scalate fino al '+fmtDataGMA(cdDatiTutti.novaX)+' (inevasi − carichi Nova dopo questa data), poi DDT Entrata e Uscita dell\'app dal '+fmtDataGMA(cdDatiTutti.novaX)+' escluso.</div>':'');
   }
 
   var stBox=document.getElementById('cd-storico');
@@ -5738,7 +5836,7 @@ function renderControlloDate(){
     else{
       stBox.style.display='block';
       stBox.innerHTML='<h3 style="margin-bottom:8px;color:#7B4F00;">Storico da verificare</h3>'
-        +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Saldo già negativo il 1° del mese: uscite dei mesi precedenti non ancora coperte da entrate a quella data. Le entrate del mese coprono prima questo saldo.</p>'
+        +'<p style="font-size:12px;color:#666;margin-bottom:8px;">Saldo già negativo il 1° del mese: uscite dei mesi precedenti'+(cdDatiTutti.novaX?' (o saldo negativo negli inevasi Nova al '+fmtDataGMA(cdDatiTutti.novaX)+')':'')+' non ancora coperte da entrate a quella data. Le entrate del mese coprono prima questo saldo.</p>'
         +'<table class="rc-table"><thead><tr><th>Codice</th><th>Descrizione</th><th>Saldo a inizio mese</th><th>Uscite scoperte a inizio mese</th></tr></thead><tbody>'
         +storico.map(function(s){
           var det=s.usciteScoperte.map(function(x){
@@ -9373,7 +9471,10 @@ async function ultimoImportInevasiNovaLabel(){
   var d=await apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent(chiave)+'&select=valore&limit=1');
   if(!d||!d.length||!d[0].valore)return 'Inevasi Nova: nessun import ancora fatto.';
   var dt=new Date(d[0].valore);
-  return 'Inevasi Nova aggiornato al: '+dt.toLocaleDateString('it-IT')+' alle '+dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  var dx=await apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('inevasi_nova_scalate_fino_'+getCliente())+'&select=valore&limit=1');
+  var x=dx&&dx.length?String(dx[0].valore||''):'';
+  return 'Inevasi Nova aggiornato al: '+dt.toLocaleDateString('it-IT')+' alle '+dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})
+    +(x?' — uscite scalate fino al '+fmtDataGMA(x):' — data "uscite scalate fino al" non impostata: ricarica il file');
 }
 async function aggiornaLabelUltimoImportInevasiNova(){
   var testo=await ultimoImportInevasiNovaLabel();
@@ -9389,6 +9490,8 @@ async function caricaAbbinamentiAzzurra(){
   abzCache=d;
   _abzSuggCache={};
   renderAbbinamentiAzzurra();
+  var elX=document.getElementById('abz-scalate-fino');
+  if(elX&&!elX.value)elX.value=defaultScalateFinoNova();
   await aggiornaLabelUltimoImportInevasiNova();
   await caricaSostituzioniNova();
 }
@@ -10059,7 +10162,7 @@ async function leggiFileInevasiNova(file){
     var wb=XLSX.read(ab,{type:'array',cellDates:true});
     var ws=wb.Sheets[wb.SheetNames[0]];
     var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    var hi=-1,idxCod=-1,idxDesc=-1,idxIne=-1;
+    var hi=-1,idxCod=-1,idxDesc=-1,idxIne=-1,idxTot=-1,idxData=-1;
     for(var i=0;i<Math.min(rows.length,30);i++){
       var up=(rows[i]||[]).map(function(x){return String(x).trim().toUpperCase();});
       var ic=up.findIndex(function(c){return c==='CODART';});
@@ -10067,31 +10170,58 @@ async function leggiFileInevasiNova(file){
       if(ic>=0&&ii>=0){
         hi=i;idxCod=ic;idxIne=ii;
         idxDesc=up.findIndex(function(c){return c==='DESCRIZIONE';});
+        // Qta TOT e DataDocum: servono al saldo AZZURRA alla data "Uscite scalate fino al"
+        idxTot=up.findIndex(function(c){return /^QT/.test(c)&&/TOT/.test(c);});
+        idxData=up.findIndex(function(c){return /^DATA\s*DOC/.test(c);});
         break;
       }
     }
     if(hi<0)throw new Error('Intestazione (CodArt / Qtà Ine) non trovata nel file');
     // Il file ha piu' righe per codice (una per documento): sommo tutte le "Qtà Ine"
     // per CodArt PRIMA di scrivere su Supabase, invece di sovrascrivere riga per riga.
-    var somme={},descrizioni={};
+    function numNova(v){return typeof v==='number'?v:parseFloat(String(v||'0').replace(/\./g,'').replace(',','.'))||0;}
+    var somme={},descrizioni={},righe=[],dateNonValide=0;
     for(var r2=hi+1;r2<rows.length;r2++){
       var row=rows[r2];if(!row||!row.length)continue;
       var cod=String(row[idxCod]||'').trim();
       if(!cod)continue;
       var codU=cod.toUpperCase();
       if(idxDesc>=0&&!descrizioni[codU]){var d=String(row[idxDesc]||'').trim();if(d)descrizioni[codU]=d;}
-      var ineRaw=row[idxIne];
-      var ine=typeof ineRaw==='number'?ineRaw:parseFloat(String(ineRaw||'0').replace(/\./g,'').replace(',','.'))||0;
+      var ine=numNova(row[idxIne]);
       somme[codU]=(somme[codU]||0)+ine;
+      // Con cellDates le date possono arrivare qualche secondo prima della mezzanotte
+      // (fuso orario): +12 ore e poi solo il giorno, cosi' resta il giorno giusto.
+      var vData=idxData>=0?row[idxData]:'';
+      if(vData instanceof Date&&!isNaN(vData))vData=new Date(vData.getTime()+43200000);
+      var dataDoc=idxData>=0?_inevBerData(vData):'';
+      if(idxData>=0&&!dataDoc)dateNonValide++;
+      righe.push({cod:codU,data:dataDoc,tot:idxTot>=0?numNova(row[idxTot]):0});
     }
-    return {somme:somme,descrizioni:descrizioni};
+    return {somme:somme,descrizioni:descrizioni,righe:righe,haTot:idxTot>=0,haData:idxData>=0,dateNonValide:dateNonValide};
+}
+
+// Default di "Uscite scalate in Nova fino al": ultimo giorno del mese precedente (yyyy-mm-dd)
+function defaultScalateFinoNova(){
+  var o=new Date(),d=new Date(o.getFullYear(),o.getMonth(),0);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
 async function leggiImportInevasiNova(input){
   var file=input.files[0];if(!file)return;
   try{
+    // X = "Uscite scalate in Nova fino al": in Nova sono scalate tutte le uscite fino a X
+    // e nessuna dopo. Salvata con l'import, serve al saldo AZZURRA (getSaldoNovaAzzurra).
+    var elX=document.getElementById('abz-scalate-fino');
+    var x=elX?elX.value:'';
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(x))throw new Error('Scegli la data "Uscite scalate in Nova fino al" prima di caricare il file.');
     var letto=await leggiFileInevasiNova(file);
     var somme=letto.somme,descrizioni=letto.descrizioni;
+    if(!letto.haTot||!letto.haData)throw new Error('Nel file mancano le colonne '+[!letto.haData?'"DataDocum"':'',!letto.haTot?'"Qtà TOT"':''].filter(Boolean).join(' e ')+': servono per il saldo alla data "Uscite scalate fino al". Nessun dato salvato.');
+    if(letto.dateNonValide)throw new Error(letto.dateNonValide+' righe con DataDocum vuota o non leggibile: nessun dato salvato.');
+    // Somma Qta TOT delle righe con DataDocum > X (carichi dopo X: gia' dentro gli inevasi,
+    // nel saldo dell'app entrano come DDT Entrata con data > X)
+    var totDopo={};
+    letto.righe.forEach(function(r){if(r.data>x)totDopo[r.cod]=(totDopo[r.cod]||0)+r.tot;});
     // Ricarico sempre abzCache dal DB (non solo se vuota): serve a sapere con certezza
     // quali codici esistono gia', invece di fidarmi di una cache locale potenzialmente
     // disallineata (era questo disallineamento a causare il POST su un codice_ia gia'
@@ -10117,14 +10247,21 @@ async function leggiImportInevasiNova(input){
     }
 
     var nuoviArr=[],aggiornatiArr=[];
-    daAzzerare.forEach(function(r){aggiornatiArr.push({codice_ia:(r.codice_ia||'').trim().toUpperCase(),giacenza_iniziale:0});});
+    // Tutti i codici dell'archivio non presenti nel file: qta_tot_dopo_x torna a 0 (anche
+    // quelli con inevaso gia' a 0, che potrebbero avere un valore di un import precedente).
+    abzCache.forEach(function(r){
+      var c=(r.codice_ia||'').trim().toUpperCase();
+      if(!c||somme.hasOwnProperty(c))return;
+      if((Number(r.giacenza_iniziale)||0)!==0||(Number(r.qta_tot_dopo_x)||0)!==0)
+        aggiornatiArr.push({codice_ia:c,giacenza_iniziale:0,qta_tot_dopo_x:0});
+    });
     Object.keys(somme).forEach(function(codU2){
       if(esistentiSet[codU2]){
-        // Upsert con SOLO codice_ia+giacenza_iniziale: on conflict tocca solo questo
-        // campo, non sovrascrive mai descrizione_ia o codice_a0 gia' impostati.
-        aggiornatiArr.push({codice_ia:codU2,giacenza_iniziale:somme[codU2]});
+        // Upsert con SOLO codice_ia+giacenza_iniziale+qta_tot_dopo_x: on conflict tocca
+        // solo questi campi, non sovrascrive mai descrizione_ia o codice_a0 gia' impostati.
+        aggiornatiArr.push({codice_ia:codU2,giacenza_iniziale:somme[codU2],qta_tot_dopo_x:totDopo[codU2]||0});
       } else {
-        nuoviArr.push({codice_ia:codU2,descrizione_ia:descrizioni[codU2]||'',codice_a0:null,giacenza_iniziale:somme[codU2]});
+        nuoviArr.push({codice_ia:codU2,descrizione_ia:descrizioni[codU2]||'',codice_a0:null,giacenza_iniziale:somme[codU2],qta_tot_dopo_x:totDopo[codU2]||0});
       }
     });
 
@@ -10136,9 +10273,14 @@ async function leggiImportInevasiNova(input){
     if(dRicaricata)abzCache=dRicaricata;
     _abzSuggCache={};
     renderAbbinamentiAzzurra();
-    await apiUpsert('impostazioni_azzurra',[{chiave:'ultimo_import_inevasi_nova_'+getCliente(),valore:new Date().toISOString()}],'chiave');
+    var risImp=await apiUpsert('impostazioni_azzurra',[
+      {chiave:'ultimo_import_inevasi_nova_'+getCliente(),valore:new Date().toISOString()},
+      {chiave:'inevasi_nova_scalate_fino_'+getCliente(),valore:x}
+    ],'chiave');
     await aggiornaLabelUltimoImportInevasiNova();
-    showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+(aggiornatiArr.length-daAzzerare.length)+' inevasi aggiornati, '+daAzzerare.length+' azzerati.','ok');
+    if(risImp===null){showMsg('msg-abbinamenti-azzurra','Inevasi salvati, ma la data "Uscite scalate fino al" non è stata salvata (errore di connessione): ricarica il file.','err');input.value='';return;}
+    var nTotDopo=Object.keys(totDopo).reduce(function(s,k){return s+totDopo[k];},0);
+    showMsg('msg-abbinamenti-azzurra',nuoviArr.length+' nuovi codici, '+(Object.keys(somme).length-nuoviArr.length)+' inevasi aggiornati, '+daAzzerare.length+' azzerati. Uscite scalate fino al '+fmtDataGMA(x)+': carichi dopo questa data '+nTotDopo+' pz.','ok');
   }catch(e){showMsg('msg-abbinamenti-azzurra','Errore: '+e.message,'err');}
   input.value='';
 }
