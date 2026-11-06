@@ -1138,6 +1138,24 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       </table>
     </div>
   </div>
+  <div class="card">
+    <h2>Codici per colore</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">Stesso codice BER per più colori, distinti dalla descrizione: all'import delle DDT Entrata il codice BER + la parola nella descrizione diventano il codice app (es. BER00678 + BCO → BER00678BI). "Copia per Nova" e il Controllo Inevasi usano sempre il codice BER originale. Dopo una regola aggiungi l'abbinamento del codice app verso il suo B0.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;margin-bottom:10px;">
+      <div style="flex:1;min-width:110px;"><label>Codice BER</label><input type="text" id="rcol-ber" placeholder="BER00678" style="text-transform:uppercase;" autocomplete="off"></div>
+      <div style="flex:1;min-width:110px;"><label>Parola nella descrizione</label><input type="text" id="rcol-parola" placeholder="BCO" style="text-transform:uppercase;" autocomplete="off"></div>
+      <div style="flex:1;min-width:110px;"><label>Codice app</label><input type="text" id="rcol-app" placeholder="BER00678BI" style="text-transform:uppercase;" autocomplete="off"></div>
+      <button class="btn btn-green btn-sm" style="width:auto;margin-bottom:10px;" onclick="aggiungiRegolaColore()">+ AGGIUNGI</button>
+    </div>
+    <div class="rc-table-scroll">
+      <table class="rc-table">
+        <thead><tr><th>Codice BER</th><th>Parola</th><th>Codice app</th><th></th></tr></thead>
+        <tbody id="rcol-tbody"><tr><td colspan="4" style="text-align:center;padding:14px;color:#999;">Caricamento...</td></tr></tbody>
+      </table>
+    </div>
+    <button class="btn btn-blue btn-sm" style="width:auto;margin-top:10px;" onclick="anteprimaConversioneColore()">Anteprima conversione righe già caricate</button>
+    <div id="rcol-conv" style="margin-top:10px;"></div>
+  </div>
 </div>
 
 <!-- MODAL NUOVO/MODIFICA ABBINAMENTO BERGAMASCO -->
@@ -1700,7 +1718,7 @@ function salvaConfig(){
 // BACKUP: tutte le tabelle dell'app in un Excel, un foglio per tabella. Solo GET, tutti i clienti
 // (fetch diretto: apiGet filtrerebbe alcune tabelle sul cliente attivo)
 var TABELLE_BACKUP=['articoli','ddt_entrata','ddt_uscita','sostituzioni','abbinamenti_ber','abbinamenti_azzurra','sostituzioni_ber','sostituzioni_azzurra',
-  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria','saldo_iniziale_azzurra','listino_prezzi','fattura_scelte'];
+  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria','saldo_iniziale_azzurra','listino_prezzi','fattura_scelte','regole_colore_ber'];
 // Ordine stabile per i blocchi da 1000 (le tabelle senza id hanno un'altra chiave)
 var ORDINE_BACKUP={listino:'codice.asc,cliente.asc',impostazioni_azzurra:'chiave.asc'};
 async function leggiTabellaBackup(t){
@@ -4732,6 +4750,8 @@ async function preparaInevasiBer(){
   if(getCliente()!=='BERGAMASCO')return;
   var ent=res[0],usc=res[1],abb=res[2];
   if(!ent||!usc||!abb){if(st)st.innerHTML='<span style="color:#C00000;">Errore di connessione: giacenze non caricate.</span>';return;}
+  // Codici per colore: la riga Nova BER00678 si confronta con BER00678BI+NO+NT
+  if(!(await caricaRegoleColore(true))&&st)st.innerHTML='<span style="color:#C00000;">Regole "codici per colore" non lette: i codici per colore non vengono sommati sotto il BER di Nova.</span>';
   var primaData='';
   ent.forEach(function(r){
     var d=String(r.data_ddt||r.created_at||'').slice(0,10);
@@ -4822,6 +4842,9 @@ function renderInevasiBer(){
   Object.keys(nova).forEach(function(c){
     var n=nova[c];
     var app=byCod[c]?[byCod[c]]:(byB0[c]||[]);
+    // BER di Nova con codici per colore in app (BER00678 -> BER00678BI, NO, NT): somma anche quelli
+    var codCol=codiciAppColore(c).filter(function(k){return byCod[k];});
+    if(codCol.length)app=(byCod[c]?[byCod[c]]:[]).concat(codCol.map(function(k){return byCod[k];}));
     var key=app.length?'A:'+app.map(function(a){return a.cod;}).sort().join('|'):'N:'+c;
     if(!gruppi[key])gruppi[key]={codNova:[],desc:'',nova:0,app:app};
     var g=gruppi[key];
@@ -5736,8 +5759,9 @@ async function leggiPDF(input){
     var giaBer=ddtBer.length?(await ddtEntrataBerPresenti([ddtBer[0]]))[0]:false;
     var nddt=parsed.nddt,data=parsed.data,cliente=parsed.cliente,articoli=parsed.articoli;
     pdfDati={nddt:nddt,data:data,cliente:cliente,articoli:articoli};
+    if(getCliente()==='BERGAMASCO')await caricaRegoleColore(true);
     var html='<div class="pdf-preview"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info"><strong>Cliente:</strong> '+(cliente||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Articoli ('+articoli.length+'):</strong></div>';
-    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
+    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong>'+htmlColoreAnteprima(a.cod,a.desc)+' ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});html+='</div>';
     if(ddtBer.length>1)html+='<div class="warn-box">Il PDF contiene '+ddtBer.length+' DDT: qui si importa solo il primo ('+nddt+'). Per importarli tutti usa "Carica PDF DDT Entrata (multi-DDT)".</div>';
     if(giaBer)html+='<div class="warn-box">DDT '+nddt+' del '+data.slice(0,4)+' già presente in DDT Entrata: non viene importato di nuovo.</div>';
     prev.innerHTML=html;
@@ -5779,13 +5803,17 @@ async function importaDaPDF(){
     }
     daSalvare.push({cod:cod,desc:a.desc,qty:a.qty});
   }
+  // BERGAMASCO: codici per colore (BER00678 + "BCO" -> BER00678BI), prima del controllo doppione
+  if(!(await regoleColorePronte()))return;
+  var colPdf=convertiCodiciColore(daSalvare);
+  daSalvare.forEach(function(s,k){s.cod=colPdf.codici[k];});
   if(!(await confermaSeDoppioneContenuto(pdfDati.data,daSalvare)))return;
   for(var j=0;j<daSalvare.length;j++){
     var s=daSalvare[j];
     var r=await apiPost('ddt_entrata',{numero_ddt:pdfDati.nddt,data_ddt:pdfDati.data||null,cliente:pdfDati.cliente||getCliente(),codice_articolo:s.cod,descrizione:s.desc,quantita_ddt:s.qty,quantita_whatsapp:0,note:'PDF'});
     if(r)n++;
   }
-  showMsg('msg-ddt-e',n+' articoli importati!','ok');
+  showMsg('msg-ddt-e',n+' articoli importati!'+testoAvvisiColore(colPdf.avvisi),colPdf.avvisi.length?'err':'ok');
   document.getElementById('pdf-prev').style.display='none';document.getElementById('btn-importa').style.display='none';
   document.getElementById('btn-associa-ddt').style.display='block';
   document.getElementById('pdf-inp').value='';pdfDati=null;caricaDDTE();
@@ -6025,9 +6053,13 @@ async function copiaPerNovaBer(numeroDdt,anno){
   }).sort(function(a,b){return (a.id||0)-(b.id||0);});
   if(!righeDDT.length){alert('Nessuna riga trovata per questo DDT.');return;}
   var dataDDT=formattaDataGGMMAAAA(righeDDT[0].data_ddt);
+  // Codici per colore (BER00678BI) -> codice BER di Nova (BER00678): senza regole lette non si copia
+  if(!(await caricaRegoleColore(true))&&righeDDT.some(function(r){return /^BER\d+[A-Z]/i.test((r.codice_articolo||'').trim());})){
+    showMsg('msg-ddt-e','Regole "codici per colore" non lette: non copio, i codici per Nova sarebbero sbagliati. Riprova.','err');return;
+  }
   var righeTsv=[],senzaCodice=[],nonBer=[];
   righeDDT.forEach(function(r){
-    var cod=(r.codice_articolo||'').trim().toUpperCase();
+    var cod=codiceNovaColore(r.codice_articolo);
     if(!cod){senzaCodice.push(r.descrizione||'?');return;}
     if(!/^BER\d/.test(cod)&&nonBer.indexOf(cod)<0)nonBer.push(cod);
     righeTsv.push(dataDDT+'\t'+cod+'\t'+'\t'+'\t'+(Number(r.quantita_ddt)||0));
@@ -6220,8 +6252,9 @@ async function leggiExcelEntrata(input){
       }
     }
     excelDati={nddt:nddt,data:data,articoli:articoli};
+    if(getCliente()==='BERGAMASCO')await caricaRegoleColore(true);
     var html='<div class="pdf-preview" style="border-left-color:#217346;"><h3>'+file.name+'</h3><div class="pdf-info"><strong>N° DDT:</strong> '+(nddt||'?')+'</div><div class="pdf-info"><strong>Data:</strong> '+(data||'?')+'</div><div class="pdf-info" style="margin-top:8px"><strong>Righe ('+articoli.length+'):</strong></div>';
-    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});
+    articoli.forEach(function(a){html+='<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong>'+htmlColoreAnteprima(a.cod,a.desc)+' ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';});
     html+='</div>';
     prev.innerHTML=html;
     if(articoli.length){document.getElementById('btn-importa-xls').style.display='block';showMsg('msg-ddt-e',articoli.length+' righe trovate!','ok');}
@@ -6230,7 +6263,10 @@ async function leggiExcelEntrata(input){
 
 async function importaDaExcel(){
   if(!excelDati||!excelDati.articoli.length)return;
-  if(!(await confermaSeDoppioneContenuto(excelDati.data,excelDati.articoli.map(function(a){return {cod:a.cod||'',qty:a.qty};}))))return;
+  // BERGAMASCO: codici per colore solo per la riga DDT Entrata (l'articolo resta col codice BER di Nova)
+  if(!(await regoleColorePronte()))return;
+  var colXls=convertiCodiciColore(excelDati.articoli);
+  if(!(await confermaSeDoppioneContenuto(excelDati.data,excelDati.articoli.map(function(a,k){return {cod:colXls.codici[k]||'',qty:a.qty};}))))return;
   var nuoviArt=0,righe=0,visti={};
   for(var i=0;i<excelDati.articoli.length;i++){
     var a=excelDati.articoli[i];
@@ -6242,11 +6278,11 @@ async function importaDaExcel(){
         visti[a.cod.toUpperCase()]=true;
       }
     }
-    var rb=await apiPost('ddt_entrata',{numero_ddt:excelDati.nddt,data_ddt:excelDati.data||null,codice_articolo:a.cod||'',descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'Excel'});
+    var rb=await apiPost('ddt_entrata',{numero_ddt:excelDati.nddt,data_ddt:excelDati.data||null,codice_articolo:colXls.codici[i]||'',descrizione:a.desc,quantita_ddt:a.qty,quantita_whatsapp:0,note:'Excel'});
     if(rb)righe++;
   }
   await caricaArticoli();
-  showMsg('msg-ddt-e',righe+' righe importate'+(nuoviArt?' ì '+nuoviArt+' nuovi articoli':'')+'!','ok');
+  showMsg('msg-ddt-e',righe+' righe importate'+(nuoviArt?' ì '+nuoviArt+' nuovi articoli':'')+'!'+testoAvvisiColore(colXls.avvisi),colXls.avvisi.length?'err':'ok');
   document.getElementById('xls-prev').style.display='none';
   document.getElementById('btn-importa-xls').style.display='none';
   document.getElementById('xls-inp').value='';excelDati=null;caricaDDTE();
@@ -7472,6 +7508,7 @@ async function leggiPDFMultiEntrata(input){
     ddts.forEach(function(d){d.dupe=!!esistentiNum[d.nddt];d.selected=!d.dupe;d.aperto=false;});
     }
     pdfMultiEntDati=ddts;
+    if(getCliente()==='BERGAMASCO')await caricaRegoleColore(true);
     status.innerHTML='';
     apriModalePdfMultiEnt();
   }catch(e){status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';}
@@ -7577,7 +7614,7 @@ function renderPdfMultiEntPreview(){
   if(!pdfMultiEntDati||!pdfMultiEntDati.length){cont.innerHTML='<div class="empty">Nessun DDT trovato</div>';return;}
   cont.innerHTML=pdfMultiEntDati.map(function(d,idx){
     var dettagli=d.righe.map(function(a){
-      return '<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong> ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';
+      return '<div class="pdf-item"><div class="pdesc">'+(a.cod?'<strong>'+a.cod+'</strong>'+(d.ber?htmlColoreAnteprima(a.cod,a.desc):'')+' ':'')+a.desc+'</div><div class="pqty">'+a.qty+'</div></div>';
     }).join('');
     var dupeBadge=d.dupe?'<span class="badge badge-warn" style="margin-left:8px;">Già presente — verrà saltato</span>':'';
     return '<div class="row-item" style="display:block;'+(d.dupe?'opacity:0.6;':'')+'">'
@@ -7608,6 +7645,8 @@ async function importaPDFMultiEntrata(){
   if(!pdfMultiEntDati||!pdfMultiEntDati.length)return;
   var selezionati=pdfMultiEntDati.filter(function(d){return d.selected&&!d.dupe;});
   if(!selezionati.length){alert('Nessun DDT selezionato da importare.');return;}
+  if(!(await regoleColorePronte()))return;
+  var avvisiColore=[];
   pdfMultiEntImportInCorso=true;
   var btnImporta=document.getElementById('btn-importa-pdf-multi-ent');
   var btnAnnulla=document.getElementById('btn-annulla-pdf-multi-ent');
@@ -7625,7 +7664,11 @@ async function importaPDFMultiEntrata(){
       if(check&&check.length){ddtSaltati++;continue;}
       }
       // PDF Bergamasco: codice BER salvato cosi' com'e', mai sostituito con un B0
+      // (salvo i codici per colore: BER00678 + "BCO" -> BER00678BI)
       var codici=d.righe.map(function(a){return d.ber?a.cod:risolviCodiceEntrataPdf(a.cod,a.desc);});
+      var colMulti=convertiCodiciColore(d.righe.map(function(a,k){return {cod:codici[k],desc:a.desc};}));
+      codici=colMulti.codici;
+      avvisiColore=avvisiColore.concat(colMulti.avvisi.map(function(t){return d.nddt+': '+t;}));
       if(!(await confermaSeDoppioneContenuto(d.data,d.righe.map(function(a,k){return {cod:codici[k],qty:a.qty};})))){ddtSaltati++;continue;}
       for(var j=0;j<d.righe.length;j++){
         var a=d.righe[j];
@@ -7636,7 +7679,7 @@ async function importaPDFMultiEntrata(){
     }
     document.getElementById('modal-pdf-multi-ent').style.display='none';
     pdfMultiEntDati=null;
-    showMsg('msg-ddt-e',righeOk+' righe importate'+(ddtSaltati?(' — '+ddtSaltati+' DDT saltati (già presenti)'):'')+'!','ok');
+    showMsg('msg-ddt-e',righeOk+' righe importate'+(ddtSaltati?(' — '+ddtSaltati+' DDT saltati (già presenti)'):'')+'!'+testoAvvisiColore(avvisiColore),avvisiColore.length?'err':'ok');
     caricaDDTE();
   }finally{
     pdfMultiEntImportInCorso=false;
@@ -9295,6 +9338,151 @@ async function eliminaAbbinamentoAzzurra(id){
   showMsg('msg-abbinamenti-azzurra','Abbinamento eliminato.','ok');
 }
 
+// ── CODICI PER COLORE BERGAMASCO (tabella regole_colore_ber) ──────────
+// Il cliente usa lo stesso codice BER per piu' colori, distinti solo dalla descrizione
+// (es. BER00678 "EL.TESTATA MOD.ETERNITY BCO/NOCE/NAT"). Regola: codice BER + parola
+// della descrizione -> codice app (es. BER00678 + BCO -> BER00678BI). La parola vale come
+// parola intera; piu' parole separate da spazio devono esserci tutte. All'import delle
+// DDT Entrata BERGAMASCO si salva il codice app; verso Nova (Copia per Nova, Controllo
+// Inevasi) si torna al codice BER originale.
+var regoleColoreCache=null;
+// Restituisce le regole, [] se non ce ne sono, null se la lettura e' fallita
+async function caricaRegoleColore(forza){
+  if(regoleColoreCache&&!forza)return regoleColoreCache;
+  var d=await apiGetTutto('regole_colore_ber','order=codice_ber.asc,id.asc');
+  if(d)regoleColoreCache=d;
+  return d;
+}
+function _ucCol(s){return String(s||'').trim().toUpperCase();}
+function paroleColore(s){return _ucCol(s).split(/[^A-Z0-9]+/).filter(Boolean);}
+// {cod, conv:true, da} se convertito; {cod, senzaColore:true} se il BER ha regole ma
+// nessuna parola corrisponde (o ne corrispondono di colori diversi); {cod} altrimenti.
+function applicaRegoleColore(cod,desc){
+  var c=_ucCol(cod);
+  if(getCliente()!=='BERGAMASCO'||!c||!regoleColoreCache)return{cod:cod};
+  var regole=regoleColoreCache.filter(function(r){return _ucCol(r.codice_ber)===c;});
+  if(!regole.length)return{cod:cod};
+  var parole=paroleColore(desc),app=[];
+  regole.forEach(function(r){
+    var p=paroleColore(r.parola);
+    if(p.length&&p.every(function(w){return parole.indexOf(w)>=0;})&&app.indexOf(_ucCol(r.codice_app))<0)app.push(_ucCol(r.codice_app));
+  });
+  if(app.length===1)return{cod:app[0],conv:true,da:c};
+  return{cod:c,senzaColore:true,ambiguo:app.length>1};
+}
+// Codice app -> codice BER di Nova (es. BER00678BI -> BER00678); invariato se non e' un codice app
+function codiceNovaColore(cod){
+  var c=_ucCol(cod);
+  var r=(regoleColoreCache||[]).find(function(x){return _ucCol(x.codice_app)===c;});
+  return r?_ucCol(r.codice_ber):c;
+}
+// Codici app di un BER di Nova (es. BER00678 -> [BER00678BI, BER00678NO, BER00678NT])
+function codiciAppColore(ber){
+  var c=_ucCol(ber),out=[];
+  (regoleColoreCache||[]).forEach(function(r){if(_ucCol(r.codice_ber)===c&&out.indexOf(_ucCol(r.codice_app))<0)out.push(_ucCol(r.codice_app));});
+  return out;
+}
+// Badge per le anteprime di import
+function htmlColoreAnteprima(cod,desc){
+  var x=applicaRegoleColore(cod,desc);
+  if(x.conv)return ' <span class="badge" style="background:#E6F1FB;color:#0C447C;" title="Codice per colore (in Nova resta '+escAbb(x.da)+')">→ '+escAbb(x.cod)+'</span>';
+  if(x.senzaColore)return ' <span class="badge badge-warn" title="Il BER ha regole per colore ma la descrizione non ne indica uno (o ne indica piu\' di uno): resta sul codice originale">⚠ colore '+(x.ambiguo?'ambiguo':'non riconosciuto')+'</span>';
+  return '';
+}
+// Prima di un import BERGAMASCO: carica le regole. false = l'utente annulla.
+async function regoleColorePronte(){
+  if(getCliente()!=='BERGAMASCO')return true;
+  if(await caricaRegoleColore(true))return true;
+  return confirm('Regole "codici per colore" non lette (errore di collegamento o tabella regole_colore_ber mancante).\nImportare comunque SENZA conversione dei codici per colore?');
+}
+// Applica le regole a una lista {cod,desc,...}: restituisce i codici e l'elenco avvisi
+function convertiCodiciColore(righe){
+  var avvisi=[];
+  var codici=righe.map(function(a){
+    var x=applicaRegoleColore(a.cod,a.desc);
+    if(x.senzaColore)avvisi.push(_ucCol(a.cod)+' "'+(a.desc||'')+'"');
+    return x.cod;
+  });
+  return{codici:codici,avvisi:avvisi};
+}
+function testoAvvisiColore(avvisi){
+  return avvisi.length?' ⚠ Colore non riconosciuto, restano sul codice originale: '+avvisi.join(' · '):'';
+}
+
+// Scheda "Codici per colore" nella pagina Abbinamenti BERGAMASCO
+async function caricaRegoleColoreUI(){
+  var tb=document.getElementById('rcol-tbody');if(!tb)return;
+  var d=await caricaRegoleColore(true);
+  if(!d){tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:14px;color:#C00000;">Tabella regole_colore_ber non leggibile (va creata in Supabase)</td></tr>';return;}
+  if(!d.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:14px;color:#999;">Nessuna regola</td></tr>';return;}
+  tb.innerHTML=d.map(function(r){
+    return '<tr><td><strong>'+escAbb(r.codice_ber)+'</strong></td><td>'+escAbb(r.parola)+'</td><td><strong>'+escAbb(r.codice_app)+'</strong></td>'
+      +'<td style="text-align:center;"><button class="del-btn" title="Elimina regola" onclick="eliminaRegolaColore('+Number(r.id)+')">✕</button></td></tr>';
+  }).join('');
+}
+async function aggiungiRegolaColore(){
+  var ber=_ucCol(document.getElementById('rcol-ber').value);
+  var parola=_ucCol(document.getElementById('rcol-parola').value).replace(/\s+/g,' ');
+  var app=_ucCol(document.getElementById('rcol-app').value);
+  if(!/^BER\d+$/.test(ber)){alert('Codice BER non valido (es. BER00678).');return;}
+  if(!parola){alert('Inserisci la parola della descrizione (es. BCO).');return;}
+  if(!app||app===ber){alert('Inserisci il codice app, diverso dal BER (es. BER00678BI).');return;}
+  if(app.indexOf(ber)!==0&&!confirm('Il codice app '+app+' non inizia con '+ber+'. Salvare comunque?'))return;
+  var esist=(regoleColoreCache||[]).some(function(r){return _ucCol(r.codice_ber)===ber&&_ucCol(r.parola)===parola;});
+  if(esist){alert('Esiste già una regola per '+ber+' + "'+parola+'".');return;}
+  var r=await apiPost('regole_colore_ber',{codice_ber:ber,parola:parola,codice_app:app});
+  if(!r){alert('Errore salvataggio regola.');return;}
+  document.getElementById('rcol-parola').value='';document.getElementById('rcol-app').value='';
+  showMsg('msg-abbinamenti-ber','Regola salvata: '+ber+' + "'+parola+'" → '+app+'. Ricorda l\'abbinamento '+app+' → B0.','ok');
+  caricaRegoleColoreUI();
+}
+async function eliminaRegolaColore(id){
+  var r=(regoleColoreCache||[]).find(function(x){return Number(x.id)===id;});
+  if(!confirm('Eliminare la regola'+(r?' '+r.codice_ber+' + "'+r.parola+'" → '+r.codice_app:'')+'?\nLe righe già convertite non cambiano.'))return;
+  await apiDel('regole_colore_ber','id=eq.'+id);
+  caricaRegoleColoreUI();
+}
+// Conversione delle righe DDT Entrata gia' caricate: prima l'anteprima, poi la conferma
+var _rcolAnteprima=null;
+async function anteprimaConversioneColore(){
+  var box=document.getElementById('rcol-conv');if(!box)return;
+  if(getCliente()!=='BERGAMASCO'){alert('Seleziona il cliente BERGAMASCO.');return;}
+  box.innerHTML='<div style="padding:10px;color:#999;">Caricamento...</div>';
+  var reg=await caricaRegoleColore(true);
+  if(!reg||!reg.length){box.innerHTML='<div class="warn-box">Nessuna regola da applicare.</div>';return;}
+  var bers=[];reg.forEach(function(r){var b=_ucCol(r.codice_ber);if(bers.indexOf(b)<0)bers.push(b);});
+  var ent=await apiGetTutto('ddt_entrata','codice_articolo=in.('+bers.map(encodeURIComponent).join(',')+')&order=data_ddt.asc,id.asc');
+  if(!ent){box.innerHTML='<div class="msg msg-err">Errore di collegamento</div>';return;}
+  var conv=[],resta=[];
+  ent.forEach(function(r){
+    var x=applicaRegoleColore(r.codice_articolo,r.descrizione);
+    (x.conv?conv:resta).push({r:r,nuovo:x.cod,ambiguo:x.ambiguo});
+  });
+  _rcolAnteprima=conv;
+  function riga(o,col){
+    return '<tr><td>'+escAbb(o.r.numero_ddt)+'</td><td>'+escAbb(fmtDataGMA(o.r.data_ddt))+'</td><td>'+escAbb(o.r.descrizione)+'</td><td style="text-align:right;">'+(Number(o.r.quantita_ddt)||0)+'</td>'
+      +'<td>'+escAbb(_ucCol(o.r.codice_articolo))+'</td><td style="'+col+'"><strong>'+(o.nuovo===_ucCol(o.r.codice_articolo)?(o.ambiguo?'⚠ colore ambiguo':'⚠ colore non riconosciuto'):escAbb(o.nuovo))+'</strong></td></tr>';
+  }
+  box.innerHTML='<div class="rc-table-scroll"><table class="rc-table"><thead><tr><th>DDT</th><th>Data</th><th>Descrizione</th><th>Pz</th><th>Codice ora</th><th>Diventa</th></tr></thead><tbody>'
+    +conv.map(function(o){return riga(o,'color:#0C447C;');}).join('')
+    +resta.map(function(o){return riga(o,'color:#C55A11;');}).join('')
+    +(ent.length?'':'<tr><td colspan="6" style="text-align:center;padding:14px;color:#999;">Nessuna riga con questi codici BER</td></tr>')
+    +'</tbody></table></div>'
+    +'<p style="font-size:12px;color:#666;margin:8px 0;">Da convertire: <strong>'+conv.length+'</strong> righe. Restano sul codice originale: <strong>'+resta.length+'</strong>.</p>'
+    +(conv.length?'<button class="btn btn-orange btn-sm" style="width:auto;" onclick="eseguiConversioneColore()">CONVERTI '+conv.length+' RIGHE</button>':'');
+}
+async function eseguiConversioneColore(){
+  var conv=_rcolAnteprima||[];if(!conv.length)return;
+  if(!confirm('Convertire '+conv.length+' righe di DDT Entrata ai codici per colore?\nControlla di avere gli abbinamenti dei nuovi codici verso i B0.'))return;
+  var ok=0,ko=0;
+  for(var i=0;i<conv.length;i++){
+    if(await apiPatch('ddt_entrata','id=eq.'+Number(conv[i].r.id),{codice_articolo:conv[i].nuovo}))ok++;else ko++;
+  }
+  _rcolAnteprima=null;
+  document.getElementById('rcol-conv').innerHTML='';
+  showMsg('msg-abbinamenti-ber',ok+' righe convertite'+(ko?' — '+ko+' errori, riprova':'')+'.',ko?'err':'ok');
+}
+
 // ── ABBINAMENTI BERGAMASCO (abbinamenti_ber: codice_ber -> codice_b0) ──
 // Un BER puo' avere piu' B0: si blocca solo la coppia BER+B0 identica.
 // Gli articoli B0 vengono letti a parte (artCache e' limitato a 500 righe).
@@ -9318,6 +9506,7 @@ async function caricaAbbinamentiBer(){
   (ris[2]||[]).forEach(function(a){var k=(a.codice_articolo||'').toUpperCase();if(a.descrizione&&!abbDescBerFonti.art[k])abbDescBerFonti.art[k]=a.descrizione;});
   (ris[3]||[]).forEach(function(r){var k=(r.codice_articolo||'').toUpperCase();if(r.descrizione&&!abbDescBerFonti.ddt[k])abbDescBerFonti.ddt[k]=r.descrizione;});
   renderAbbinamentiBer();
+  caricaRegoleColoreUI();
 }
 
 // Descrizione BER: 1) articoli 2) ddt_entrata piu' recente 3) desc_ber di abbinamenti_ber
