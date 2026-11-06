@@ -5201,7 +5201,9 @@ async function aggiornaConfrrontoBer(){
     // Vern≠Imb solo se c'e' Imballo (come nel Confronto Produzione).
     var vernImbDiff=imbTot!==0&&vernTot!==imbTot;
     var stato='ok',badge='✓ Ok',colore='';
-    if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
+    var mancante=(!g&&ddtE===0&&!fuoriMag(k))?qtaCaricoMancante(vernDDT,imbTot,ddtU):0;
+    if(mancante>0){stato='carico';badge='⚠️ CARICO MANCANTE '+mancante;colore='#fde2e2';}
+    else if(imbTot>0&&vernTot===0){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
     // B0 di un gruppo: il DDT Entrata si controlla sulla riga del gruppo
     else if(!g&&ddtE>0&&ddtE!==vernDDT){stato='ddtvern';badge='⚠️ DDT≠Vern';colore='#fff3e0';}
     else if(vernImbDiff){stato='vernimb';badge='🟡 Vern≠Imb';colore='#fffde7';}
@@ -5209,6 +5211,10 @@ async function aggiornaConfrrontoBer(){
             diffVernImb:diffVernImb,diffDDTEVern:diffDDTEVern,diffDDTUImb:diffDDTUImb,fonteU:fonteU,
             stato:stato,badge:badge,colore:colore};
   }
+
+  // Carico 0 ma pezzi lavorati o spediti nel periodo: quantita' senza carico = la piu' alta
+  // tra Verniciato (senza riporti, entrati col mese prima), Imballo e DDT Uscita.
+  function qtaCaricoMancante(vernDDT,imb,ddtU){return Math.max(vernDDT,imb,ddtU,0);}
 
   // Blocchi: un B0 da solo, oppure riga di gruppo + i suoi B0 con movimenti (sempre insieme)
   var blocchi=[];
@@ -5224,7 +5230,9 @@ async function aggiornaConfrrontoBer(){
     var fonteE=vernDDT!==0?'Vern':'Usc';
     var rifE=vernDDT!==0?vernDDT:s.ddtU;
     var stato='ok',badge='✓ Ok',colore='';
-    if(g.ent>0&&g.ent!==rifE){stato='ddtvern';badge='⚠️ DDT≠'+(fonteE==='Vern'?'Vern':'Usc')+' (gruppo)';colore='#fff3e0';}
+    var mancanteG=g.ent===0?qtaCaricoMancante(vernDDT,s.imb,s.ddtU):0;
+    if(mancanteG>0){stato='carico';badge='⚠️ CARICO MANCANTE '+mancanteG+' (gruppo)';colore='#fde2e2';}
+    else if(g.ent>0&&g.ent!==rifE){stato='ddtvern';badge='⚠️ DDT≠'+(fonteE==='Vern'?'Vern':'Usc')+' (gruppo)';colore='#fff3e0';}
     var testa={tipo:'gruppo',gruppo:g.cod,cod:g.cod,desc:descBer[g.bers.filter(function(b){return berEntrata[b];})[0]||g.bers[0]]||'',
       nB0:g.b0s.length,vern:s.vern,riporto:s.riporto,imb:s.imb,ddtE:g.ent,ddtU:s.ddtU,
       diffVernImb:0,diffDDTEVern:g.ent-rifE,fonteE:fonteE,diffDDTUImb:0,stato:stato,badge:badge,colore:colore};
@@ -5290,7 +5298,7 @@ function renderRiepilogoCompletoBer(){
   function okRiga(r){return okManualeValido(okManuali,r,OK_CAMPI_BER);}
   function passa(r){
     if(rcFiltroBer==='differenze')return r.stato!=='ok'&&!okRiga(r);
-    if(rcFiltroBer==='verificare')return (r.stato==='ddtvern'||r.stato==='vernimb')&&!okRiga(r);
+    if(rcFiltroBer==='verificare')return (r.stato==='ddtvern'||r.stato==='vernimb'||r.stato==='carico')&&!okRiga(r);
     if(rcFiltroBer==='conferma')return r.stato==='conferma'&&!okRiga(r);
     return true;
   }
