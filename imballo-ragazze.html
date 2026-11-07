@@ -157,15 +157,16 @@ function getNome(){try{return (localStorage.getItem('operatore')||'').trim();}ca
 function msg(id,txt,tipo){var el=document.getElementById(id);el.innerHTML=txt?'<div class="msg msg-'+tipo+'">'+txt+'</div>':'';if(txt&&tipo==='ok')setTimeout(function(){el.innerHTML='';},4000);}
 
 function hdr(extra){var h={apikey:CFG.key,Authorization:'Bearer '+CFG.key};for(var k in extra)h[k]=extra[k];return h;}
-// Tutte le righe del cliente, a blocchi da 1000
+// Tutte le righe del cliente, a blocchi da 1000 (come apiGetTutto dell'app): si va avanti
+// finche' arriva un blocco vuoto, cosi' funziona anche se il server ne manda meno per volta.
 async function leggi(tabella,select){
   var tutte=[];
   while(true){
-    var r=await fetch(CFG.url+'/rest/v1/'+tabella+'?select='+select+'&cliente=eq.'+encodeURIComponent(cliente)+'&order=id.asc&limit=1000&offset='+tutte.length,{headers:hdr({})});
+    var r=await fetch(CFG.url+'/rest/v1/'+tabella+'?select='+select+'&cliente=eq.'+encodeURIComponent(cliente)+'&order=id.asc&limit=1000&offset='+tutte.length,{headers:hdr({}),cache:'no-store'});
     if(!r.ok)throw new Error(tabella+': '+r.status+' '+(await r.text()));
     var b=await r.json();
+    if(!b.length)return tutte;
     tutte=tutte.concat(b);
-    if(b.length<1000)return tutte;
   }
 }
 
@@ -178,7 +179,9 @@ function salvaNome(){
   document.getElementById('nome-box').classList.remove('on');
   aggiornaChi();disegnaAttesa();
 }
-function aggiornaChi(){document.getElementById('chi').textContent=getNome()?'👤 '+getNome():'';}
+var _aggTesto='';
+function aggiornaChi(){document.getElementById('chi').textContent=[getNome()?'👤 '+getNome():'',_aggTesto].filter(Boolean).join(' · ');}
+function oraHM(d){return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 
 // ── Cliente ──
 function setCliente(c){
@@ -192,8 +195,9 @@ function setCliente(c){
 }
 
 // ── Caricamento ──
-var _caricaN=0;
-async function carica(){
+var _caricaN=0,_ultimoOk=null;
+// silenzioso=true (aggiornamento automatico): se fallisce lascia la lista com'e'
+async function carica(silenzioso){
   var n=++_caricaN,cl=cliente;
   try{
     var res=await Promise.all([
@@ -221,10 +225,13 @@ async function carica(){
         return fa-fb||String(a.desc).localeCompare(String(b.desc),'it');
       });
     inAttesa=res[2];
+    _ultimoOk=new Date();_aggTesto='Aggiornato alle '+oraHM(_ultimoOk);aggiornaChi();
     disegnaArticoli();disegnaAttesa();
   }catch(e){
     console.error(e);
     if(n!==_caricaN)return;
+    _aggTesto=_ultimoOk?'⚠ Non aggiornato (ultimo alle '+oraHM(_ultimoOk)+')':'⚠ Non aggiornato';aggiornaChi();
+    if(silenzioso&&articoli.length)return;
     document.getElementById('articoli').innerHTML='<div class="card vuoto">Impossibile caricare i dati.<br><br><button class="btn" onclick="carica()">Riprova</button></div>';
     document.getElementById('attesa').innerHTML='<div class="vuoto">—</div>';
   }
@@ -325,6 +332,18 @@ aggiornaChi();
 var cSalvato='';try{cSalvato=localStorage.getItem('ragazze_cliente')||'';}catch(e){}
 setCliente(cSalvato==='BERGAMASCO'?'BERGAMASCO':'AZZURRA');
 if(!getNome())chiediNome();
+
+// Aggiornamento automatico: quando la pagina torna visibile (app riaperta dal telefono) e
+// ogni 60 s mentre e' aperta. Non mentre si sta inserendo (modulo o richiesta del nome).
+function aggiornaAuto(){
+  if(document.hidden)return;
+  if(document.getElementById('sheet').classList.contains('on'))return;
+  if(document.getElementById('nome-box').classList.contains('on'))return;
+  carica(true);
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)aggiornaAuto();});
+window.addEventListener('pageshow',function(e){if(e.persisted)aggiornaAuto();});
+setInterval(aggiornaAuto,60000);
 </script>
 </body>
 </html>
