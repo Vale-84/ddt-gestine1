@@ -365,7 +365,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 
 <div class="tabs">
   <div class="tab active" data-page="wa" onclick="showPage('wa',this)">WA</div>
-  <div class="tab" data-page="imballo" onclick="showPage('imballo',this)">Imballo</div>
+  <div class="tab" data-page="imballo" onclick="showPage('imballo',this)">Imballo<span id="tab-imb-dc" style="display:none;margin-left:4px;background:#C55A11;color:white;border-radius:9px;padding:0 6px;font-size:11px;font-weight:bold;" title="Imballi del magazzino da confermare"></span></div>
   <div class="tab" data-page="verniciato" onclick="showPage('verniciato',this)">Verniciato</div>
   <div class="tab admin-tab" data-page="ddt-entrata" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
@@ -548,6 +548,18 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 
     <!-- COLONNA 2: IMBALLO -->
     <div>
+      <!-- Imballi inseriti dal magazzino (imballo-ragazze.html), da confermare -->
+      <div class="card" id="dc-card" style="margin-bottom:10px;border:2px solid #C55A11;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <h2 style="color:#C55A11;margin:0;">Da confermare (<span id="dc-n">0</span>)</h2>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-blue btn-sm" style="width:auto;" onclick="caricaDaConfermare()" title="Aggiorna">↻</button>
+            <button class="btn btn-green btn-sm" style="width:auto;white-space:nowrap;" onclick="confermaTutteDC()">CONFERMA TUTTE</button>
+          </div>
+        </div>
+        <div id="msg-dc"></div>
+        <div id="dc-lista"><div class="empty">Nessun imballo da confermare</div></div>
+      </div>
       <div class="card" style="margin-bottom:10px;">
         <h2 style="color:#5B2C8D;">Imballo</h2>
         <label>Data</label><input type="date" id="imb2-date" style="margin-bottom:6px;" onchange="aggiornaMagForm('imb2')">
@@ -1727,7 +1739,7 @@ function salvaConfig(){
 // BACKUP: tutte le tabelle dell'app in un Excel, un foglio per tabella. Solo GET, tutti i clienti
 // (fetch diretto: apiGet filtrerebbe alcune tabelle sul cliente attivo)
 var TABELLE_BACKUP=['articoli','ddt_entrata','ddt_uscita','sostituzioni','abbinamenti_ber','abbinamenti_azzurra','sostituzioni_ber','sostituzioni_azzurra',
-  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria','saldo_iniziale_azzurra','listino_prezzi','fattura_scelte','regole_colore_ber'];
+  'scarti_ber','resi_azzurra','archivio','listino','lavori_extra','impostazioni_azzurra','imballo','verniciato','whatsapp_righe','whatsapp_uscita','foto_promemoria','saldo_iniziale_azzurra','listino_prezzi','fattura_scelte','regole_colore_ber','imballo_da_confermare'];
 // Ordine stabile per i blocchi da 1000 (le tabelle senza id hanno un'altra chiave)
 var ORDINE_BACKUP={listino:'codice.asc,cliente.asc',impostazioni_azzurra:'chiave.asc'};
 async function leggiTabellaBackup(t){
@@ -1846,8 +1858,8 @@ function printSection(id,orizzontale){
 
 async function apiGet(t,p){
   var c=getConfig();if(!c.url)return null;
-  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli'];
-  var params = p || 'order=created_at.desc.nullslast,id.desc&limit=5000';
+  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','imballo_da_confermare'];
+  var params = p ||'order=created_at.desc.nullslast,id.desc&limit=5000';
   if(tables.indexOf(t)>=0){
     var cl=getCliente();
     params = params + '&cliente=eq.'+encodeURIComponent(cl);
@@ -2041,6 +2053,7 @@ function selArt(p,cod,desc){
   var s=document.getElementById(p+'-sel');s.textContent='✅ '+cod+' — '+desc;s.style.display='block';
   if(p==='du'||p==='imb2')aggiornaMagForm(p);
   if(p==='du')aggiornaProposteDU();
+  if(/^dc\d+$/.test(p))aggiornaRigaDC(p);
 }
 
 document.addEventListener('click',function(e){document.querySelectorAll('.cerca-risultati').forEach(function(el){if(!el.contains(e.target))el.style.display='none';});});
@@ -2072,7 +2085,7 @@ function showPage(name,el){
   if(el)el.classList.add('active');
   if(name==='wa'){setWAMode('entrata');caricaImballo();}
   if(name==='imballo'){
-    caricaImballo();caricaRiepilogoBer();
+    caricaImballo();caricaRiepilogoBer();caricaDaConfermare();
     var ic=document.getElementById('imb-cerca');if(ic)ic.value='';
     var is=document.getElementById('imb-sel');if(is)is.style.display='none';
     var it=document.getElementById('imb-tot');if(it)it.textContent='0';
@@ -8320,6 +8333,151 @@ async function salvaImballo2(){
   }
 }
 
+// ── IMBALLO DA CONFERMARE (inserito dal magazzino con imballo-ragazze.html) ──
+// Le righe restano in imballo_da_confermare (fuori da Confronto, Riepilogo e Chiudi Mese)
+// finche' non le confermo qui: OK le sposta in imballo con gli stessi campi di salvaImballo2.
+var _dcRighe=[],_dcCaricaN=0;
+
+function aggiornaContatoreDC(){
+  var n=_dcRighe.length;
+  var el=document.getElementById('dc-n');if(el)el.textContent=n;
+  var t=document.getElementById('tab-imb-dc');
+  if(t){t.textContent=n;t.style.display=n?'inline-block':'none';}
+  var l=document.getElementById('dc-lista');
+  if(l&&!n)l.innerHTML='<div class="empty">Nessun imballo da confermare</div>';
+}
+
+async function caricaDaConfermare(){
+  var n=++_dcCaricaN;
+  var d=await apiGet('imballo_da_confermare','order=created_at.asc,id.asc&limit=5000');
+  if(n!==_dcCaricaN)return; // nel frattempo e' partita un'altra lettura (es. cambio cliente)
+  if(!d){var l0=document.getElementById('dc-lista');if(l0)l0.innerHTML='<div class="warn-box">Errore nel leggere gli imballi da confermare.</div>';return;}
+  _dcRighe=d;
+  var l=document.getElementById('dc-lista');
+  if(l)l.innerHTML=d.map(htmlRigaDC).join('');
+  d.forEach(function(r){aggiornaRigaDC('dc'+r.id);});
+  aggiornaContatoreDC();
+}
+
+function htmlRigaDC(r){
+  var p='dc'+r.id,cod=r.codice_articolo||'';
+  var quando=r.created_at?new Date(r.created_at).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+  return '<div class="row-item" id="'+p+'-box" style="flex-direction:column;align-items:stretch;gap:6px;border-left-color:#C55A11;">'
+    +'<div class="rdesc">'+escAbb(r.descrizione)+(cod?'':' <span class="badge" style="background:#FCE4D6;color:#C00000;">ALTRO ARTICOLO</span>')+'</div>'
+    +'<div class="rsub">'+badgeOperatore(r)+' inserita '+escAbb(quando)+(r.note?' · <strong>'+escAbb(r.note)+'</strong>':'')+'</div>'
+    +'<div class="cerca-box" style="margin:0;">'
+      +'<input class="cerca-input" id="'+p+'-cerca" placeholder="Codice articolo..." oninput="cerca(\''+p+'\')" autocomplete="off" value="'+escAbb(cod?cod+' — '+(r.descrizione||''):'')+'" style="margin:0;">'
+      +'<div class="cerca-risultati" id="'+p+'-ris"></div>'
+    +'</div>'
+    +'<div class="art-sel" id="'+p+'-sel"'+(cod?' style="display:block;">✅ '+escAbb(cod)+' — '+escAbb(r.descrizione):'>')+'</div>'
+    +'<input type="hidden" id="'+p+'-cod" value="'+escAbb(cod)+'"><input type="hidden" id="'+p+'-dsc" value="'+escAbb(r.descrizione)+'">'
+    +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
+      +'<input type="date" id="'+p+'-date" value="'+escAbb(String(r.data_inserimento||'').slice(0,10))+'" style="width:auto;margin:0;">'
+      +'<input type="text" id="'+p+'-seq" value="'+escAbb(r.testo_seq||'')+'" oninput="calcolaSeq(\''+p+'-seq\',\''+p+'-tot\')" style="flex:1;min-width:110px;margin:0;" title="Sequenza">'
+      +'<div class="imb-tot" id="'+p+'-tot">'+(Number(r.quantita)||0)+'</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:6px;">'
+      +'<button class="btn btn-green btn-sm" id="'+p+'-ok" style="flex:1;" onclick="confermaRigaDC('+Number(r.id)+')">OK</button>'
+      +'<button class="btn btn-red btn-sm" style="flex:1;" onclick="scartaRigaDC('+Number(r.id)+')">SCARTA</button>'
+    +'</div>'
+  +'</div>';
+}
+
+// OK attivo solo con un codice articolo (le righe "Altro articolo" ne sono senza)
+function aggiornaRigaDC(p){
+  var cod=(document.getElementById(p+'-cod')||{}).value||'';
+  var b=document.getElementById(p+'-ok');
+  if(b){b.disabled=!cod;b.style.opacity=cod?'':'0.5';b.title=cod?'':'Metti il codice articolo prima di confermare';}
+}
+
+// Valori come sono ora nella riga (codice, data, sequenza corretti a mano)
+function valoriRigaDC(r){
+  var p='dc'+r.id;
+  function v(s){var el=document.getElementById(p+s);return el?el.value:'';}
+  var seq=v('-seq').trim().replace(/\s+/g,'');
+  var tot=seq?seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0):0;
+  var cod=v('-cod').trim();
+  var errore=!cod?'manca il codice':!/^\d{4}-\d{2}-\d{2}$/.test(v('-date'))?'manca la data':!(tot>0)?'sequenza non valida':'';
+  return {r:r,cod:cod,dsc:v('-dsc')||r.descrizione,data:v('-date'),seq:seq,tot:tot,errore:errore};
+}
+
+function togliRigaDC(id){
+  _dcRighe=_dcRighe.filter(function(x){return x.id!==id;});
+  var el=document.getElementById('dc'+id+'-box');if(el)el.remove();
+  aggiornaContatoreDC();
+}
+
+// Conferma una riga. Prima la tolgo da imballo_da_confermare (se non c'e' piu', l'ha gia'
+// confermata/annullata qualcun altro: niente doppioni), poi la scrivo in imballo; se la
+// scrittura fallisce rimetto la riga in attesa com'era. Ritorna true se confermata.
+async function confermaUnaDC(x){
+  var c=getConfig(),r=x.r,cl=getCliente();
+  var tolte;
+  try{
+    var resp=await fetch(c.url+'/rest/v1/imballo_da_confermare?id=eq.'+r.id+'&cliente=eq.'+encodeURIComponent(cl),{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=representation'}});
+    if(!resp.ok)throw new Error(await resp.text());
+    tolte=await resp.json();
+  }catch(e){console.error(e);return {ok:false,msg:'errore di connessione ('+e.message+')'};}
+  if(!tolte.length){togliRigaDC(r.id);return {ok:false,msg:'già confermata o annullata nel frattempo'};}
+  var orig=tolte[0];
+  var res=await apiPost('imballo',{articolo:x.dsc,codice_articolo:x.cod,sequenza:x.seq,totale:x.tot,note:orig.note||'',
+    data_inserimento:x.data,created_at:orig.created_at||new Date().toISOString(),inserito_da:orig.inserito_da||null});
+  if(!res||!res[0]){
+    try{
+      var back=await fetch(c.url+'/rest/v1/imballo_da_confermare',{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key,'Prefer':'return=minimal'},body:JSON.stringify(orig)});
+      if(!back.ok)throw new Error(await back.text());
+    }catch(e){
+      console.error(e);
+      alert('ATTENZIONE: riga non confermata e non rimessa in attesa. Inseriscila a mano:\n'+orig.descrizione+' — '+orig.testo_seq+' = '+orig.quantita+' pz, data '+orig.data_inserimento+', inserita da '+(orig.inserito_da||'?'));
+      togliRigaDC(r.id);
+    }
+    return {ok:false,msg:'non salvata in Imballo'};
+  }
+  togliRigaDC(r.id);
+  return {ok:true};
+}
+
+async function confermaRigaDC(id){
+  var r=_dcRighe.filter(function(x){return x.id===id;})[0];if(!r)return;
+  var x=valoriRigaDC(r);
+  if(x.errore){alert('Non si può confermare: '+x.errore+'.');return;}
+  var b=document.getElementById('dc'+id+'-ok');if(b)b.disabled=true;
+  var e=await confermaUnaDC(x);
+  if(e.ok)showMsg('msg-dc','✅ Confermato: '+escAbb(x.cod)+' '+x.tot+' pz','ok');
+  else{showMsg('msg-dc','Riga non confermata: '+escAbb(e.msg),'err');if(b)b.disabled=false;}
+  caricaImballo();caricaRiepilogoBer();
+}
+
+async function scartaRigaDC(id){
+  var r=_dcRighe.filter(function(x){return x.id===id;})[0];if(!r)return;
+  if(!confirm('Scartare questa riga?\n\n'+r.descrizione+' — '+r.testo_seq+' = '+r.quantita+' pz'+(r.inserito_da?'\nInserita da '+r.inserito_da:'')))return;
+  var c=getConfig();
+  try{
+    var resp=await fetch(c.url+'/rest/v1/imballo_da_confermare?id=eq.'+id+'&cliente=eq.'+encodeURIComponent(getCliente()),{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+    if(!resp.ok)throw new Error(await resp.text());
+  }catch(e){console.error(e);showMsg('msg-dc','Riga non scartata: '+escAbb(e.message),'err');return;}
+  togliRigaDC(id);
+}
+
+async function confermaTutteDC(){
+  if(!_dcRighe.length){alert('Nessun imballo da confermare.');return;}
+  var tutte=_dcRighe.map(valoriRigaDC);
+  var si=tutte.filter(function(x){return !x.errore;}),no=tutte.filter(function(x){return x.errore;});
+  if(!si.length){alert('Nessuna riga confermabile:\n\n'+no.map(function(x){return '• '+x.r.descrizione+': '+x.errore;}).join('\n'));return;}
+  function elenco(a,f){return a.slice(0,25).map(f).join('\n')+(a.length>25?'\n… e altre '+(a.length-25):'');}
+  var testo='Confermare '+si.length+' righe in Imballo ('+si.reduce(function(a,x){return a+x.tot;},0)+' pz)?\n\n'
+    +elenco(si,function(x){return '• '+x.cod+' — '+x.dsc+' · '+fmtDataGMA(x.data)+' · '+x.tot+' pz';})
+    +(no.length?'\n\nRestano in attesa ('+no.length+'):\n'+elenco(no,function(x){return '• '+x.r.descrizione+': '+x.errore;}):'');
+  if(!confirm(testo))return;
+  var ok=0,errori=[];
+  for(var i=0;i<si.length;i++){
+    var e=await confermaUnaDC(si[i]);
+    if(e.ok)ok++;else errori.push(si[i].r.descrizione+': '+e.msg);
+  }
+  showMsg('msg-dc',(ok?'✅ Confermate '+ok+' righe.':'')+(errori.length?' Non confermate '+errori.length+': '+escAbb(errori.join('; ')):''),errori.length?'err':'ok');
+  caricaImballo();caricaRiepilogoBer();
+}
+
 
 
 // ── MAGAZZINO ─────────────────────────────────────────────────────────
@@ -8784,7 +8942,12 @@ function salvaCfgDataChiusura(){
 // riporti Verniciato = residuo Verniciato − max(Imballo, WA Uscita) sulle sole righe
 // chiuse, se > 0, modificabile); confermaChiudiMese() crea i riporti al giorno dopo,
 // archivia le righe chiuse e le toglie dalla lista di lavoro.
-var _riportiCM=[],_datiCM=null;
+var _riportiCM=[],_datiCM=null,_dcCM=[];
+// Imballi da confermare (letti all'apertura di Chiudi Mese) con data fino al giorno 'fino'
+function dcFinoCM(fino){
+  var r=(_dcCM||[]).filter(function(x){return rigaFino(x,fino);});
+  return {righe:r.length,pz:pezziCM(r,'quantita')};
+}
 var MESI_IT=['GENNAIO','FEBBRAIO','MARZO','APRILE','MAGGIO','GIUGNO','LUGLIO','AGOSTO','SETTEMBRE','OTTOBRE','NOVEMBRE','DICEMBRE'];
 var TABELLE_CM=[
   {t:'whatsapp_righe',nome:'WA Entrata',qta:'quantita'},
@@ -8828,6 +8991,8 @@ async function chiudiMese(){
   var dati=await caricaDatiCM();
   if(!dati){alert('Errore caricamento WA, Imballo o Verniciato: riprova.');return;}
   _datiCM=dati;
+  // Imballi del magazzino ancora da confermare: non vengono chiusi, solo segnalati
+  _dcCM=(await apiGet('imballo_da_confermare','select=id,data_inserimento,quantita&limit=5000'))||[];
   document.getElementById('riporti-fino').value=_finoGiorno||fineMeseScorsoISO();
   aggiornaAnteprimaCM();
   document.getElementById('modal-riporti').style.display='flex';
@@ -8841,7 +9006,8 @@ function aggiornaAnteprimaCM(){
   if(!s||!_datiCM){info.textContent='Scegli il giorno.';tc.innerHTML='';tb.innerHTML='';_riportiCM=[];aggiornaTotRiporti();return;}
   var div=divisioneCM(_datiCM,s.fino);
   info.innerHTML='Si chiude fino al <strong>'+fmtDataGMA(s.fino)+'</strong> compreso. Riporti con nota "RIPORTO DA '+s.etichetta+'" e data '+fmtDataGMA(s.dataNuovo)+'.'
-    +(s.fino>=oggiISO()?'<br><span style="color:#C62828;">⚠ Il giorno scelto è oggi o nel futuro: si chiudono anche le righe di oggi.</span>':'');
+    +(s.fino>=oggiISO()?'<br><span style="color:#C62828;">⚠ Il giorno scelto è oggi o nel futuro: si chiudono anche le righe di oggi.</span>':'')
+    +(function(){var n=dcFinoCM(s.fino);return n.righe?'<br><span style="color:#C55A11;font-weight:bold;">⚠ Ci sono '+n.righe+' imballi del magazzino da confermare ('+n.pz+' pz) con data fino al '+fmtDataGMA(s.fino)+': non vengono chiusi. Se li confermi dopo, finiscono in un mese già chiuso.</span>':'';})();
   tc.innerHTML=TABELLE_CM.map(function(x){
     var d=div[x.t];
     return '<tr><td><strong>'+x.nome+'</strong></td>'
@@ -8906,7 +9072,9 @@ async function confermaChiudiMese(){
   }).join('\n');
   var testoRip=riporti.slice(0,15).map(function(a){return '• '+(a.cod||a.desc)+': '+a.qta+' pz';}).join('\n')
     +(riporti.length>15?'\n… e altri '+(riporti.length-15):'')||'• nessuno';
+  var nDC=dcFinoCM(s.fino);
   if(!confirm('Chiudere fino al '+fmtDataGMA(s.fino)+' compreso?\n\n'+testoTab
+    +(nDC.righe?'\n\n⚠ '+nDC.righe+' imballi del magazzino da confermare ('+nDC.pz+' pz) con data fino al '+fmtDataGMA(s.fino)+' NON vengono chiusi.':'')
     +'\n\nRiporti Verniciato al '+fmtDataGMA(s.dataNuovo)+' ('+riporti.length+' articoli, '+pezziCM(riporti,'qta')+' pz):\n'+testoRip
     +'\n\nLe righe chiuse vanno in archivio (restano nel Confronto) e spariscono dalla lista di lavoro. Le righe dopo il '+fmtDataGMA(s.fino)+' restano. I DDT restano.'))return;
   document.getElementById('modal-riporti').style.display='none';
@@ -12260,6 +12428,7 @@ function applicaVisibilitaTab(){
 function cambiaCliente(){
   var c=getCliente();localStorage.setItem('ddt_cliente',c);
   applicaVisibilitaTab();caricaArticoli();
+  caricaDaConfermare(); // anche fuori dalla scheda Imballo: aggiorna il numero sulla linguetta
   var active=document.querySelector('.page.active');
   if(active){
     var name=active.id.replace('page-','');
@@ -12300,7 +12469,7 @@ window.onload=function(){
   var c=getConfig();
   if(c.url){
     document.getElementById('conn-status').textContent='Connesso: '+c.url.replace('https://','').split('.')[0];
-    caricaArticoli();caricaEntrate();caricaVerniciato();caricaImballo();
+    caricaArticoli();caricaEntrate();caricaVerniciato();caricaImballo();caricaDaConfermare();
   }
   // Imposta le date di default a oggi per i campi nuova inserzione
   var today=oggiISO();

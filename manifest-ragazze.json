@@ -1,0 +1,15 @@
+{
+  "name": "Imballo Magazzino",
+  "short_name": "Imballo",
+  "description": "Inserimento imballo dal magazzino",
+  "id": "imballo-ragazze.html",
+  "start_url": "imballo-ragazze.html",
+  "scope": "imballo-ragazze.html",
+  "display": "standalone",
+  "background_color": "#5B2C8D",
+  "theme_color": "#5B2C8D",
+  "icons": [
+    { "src": "android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

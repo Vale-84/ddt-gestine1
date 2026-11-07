@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#5B2C8D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Imballo">
+<title>Imballo Magazzino</title>
+<link rel="manifest" href="manifest-ragazze.json">
+<link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root { --viola: #5B2C8D; --viola-scuro: #43206a; --verde: #217346; --rosso: #C00000; --arancio: #C55A11; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; background: #f0f2f5; color: #222; font-size: 17px; padding-bottom: env(safe-area-inset-bottom); }
+.header { background: var(--viola); color: white; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.header h1 { font-size: 19px; font-weight: bold; }
+.header p { font-size: 13px; opacity: .85; margin-top: 2px; }
+.hbtn { background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 8px 12px; font-size: 15px; cursor: pointer; white-space: nowrap; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 14px 16px 24px; }
+.seg { display: flex; background: var(--viola-scuro); border-radius: 10px; padding: 4px; margin-bottom: 12px; }
+.seg button { flex: 1; border: none; background: none; color: #d6c4ea; font-size: 16px; font-weight: bold; padding: 12px 0; border-radius: 8px; cursor: pointer; }
+.seg button.on { background: white; color: var(--viola); }
+.card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.card h2 { font-size: 14px; color: var(--viola); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+input[type=text], input[type=date], input[type=search] { width: 100%; font-size: 17px; padding: 12px; border: 1px solid #ccc; border-radius: 10px; background: white; color: #222; font-family: inherit; }
+label { display: block; font-size: 14px; color: #555; font-weight: bold; margin: 12px 0 5px; }
+.tile { display: flex; align-items: center; gap: 12px; background: white; border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid var(--viola); cursor: pointer; width: 100%; text-align: left; font: inherit; color: inherit; border-top: none; border-right: none; border-bottom: none; }
+.tile .nm { flex: 1; min-width: 0; font-weight: bold; font-size: 16px; overflow-wrap: anywhere; }
+.tile .nm small { display: block; font-weight: normal; color: #777; font-size: 14px; margin-top: 3px; }
+.tile .v { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tile .v b { display: block; font-size: 22px; color: var(--viola); }
+.tile .v small { font-size: 12px; color: #777; }
+.tile.finito { border-left-color: #bbb; opacity: .6; }
+.tile.finito .v b { color: #888; }
+.tile.altro { border-left-color: var(--arancio); background: #FFF8F0; }
+.btn { display: block; width: 100%; border: none; border-radius: 12px; padding: 15px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; background: var(--viola); margin-top: 16px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn-grigio { background: #888; }
+.riga { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+.riga:last-child { border-bottom: none; }
+.riga .i { flex: 1; min-width: 0; }
+.riga .d { font-size: 15px; font-weight: bold; overflow-wrap: anywhere; }
+.riga .s { font-size: 13px; color: #777; margin-top: 2px; overflow-wrap: anywhere; }
+.riga .q { font-weight: bold; font-size: 18px; color: var(--viola); white-space: nowrap; }
+.annulla { border: 1px solid var(--rosso); color: var(--rosso); background: white; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-weight: bold; cursor: pointer; }
+.vuoto { text-align: center; color: #999; padding: 16px 0; font-size: 15px; }
+.msg { border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; font-size: 15px; font-weight: bold; }
+.msg-ok { background: #E2EFDA; color: #375623; }
+.msg-err { background: #FCE4D6; color: #7B2C2C; }
+.tot { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #F3EDF9; border-radius: 10px; padding: 10px 14px; margin-top: 8px; }
+.tot span { font-size: 14px; color: #555; font-weight: bold; }
+.tot b { font-size: 30px; color: var(--viola); font-variant-numeric: tabular-nums; }
+/* Scheda di inserimento a tutto schermo */
+.sheet { position: fixed; inset: 0; background: #f0f2f5; z-index: 50; display: none; flex-direction: column; }
+.sheet.on { display: flex; }
+.sheet-head { background: var(--viola); color: white; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; display: flex; align-items: center; gap: 10px; }
+.sheet-head .t { flex: 1; min-width: 0; }
+.sheet-head .t b { font-size: 17px; display: block; overflow-wrap: anywhere; }
+.sheet-head .t small { font-size: 13px; opacity: .85; }
+.sheet-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px calc(24px + env(safe-area-inset-bottom)); }
+.sheet-body > div { max-width: 640px; margin: 0 auto; }
+/* Nome */
+#nome-box { position: fixed; inset: 0; background: var(--viola); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px; color: white; text-align: center; }
+#nome-box.on { display: flex; }
+#nome-box h1 { font-size: 24px; margin-bottom: 8px; }
+#nome-box p { opacity: .85; margin-bottom: 20px; }
+#nome-box input { max-width: 320px; text-align: center; font-size: 20px; }
+#nome-box .btn { max-width: 320px; background: white; color: var(--viola); }
+</style>
+</head>
+<body>
+
+<div id="nome-box">
+  <h1>Come ti chiami?</h1>
+  <p>Il nome viene salvato su questo telefono e scritto su ogni imballo che inserisci.</p>
+  <input type="text" id="nome-in" autocomplete="off" placeholder="Nome">
+  <button class="btn" onclick="salvaNome()">OK</button>
+</div>
+
+<div class="header">
+  <div>
+    <h1>Imballo</h1>
+    <p id="chi"></p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="hbtn" onclick="carica()" title="Aggiorna">↻</button>
+    <button class="hbtn" onclick="chiediNome()">Cambia nome</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="seg">
+    <button id="seg-AZZURRA" onclick="setCliente('AZZURRA')">AZZURRA</button>
+    <button id="seg-BERGAMASCO" onclick="setCliente('BERGAMASCO')">BERGAMASCO</button>
+  </div>
+  <div id="msg"></div>
+
+  <div class="card">
+    <h2>Inseriti da te, in attesa</h2>
+    <div id="attesa"><div class="vuoto">Caricamento...</div></div>
+  </div>
+
+  <input type="search" id="filtro" placeholder="Cerca articolo..." oninput="disegnaArticoli()" style="margin-bottom:10px;" autocomplete="off">
+  <button class="tile altro" onclick="apriAltro()">
+    <div class="nm">➕ Altro articolo<small>Pezzi che non sono nella lista</small></div>
+  </button>
+  <div id="articoli"><div class="vuoto">Caricamento...</div></div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-head">
+    <div class="t"><b id="f-tit"></b><small id="f-sub"></small></div>
+    <button class="hbtn" onclick="chiudiForm()">✕ Chiudi</button>
+  </div>
+  <div class="sheet-body"><div>
+    <div id="f-msg"></div>
+    <div id="f-altro-box" style="display:none;">
+      <label for="f-desc">Descrizione articolo</label>
+      <input type="text" id="f-desc" autocomplete="off" placeholder="Scrivi cosa hai imballato">
+    </div>
+    <label for="f-data">Data</label>
+    <input type="date" id="f-data">
+    <label for="f-seq">Pezzi (es. 37+37+37)</label>
+    <input type="text" id="f-seq" autocomplete="off" placeholder="37+37+37" oninput="aggiornaTot()">
+    <div class="tot"><span>TOTALE PEZZI</span><b id="f-tot">0</b></div>
+    <label for="f-note">Note</label>
+    <input type="text" id="f-note" autocomplete="off">
+    <button class="btn" id="f-btn" onclick="aggiungi()">AGGIUNGI</button>
+  </div></div>
+</div>
+
+<script>
+// Pagina per il magazzino: legge Verniciato e Imballo (solo per "resta da imballare"),
+// scrive SOLO in imballo_da_confermare. Le righe entrano in Imballo quando le conferma
+// l'ufficio dalla scheda Imballo dell'app.
+var CFG={url:'https://ddziwcyxjgzcmtlqltrc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkeml3Y3l4amd6Y210bHFsdHJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDE4NjUsImV4cCI6MjA5NTExNzg2NX0.xBu-nFP-7G1I4gj7vU0iaN4LWYmJ1kwUAbwr0UjN8l8'};
+var TAB='imballo_da_confermare';
+var cliente='AZZURRA';
+var articoli=[];     // [{k, cod, desc, vern, imb, att, resta}]
+var inAttesa=[];     // righe in attesa del cliente (di tutti)
+var sel=null;        // articolo aperto nel modulo (null = "Altro articolo")
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function num(n){n=Number(n)||0;return String(Math.round(n*100)/100).replace('.',',');}
+function oggi(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dataIt(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:'';}
+function chiave(cod,desc){return String(cod||desc||'').trim().toLowerCase();}
+// Stessa regola dell'app: "37+37+37" → 111
+function totSeq(s){s=String(s||'').trim();return s?s.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0):0;}
+
+function getNome(){try{return (localStorage.getItem('operatore')||'').trim();}catch(e){return '';}}
+function msg(id,txt,tipo){var el=document.getElementById(id);el.innerHTML=txt?'<div class="msg msg-'+tipo+'">'+txt+'</div>':'';if(txt&&tipo==='ok')setTimeout(function(){el.innerHTML='';},4000);}
+
+function hdr(extra){var h={apikey:CFG.key,Authorization:'Bearer '+CFG.key};for(var k in extra)h[k]=extra[k];return h;}
+// Tutte le righe del cliente, a blocchi da 1000
+async function leggi(tabella,select){
+  var tutte=[];
+  while(true){
+    var r=await fetch(CFG.url+'/rest/v1/'+tabella+'?select='+select+'&cliente=eq.'+encodeURIComponent(cliente)+'&order=id.asc&limit=1000&offset='+tutte.length,{headers:hdr({})});
+    if(!r.ok)throw new Error(tabella+': '+r.status+' '+(await r.text()));
+    var b=await r.json();
+    tutte=tutte.concat(b);
+    if(b.length<1000)return tutte;
+  }
+}
+
+// ── Nome ──
+function chiediNome(){document.getElementById('nome-in').value=getNome();document.getElementById('nome-box').classList.add('on');setTimeout(function(){document.getElementById('nome-in').focus();},50);}
+function salvaNome(){
+  var n=document.getElementById('nome-in').value.trim();
+  if(!n){document.getElementById('nome-in').focus();return;}
+  try{localStorage.setItem('operatore',n);}catch(e){}
+  document.getElementById('nome-box').classList.remove('on');
+  aggiornaChi();disegnaAttesa();
+}
+function aggiornaChi(){document.getElementById('chi').textContent=getNome()?'👤 '+getNome():'';}
+
+// ── Cliente ──
+function setCliente(c){
+  cliente=c;
+  try{localStorage.setItem('ragazze_cliente',c);}catch(e){}
+  ['AZZURRA','BERGAMASCO'].forEach(function(x){document.getElementById('seg-'+x).classList.toggle('on',x===c);});
+  articoli=[];inAttesa=[];
+  document.getElementById('articoli').innerHTML='<div class="vuoto">Caricamento...</div>';
+  document.getElementById('attesa').innerHTML='<div class="vuoto">Caricamento...</div>';
+  carica();
+}
+
+// ── Caricamento ──
+var _caricaN=0;
+async function carica(){
+  var n=++_caricaN,cl=cliente;
+  try{
+    var res=await Promise.all([
+      leggi('verniciato','id,codice_articolo,descrizione,quantita'),
+      leggi('imballo','id,codice_articolo,articolo,totale'),
+      leggi(TAB,'id,codice_articolo,descrizione,data_inserimento,testo_seq,quantita,inserito_da,note,created_at')
+    ]);
+    if(n!==_caricaN||cl!==cliente)return; // nel frattempo e' cambiato il cliente
+    var m={},ordine=[];
+    function voce(cod,desc){
+      var k=chiave(cod,desc);if(!k)return null;
+      if(!m[k]){m[k]={k:k,cod:cod||'',desc:desc||'',vern:0,imb:0,att:0};ordine.push(k);}
+      if(!m[k].cod&&cod)m[k].cod=cod;
+      if(!m[k].desc&&desc)m[k].desc=desc;
+      return m[k];
+    }
+    res[0].forEach(function(r){var v=voce(r.codice_articolo,r.descrizione);if(v)v.vern+=Number(r.quantita)||0;});
+    // Imballo e righe in attesa contano solo sugli articoli che sono nel Verniciato
+    res[1].forEach(function(r){var v=m[chiave(r.codice_articolo,r.articolo)];if(v)v.imb+=Number(r.totale)||0;});
+    res[2].forEach(function(r){var v=m[chiave(r.codice_articolo,r.descrizione)];if(v)v.att+=Number(r.quantita)||0;});
+    articoli=ordine.map(function(k){var a=m[k];a.resta=a.vern-a.imb-a.att;return a;})
+      .filter(function(a){return a.vern>0;})
+      .sort(function(a,b){
+        var fa=a.resta>0?0:1,fb=b.resta>0?0:1;
+        return fa-fb||String(a.desc).localeCompare(String(b.desc),'it');
+      });
+    inAttesa=res[2];
+    disegnaArticoli();disegnaAttesa();
+  }catch(e){
+    console.error(e);
+    if(n!==_caricaN)return;
+    document.getElementById('articoli').innerHTML='<div class="card vuoto">Impossibile caricare i dati.<br><br><button class="btn" onclick="carica()">Riprova</button></div>';
+    document.getElementById('attesa').innerHTML='<div class="vuoto">—</div>';
+  }
+}
+
+function disegnaArticoli(){
+  var f=document.getElementById('filtro').value.trim().toLowerCase();
+  var lista=articoli.filter(function(a){return !f||String(a.desc).toLowerCase().indexOf(f)>=0;});
+  var el=document.getElementById('articoli');
+  if(!lista.length){el.innerHTML='<div class="vuoto">'+(articoli.length?'Nessun articolo trovato.':'Nessun articolo nel Verniciato.')+'</div>';return;}
+  el.innerHTML=lista.map(function(a){
+    var i=articoli.indexOf(a);
+    return '<button class="tile'+(a.resta>0?'':' finito')+'" onclick="apriArticolo('+i+')">'
+      +'<div class="nm">'+esc(a.desc||'(senza descrizione)')+'<small>Verniciato: '+num(a.vern)+(a.att?' · in attesa: '+num(a.att):'')+'</small></div>'
+      +'<div class="v"><small>resta</small><b>'+num(a.resta)+'</b></div>'
+    +'</button>';
+  }).join('');
+}
+
+function disegnaAttesa(){
+  var nome=getNome(),el=document.getElementById('attesa');
+  var mie=inAttesa.filter(function(r){return nome&&String(r.inserito_da||'').trim()===nome;})
+    .sort(function(a,b){return String(b.created_at||'').localeCompare(String(a.created_at||''));});
+  if(!mie.length){el.innerHTML='<div class="vuoto">Nessuna riga in attesa.</div>';return;}
+  el.innerHTML=mie.map(function(r){
+    return '<div class="riga">'
+      +'<div class="q">'+num(r.quantita)+'</div>'
+      +'<div class="i"><div class="d">'+esc(r.descrizione)+'</div>'
+        +'<div class="s">'+dataIt(r.data_inserimento)+' · '+esc(r.testo_seq)+(r.note?' · '+esc(r.note):'')+'</div></div>'
+      +'<button class="annulla" onclick="annulla('+Number(r.id)+')">ANNULLA</button>'
+    +'</div>';
+  }).join('');
+}
+
+// ── Modulo ──
+function apriArticolo(i){sel=articoli[i];apriForm();}
+function apriAltro(){sel=null;apriForm();}
+function apriForm(){
+  if(!getNome()){chiediNome();return;}
+  document.getElementById('f-tit').textContent=sel?(sel.desc||'(senza descrizione)'):'Altro articolo';
+  document.getElementById('f-sub').textContent=cliente+(sel?' · resta da imballare: '+num(sel.resta):'');
+  document.getElementById('f-altro-box').style.display=sel?'none':'block';
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-data').value=oggi();
+  document.getElementById('f-seq').value='';
+  document.getElementById('f-note').value='';
+  document.getElementById('f-btn').disabled=false;
+  msg('f-msg','');
+  aggiornaTot();
+  document.getElementById('sheet').classList.add('on');
+  setTimeout(function(){document.getElementById(sel?'f-seq':'f-desc').focus();},50);
+}
+function chiudiForm(){document.getElementById('sheet').classList.remove('on');}
+function aggiornaTot(){document.getElementById('f-tot').textContent=num(totSeq(document.getElementById('f-seq').value));}
+
+async function aggiungi(){
+  var nome=getNome();if(!nome){chiediNome();return;}
+  var desc=sel?sel.desc:document.getElementById('f-desc').value.trim();
+  var data=document.getElementById('f-data').value;
+  var seq=document.getElementById('f-seq').value.trim().replace(/\s+/g,'');
+  var tot=totSeq(seq);
+  var note=document.getElementById('f-note').value.trim();
+  if(!desc){msg('f-msg','Scrivi la descrizione dell\'articolo.','err');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){msg('f-msg','Scegli la data.','err');return;}
+  if(!seq||!(tot>0)){msg('f-msg','Scrivi i pezzi, es. 37+37+37.','err');return;}
+  var btn=document.getElementById('f-btn');btn.disabled=true;
+  var riga={cliente:cliente,codice_articolo:sel&&sel.cod?sel.cod:null,descrizione:desc,data_inserimento:data,
+    testo_seq:seq,quantita:tot,inserito_da:nome,note:note||null};
+  try{
+    var r=await fetch(CFG.url+'/rest/v1/'+TAB,{method:'POST',headers:hdr({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(riga)});
+    if(!r.ok)throw new Error(r.status+' '+(await r.text()));
+  }catch(e){
+    console.error(e);btn.disabled=false;
+    msg('f-msg','Non salvato, riprova. ('+esc(e.message)+')','err');return;
+  }
+  chiudiForm();
+  msg('msg','✅ Aggiunto: '+esc(desc)+' — '+num(tot)+' pz','ok');
+  carica();
+}
+
+async function annulla(id){
+  var r0=inAttesa.filter(function(r){return r.id===id;})[0];
+  if(!confirm('Annullare '+(r0?r0.descrizione+' — '+num(r0.quantita)+' pz':'questa riga')+'?'))return;
+  try{
+    // Cancella solo se e' ancora in attesa (e se l'ha inserita questo nome)
+    var r=await fetch(CFG.url+'/rest/v1/'+TAB+'?id=eq.'+id+'&cliente=eq.'+encodeURIComponent(cliente)+'&inserito_da=eq.'+encodeURIComponent(getNome()),
+      {method:'DELETE',headers:hdr({Prefer:'return=representation'})});
+    if(!r.ok)throw new Error(r.status+' '+(await r.text()));
+    var del=await r.json();
+    if(!del.length)msg('msg','Questa riga è già stata confermata o scartata dall\'ufficio: non si può più annullare.','err');
+    else msg('msg','Riga annullata.','ok');
+  }catch(e){console.error(e);msg('msg','Non annullata, riprova. ('+esc(e.message)+')','err');}
+  carica();
+}
+
+document.getElementById('nome-in').addEventListener('keydown',function(e){if(e.key==='Enter')salvaNome();});
+aggiornaChi();
+var cSalvato='';try{cSalvato=localStorage.getItem('ragazze_cliente')||'';}catch(e){}
+setCliente(cSalvato==='BERGAMASCO'?'BERGAMASCO':'AZZURRA');
+if(!getNome())chiediNome();
+</script>
+</body>
+</html>
