@@ -9139,14 +9139,14 @@ function renderMagazzino(){
 // escluse (sono doppioni di pezzi gia' contati prima). Imballo da confermare: solo informazione.
 // cols: [etichetta, campo, segno]; residuo = saldo (fase s di saldo_fasi) + somma(segno*campo)
 var FASI_DEF={
-  grezzo:{nome:'Grezzo',s:'grezzo',cols:[['+ DDT Entrata','E',1],['− Verniciato','V',-1]],formula:'Grezzo = saldo + DDT Entrata − Verniciato'},
-  verniciato:{nome:'Verniciato da imballare',s:'verniciato',cols:[['+ Verniciato','V',1],['− Imballo','I',-1],['− Scarti','S',-1],['+ Riparati','R',1]],formula:'Verniciato da imballare = saldo + Verniciato − Imballo − Scarti + Riparati'},
-  imballato:{nome:'Imballato da spedire',s:'imballato',cols:[['+ Imballo','I',1],['− WA Uscita','W',-1]],formula:'Imballato da spedire = saldo + Imballo − WA Uscita'},
-  ddt:{nome:'Spedito, DDT da fare',s:'ddt_da_fare',cols:[['+ WA Uscita','W',1],['− DDT Uscita','U',-1]],formula:'Spedito, DDT da fare = saldo + WA Uscita − DDT Uscita (senza i DDT scarti C610)'},
-  scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = saldo + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
+  grezzo:{nome:'Grezzo',s:'grezzo',cols:[['+ DDT Entrata','E',1],['− Verniciato','V',-1]],formula:'Grezzo = partenza + DDT Entrata − Verniciato'},
+  verniciato:{nome:'Verniciato da imballare',s:'verniciato',cols:[['+ Verniciato','V',1],['− Imballo','I',-1],['− Scarti','S',-1],['+ Riparati','R',1]],formula:'Verniciato da imballare = partenza + Verniciato − Imballo − Scarti + Riparati'},
+  imballato:{nome:'Imballato da spedire',s:'imballato',cols:[['+ Imballo','I',1],['− WA Uscita','W',-1]],formula:'Imballato da spedire = partenza + Imballo − WA Uscita'},
+  ddt:{nome:'Spedito, DDT da fare',s:'ddt_da_fare',cols:[['+ WA Uscita','W',1],['− DDT Uscita','U',-1]],formula:'Spedito, DDT da fare = partenza + WA Uscita − DDT Uscita (senza i DDT scarti C610)'},
+  scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = partenza + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
 };
 var ORDINE_FASI=['grezzo','verniciato','imballato','ddt','scarti'];
-var _fasi={fase:'grezzo',dati:null,n:0};
+var _fasi={fase:'grezzo',dati:null,n:0,aperto:''};
 
 // Lettura diretta per distinguere "tabella mancante" da "nessun saldo"
 async function leggiSaldoFasi(cl){
@@ -9162,6 +9162,7 @@ async function leggiSaldoFasi(cl){
   return {data:data,righe:tutte.filter(function(x){return String(x.data_saldo||'').slice(0,10)===data;}),dateTutte:tutte.map(function(x){return String(x.data_saldo).slice(0,10);}).filter(function(v,i,a){return a.indexOf(v)===i;}).sort()};
 }
 
+function inizioMeseFasi(){return oggiISO().slice(0,8)+'01';}
 function setFase(f){
   _fasi.fase=f;
   try{localStorage.setItem('fasi_fase',f);}catch(e){}
@@ -9180,7 +9181,7 @@ async function caricaFasi(silenzioso){
     caricaBaseCarico(),
     apiGetTutto('verniciato','order=id.asc'),apiGetTutto('imballo','order=id.asc'),apiGetTutto('whatsapp_uscita','order=id.asc'),
     apiGetTutto('imballo_da_confermare','order=id.asc'),
-    saldo.data?apiGetTutto('archivio','cliente=eq.AZZURRA&tabella_origine=in.(verniciato,imballo,whatsapp_uscita)&data_inserimento=gte.'+saldo.data+'&order=id.asc'):Promise.resolve([])
+    saldo.data?apiGetTutto('archivio','cliente=eq.AZZURRA&tabella_origine=in.(verniciato,imballo,whatsapp_uscita)&data_inserimento=gte.'+(inizioMeseFasi()<saldo.data?inizioMeseFasi():saldo.data)+'&order=id.asc'):Promise.resolve([])
   ]);
   if(n!==_fasi.n||getCliente()!=='AZZURRA')return;
   var info=document.getElementById('fasi-saldo-info');
@@ -9191,16 +9192,16 @@ async function caricaFasi(silenzioso){
     return;
   }
   if(!saldo.data){
-    info.innerHTML='<strong>Nessun saldo iniziale.</strong> Scarica il modello, fai il conteggio fisico e importalo con "IMPORTA SALDO INIZIALE".';
+    info.innerHTML='<strong>Nessuna partenza.</strong> Scarica il modello, fai il conteggio fisico e importalo con "IMPORTA SALDO INIZIALE".';
     _fasi.dati=null;renderFasi();return;
   }
   _fasi.dati=calcolaFasi(saldo,res[0],res[1],res[2],res[3],res[4],res[5]);
   var op=saldo.righe.map(function(r){return r.inserito_da;}).filter(Boolean)[0]||'';
   var quando=saldo.righe.map(function(r){return r.created_at;}).filter(Boolean).sort().pop();
-  info.innerHTML='Saldo iniziale al <strong>'+fmtDataGMA(saldo.data)+'</strong> (inizio giornata): '+_fasi.dati.nSaldo+' articoli'
+  info.innerHTML='Partenza al <strong>'+fmtDataGMA(saldo.data)+'</strong> (inizio giornata): '+_fasi.dati.nSaldo+' articoli'
     +(op?' · inserito da '+escAbb(op):'')+(quando?' il '+new Date(quando).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'')
-    +'. Movimenti contati dal '+fmtDataGMA(saldo.data)+' compreso.'
-    +(saldo.dateTutte.length>1?' <span style="color:#888;">(altri saldi salvati: '+saldo.dateTutte.slice(0,-1).map(fmtDataGMA).join(', ')+')</span>':'');
+    +'. Movimenti contati dal '+fmtDataGMA(saldo.data)+' compreso. Tocca una riga per il dettaglio.'
+    +(saldo.dateTutte.length>1?' <span style="color:#888;">(altre partenze salvate: '+saldo.dateTutte.slice(0,-1).map(fmtDataGMA).join(', ')+')</span>':'');
   document.getElementById('fasi-agg').textContent='Aggiornato alle '+_fasi.dati.ora;
   renderFasi();
 }
@@ -9247,6 +9248,29 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
   // Carico aperto Nova di oggi (stesso calcolo del Saldo carico del Confronto)
   var car=calcolaCaricoAperto(base,oggiISO());
   if(car.disp)Object.keys(car.A).forEach(function(k){if(fuoriMag(k))return;var v=car.A[k];if(!v&&!m[k])return;voce(k,'');m[k].nova=v;});
+  // Totali del mese (dal 1°) per il dettaglio riga: tabelle di lavoro + archivio, riporti
+  // esclusi. Solo lettura: non toccano i residui e non aggiungono articoli.
+  var dMese=inizioMeseFasi();
+  Object.keys(m).forEach(function(k){m[k].mm={E:0,V:0,I:0,W:0,U:0,UC:0,S:0,R:0};});
+  function vMese(cod){var k=key(cod);return k&&m[k]?m[k].mm:null;}
+  function nelMese(r){var d=dataRigaLav(r);return !!d&&d>=dMese&&!isRiportoVern(r);}
+  function sommaMese(righe,campo,qta){
+    righe.forEach(function(r){
+      if(!r.codice_articolo||!nelMese(r))return;
+      var v=vMese(r.codice_articolo);if(!v)return;
+      var q=Number(r[qta])||0;
+      if(campo==='V'&&isScartoVern(r)){v.S+=Math.abs(q);return;}
+      if(campo==='V'&&isRiparatoVern(r)){v.R+=Math.abs(q);return;}
+      v[campo]+=q;
+    });
+  }
+  sommaMese(vern,'V','quantita');sommaMese(imb,'I','totale');sommaMese(wau,'W','quantita');
+  sommaMese(arch.filter(function(r){return r.tabella_origine==='verniciato';}),'V','quantita');
+  sommaMese(arch.filter(function(r){return r.tabella_origine==='imballo';}),'I','totale');
+  sommaMese(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}),'W','quantita');
+  function ddtMese(r){var d=dataDDTCarico(r);return !!d&&d>=dMese;}
+  base.ent.forEach(function(r){if(r.codice_articolo&&ddtMese(r)){var v=vMese(r.codice_articolo);if(v)v.E+=Number(r.quantita_ddt)||0;}});
+  base.usc.forEach(function(r){if(r.codice_articolo&&ddtMese(r)){var v=vMese(r.codice_articolo);if(v)v[isDdtScarti(r)?'UC':'U']+=Number(r.quantita_ddt)||0;}});
   var lista=Object.keys(m).map(function(k){
     var a=m[k];
     a.desc=a.desc||artDesc[k]||descNova[k]||'';
@@ -9261,7 +9285,38 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
     return a;
   });
   var o=new Date();
-  return {lista:lista,data:dSaldo,nSaldo:nSaldo,senzaCodice:senzaCodice,car:car,novaX:base.nova?base.nova.x:'',ora:String(o.getHours()).padStart(2,'0')+':'+String(o.getMinutes()).padStart(2,'0')};
+  return {lista:lista,data:dSaldo,dMese:dMese,nSaldo:nSaldo,senzaCodice:senzaCodice,car:car,novaX:base.nova?base.nova.x:'',ora:String(o.getHours()).padStart(2,'0')+':'+String(o.getMinutes()).padStart(2,'0')};
+}
+
+// Badge dei negativi, in parole semplici
+function badgeNegFase(fk,r){
+  var n=Math.abs(r);
+  var t=fk==='grezzo'?'manca DDT Entrata: '+n+' pz':fk==='verniciato'?'manca verniciato: '+n+' pz':fk==='imballato'?'manca imballo: '+n+' pz':fk==='scarti'?'controllare scarti':'⚠ anomalia';
+  return ' <span class="badge badge-err" style="white-space:normal;">'+t+'</span>';
+}
+function toggleDettFasi(cod){_fasi.aperto=_fasi.aperto===cod?'':cod;renderFasi();}
+// Dettaglio dell'articolo: totali del mese (dal 1°) e residui uguali a quelli della vista
+function dettaglioFasiHtml(a,d,ncol){
+  var mm=a.mm||{E:0,V:0,I:0,W:0,U:0,UC:0,S:0,R:0};
+  function riga(lab,v,extra,stile){return '<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eee;'+(stile||'')+'"><span>'+lab+'</span><span style="font-weight:bold;white-space:nowrap;">'+v+(extra||'')+'</span></div>';}
+  var mancaE=!mm.E&&(mm.V||mm.I||mm.W||mm.U);
+  var h='<div style="font-size:13px;font-weight:bold;margin-bottom:4px;">'+escAbb(a.cod)+(a.desc?' — '+escAbb(a.desc):'')+'</div>'
+    +'<div style="font-size:12px;color:#666;margin-bottom:6px;">Nel mese, dal '+fmtDataGMA(d.dMese)+' (tabelle di lavoro + archivio, riporti esclusi):</div>'
+    +riga('DDT Entrata del mese',mm.E,mancaE?' <span style="color:#C00000;">— manca DDT Entrata</span>':'',mancaE?'color:#C00000;':'')
+    +riga('Verniciato',mm.V)
+    +riga('Imballato',mm.I,a.att?' <span style="font-weight:normal;color:#C55A11;">(+ '+a.att+' in attesa di conferma)</span>':'')
+    +riga('Spedito WA',mm.W)
+    +riga('DDT Uscita',mm.U,mm.UC?' <span style="font-weight:normal;color:#666;">(+ '+mm.UC+' DDT scarti C610)</span>':'')
+    +riga('Scarti / Riparati',mm.S+' / '+mm.R);
+  var sP=a.s||{},partenza=ORDINE_FASI.some(function(f){return sP[FASI_DEF[f].s];});
+  h+='<div style="font-size:12px;color:#666;margin:10px 0 4px;">Risultato (come nella vista: partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+'):</div>';
+  [['Grezzo da verniciare','grezzo'],['Resta da imballare','verniciato'],['Imballato da spedire','imballato'],['Spedito senza DDT','ddt']].forEach(function(x){
+    var v=a.r[x[1]];
+    h+=riga(x[0],v,v<0?' <span style="color:#C00000;">(negativo)</span>':'',v<0?'color:#C00000;':'');
+  });
+  if(partenza)h+='<div style="font-size:11px;color:#888;margin-top:6px;">Partenza al '+fmtDataGMA(d.data)+': grezzo '+(sP.grezzo||0)+', verniciato '+(sP.verniciato||0)+', imballato '+(sP.imballato||0)+', DDT da fare '+(sP.ddt_da_fare||0)+', scarti '+(sP.scarti||0)+'.</div>';
+  return '<tr class="fasi-dett"><td colspan="'+ncol+'" style="position:static;white-space:normal;min-width:0;background:#F7FAFD;padding:0;border-bottom:2px solid #1F4E79;">'
+    +'<div style="position:sticky;left:0;box-sizing:border-box;width:100%;max-width:min(520px,calc(100vw - 40px));padding:10px 12px;">'+h+'</div></td></tr>';
 }
 
 function renderFasi(){
@@ -9283,17 +9338,18 @@ function renderFasi(){
     var tS=0,tN=0;
     tb.innerHTML=l.length?l.map(function(a){
       tS+=a.somma;tN+=a.nova;
-      var bg=a.diffNova!==0?' style="background-color:#fde2e2;"':'';
-      return '<tr'+bg+'><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
+      var bg=a.diffNova!==0?'background-color:#fde2e2;':'';
+      return '<tr style="cursor:pointer;'+bg+'" onclick="toggleDettFasi(\''+escAbb(a.cod).replace(/'/g,"\\'")+'\')"><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
         +ORDINE_FASI.map(function(f){return a.r[f];}).map(function(v){return '<td style="text-align:right;'+(v<0?'color:#C00000;font-weight:bold;':'')+'">'+v+'</td>';}).join('')
         +'<td style="text-align:right;font-weight:bold;">'+a.somma+'</td><td style="text-align:right;font-weight:bold;">'+a.nova+'</td>'
-        +'<td style="text-align:right;font-weight:bold;color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td></tr>';
+        +'<td style="text-align:right;font-weight:bold;color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td></tr>'
+        +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,10):'');
     }).join(''):'<tr><td colspan="10" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
     tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Differenza: '+(tN-tS):'';
     return;
   }
   var f=FASI_DEF[_fasi.fase]||FASI_DEF.grezzo,fk=FASI_DEF[_fasi.fase]?_fasi.fase:'grezzo';
-  th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Saldo al '+fmtDataGMA(d.data)+'</th>'+f.cols.map(function(c){return '<th>'+c[0]+'</th>';}).join('')+'<th>Residuo</th></tr>';
+  th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Partenza '+fmtDataGMA(d.data)+'</th>'+f.cols.map(function(c){return '<th>'+c[0]+'</th>';}).join('')+'<th>Residuo</th></tr>';
   nota.innerHTML=f.formula+', con i movimenti dal '+fmtDataGMA(d.data)+' compreso. Negativi in rosso = anomalia (manca un movimento o il saldo).'
     +(fk==='verniciato'?' Gli imballi del magazzino da confermare non sono contati: sono indicati a parte.':'')+avvisoSenza;
   var lista=d.lista.filter(function(a){
@@ -9309,13 +9365,14 @@ function renderFasi(){
     var r=a.r[fk];
     tSal+=a.s[f.s]||0;tR+=r;if(r<0)nNeg++;
     f.cols.forEach(function(c,i){tCol[i]+=a[c[1]]||0;});
-    return '<tr'+(r<0?' style="background-color:#fde2e2;"':'')+'><td><strong>'+escAbb(a.cod)+'</strong></td>'
-      +'<td>'+escAbb(a.desc)+(r<0?' <span class="badge badge-err">⚠ anomalia</span>':'')
+    return '<tr style="cursor:pointer;'+(r<0?'background-color:#fde2e2;':'')+'" onclick="toggleDettFasi(\''+escAbb(a.cod).replace(/'/g,"\\'")+'\')"><td><strong>'+escAbb(a.cod)+'</strong></td>'
+      +'<td>'+escAbb(a.desc)+(r<0?badgeNegFase(fk,r):'')
         +(fk==='verniciato'&&a.att?' <span class="badge badge-warn" title="Imballi del magazzino da confermare">'+a.att+' in attesa di conferma</span>':'')+'</td>'
       +'<td style="text-align:right;">'+(a.s[f.s]||0)+'</td>'+f.cols.map(function(c){return '<td style="text-align:right;">'+(a[c[1]]||0)+'</td>';}).join('')
-      +'<td style="text-align:right;font-weight:bold;'+(r<0?'color:#C00000;':'')+'">'+r+'</td></tr>';
+      +'<td style="text-align:right;font-weight:bold;'+(r<0?'color:#C00000;':'')+'">'+r+'</td></tr>'
+      +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,4+f.cols.length):'');
   }).join(''):'<tr><td colspan="'+(4+f.cols.length)+'" style="text-align:center;padding:14px;color:#999;">Nessun articolo.</td></tr>';
-  tot.innerHTML=lista.length?f.nome+' — articoli: '+lista.length+' · Saldo: '+tSal+' · '+f.cols.map(function(c,i){return c[0]+': '+tCol[i];}).join(' · ')+' · Residuo: '+tR
+  tot.innerHTML=lista.length?f.nome+' — articoli: '+lista.length+' · Partenza: '+tSal+' · '+f.cols.map(function(c,i){return c[0]+': '+tCol[i];}).join(' · ')+' · Residuo: '+tR
     +(nNeg?' · <span style="color:#C00000;">'+nNeg+' negativi</span>':''):'';
 }
 
