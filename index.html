@@ -585,7 +585,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       <div class="card">
         <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
           <button class="btn btn-blue btn-sm" style="flex:1;" onclick="caricaImballo()">↻</button>
-          <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaImballo()">SVUOTA</button>
+          <button class="btn btn-red btn-sm solo-non-azzurra" style="flex:1;" onclick="svuotaImballo()">SVUOTA</button>
           <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciDuplicatiImballo()">UNISCI</button>
           <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciImballoPerData()">UNISCI PER DATA</button>
           <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaImballoExcel()">ESPORTA</button>
@@ -680,7 +680,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   </div>
   <div class="card">
     <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-      <button class="btn btn-red btn-sm" style="flex:1;" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
+      <button class="btn btn-red btn-sm solo-non-azzurra" style="flex:1;" onclick="svuotaVerniciato()">SVUOTA TUTTO</button>
       <button class="btn btn-purple btn-sm" style="flex:1;" onclick="unisciDuplicatiVerniciato()">UNISCI</button>
       <button class="btn btn-purple btn-sm" id="btn-unisci-data-vern" style="flex:1;display:none;" onclick="unisciVerniciatoPerData()">UNISCI PER DATA</button>
       <button class="btn btn-green btn-sm" style="flex:1;" onclick="esportaVerniciatoExcel()">📥 ESPORTA EXCEL</button>
@@ -1135,7 +1135,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 <div class="modal" id="modal-riporti">
   <div class="modal-box" style="max-width:900px;">
     <h3 style="color:#1F6B75;">Chiudi mese — fino al giorno</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:10px;">Si chiudono (archivio + tolte dalla lista di lavoro) solo le righe di WA Entrata, WA Uscita, Imballo e Verniciato con data fino al giorno scelto, compreso. Le righe con data successiva restano.</p>
+    <p id="riporti-descr" style="font-size:13px;color:#666;margin-bottom:10px;">Si chiudono (archivio + tolte dalla lista di lavoro) solo le righe di WA Entrata, WA Uscita, Imballo e Verniciato con data fino al giorno scelto, compreso. Le righe con data successiva restano.</p>
     <label>Chiudi fino al giorno (compreso)</label>
     <input type="date" id="riporti-fino" onchange="aggiornaAnteprimaCM()">
     <p id="riporti-info" style="font-size:12px;color:#888;margin:4px 0 10px;"></p>
@@ -1145,6 +1145,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
         <tbody id="riporti-conteggi"></tbody>
       </table>
     </div>
+    <div id="riporti-sezione">
     <h3 style="color:#1F6B75;font-size:15px;margin-bottom:4px;">Riporti Verniciato</h3>
     <p style="font-size:12px;color:#666;margin-bottom:8px;">Residuo = Verniciato − il più alto tra Imballo e WA Uscita, contando solo le righe fino al giorno scelto. Correggi o togli le quantità (0 = nessun riporto). Se cambi il giorno le quantità vengono ricalcolate.</p>
     <p id="riporti-carico-info" style="font-size:12px;color:#666;margin-bottom:8px;"></p>
@@ -1155,6 +1156,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       </table>
     </div>
     <p id="riporti-tot" style="font-size:13px;font-weight:bold;color:#1F6B75;margin:8px 0 0;"></p>
+    </div>
     <br>
     <button class="btn btn-teal" style="padding:12px 20px;font-size:15px;" onclick="confermaChiudiMese()">CONFERMA E CHIUDI MESE</button>
     <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="document.getElementById('modal-riporti').style.display='none'">ANNULLA</button>
@@ -3620,6 +3622,7 @@ async function caricaVerniciato(){
 }
 
 async function svuotaVerniciato(){
+  if(getCliente()==='AZZURRA'){alert('AZZURRA non si svuota piu\x27: le righe restano e si chiude il mese da Config (Chiudi mese).');return;}
   if(!confirm('Cancellare tutto il verniciato di oggi?'))return;
   localStorage.removeItem('vernp_spunte');
   var oggi=oggiISO();
@@ -3826,6 +3829,7 @@ async function eliminaRiga2(id){
 }
 
 async function svuotaVerniciato2(){
+  if(getCliente()==='AZZURRA'){alert('AZZURRA non si svuota piu\x27: le righe restano e si chiude il mese da Config (Chiudi mese).');return;}
   if(!confirm('Svuotare il verniciato?'))return;
   localStorage.removeItem('vern2_spunte');
   var d=await apiGet('verniciato');
@@ -8375,6 +8379,7 @@ async function salvaImballo(){
 }
 
 async function svuotaImballo(){
+  if(getCliente()==='AZZURRA'){alert('AZZURRA non si svuota piu\x27: le righe restano e si chiude il mese da Config (Chiudi mese).');return;}
   if(!confirm('Cancellare tutti gli imballi?'))return;
   var oggi=oggiISO();
   var d=await apiGet('imballo');
@@ -9654,8 +9659,10 @@ async function chiudiMese(){
   _datiCM=dati;
   // Imballi del magazzino ancora da confermare: non vengono chiusi, solo segnalati
   _dcCM=(await apiGet('imballo_da_confermare','select=id,data_inserimento,quantita&limit=5000'))||[];
-  // DDT e inevasi per il limite dei riporti al carico aperto (null = non letti: nessuna riduzione)
-  _baseCaricoCM=await caricaBaseCarico();
+  // DDT e inevasi per il limite dei riporti al carico aperto (null = non letti: nessuna riduzione).
+  // AZZURRA non crea piu' riporti (saldo iniziale in Fasi magazzino).
+  _baseCaricoCM=getCliente()==='AZZURRA'?null:await caricaBaseCarico();
+  if(getCliente()==='AZZURRA')await getChiusoFino(true);
   document.getElementById('riporti-fino').value=_finoGiorno||fineMeseScorsoISO();
   aggiornaAnteprimaCM();
   document.getElementById('modal-riporti').style.display='flex';
@@ -9666,8 +9673,32 @@ function aggiornaAnteprimaCM(){
   var info=document.getElementById('riporti-info');
   var tc=document.getElementById('riporti-conteggi');
   var tb=document.getElementById('riporti-tbody');
+  var az=getCliente()==='AZZURRA';
+  document.getElementById('riporti-sezione').style.display=az?'none':'';
   if(!s||!_datiCM){info.textContent='Scegli il giorno.';tc.innerHTML='';tb.innerHTML='';_riportiCM=[];aggiornaTotRiporti();return;}
   var div=divisioneCM(_datiCM,s.fino);
+  if(az){
+    // AZZURRA: fino al 30/11/2026 ultima chiusura classica (archivio + svuota) SENZA riporti;
+    // dopo, solo blocco del mese (le righe restano nelle tabelle).
+    _riportiCM=[];
+    var classica=s.fino<=ULTIMA_CHIUSURA_CLASSICA_AZZURRA,prima=_chiusoCache.v;
+    document.getElementById('riporti-descr').innerHTML=classica
+      ?'<strong>Ultima chiusura classica AZZURRA</strong>: le righe di WA Entrata, WA Uscita, Imballo e Verniciato fino al giorno scelto vanno in archivio e si tolgono dalla lista di lavoro. <strong>Nessun riporto</strong>: dal giorno dopo vale il saldo iniziale di Fasi magazzino. Poi il mese viene anche bloccato.'
+      :'<strong>AZZURRA: chiusura senza svuotamento.</strong> Le righe restano nelle tabelle; con data fino al giorno scelto vengono solo <strong>bloccate</strong> (l\'admin le può cambiare con conferma). Niente archivio, niente riporti.';
+    info.innerHTML='Si chiude fino al <strong>'+fmtDataGMA(s.fino)+'</strong> compreso.'+(prima?' Oggi è chiuso fino al '+fmtDataGMA(prima)+'.':'')
+      +(prima&&s.fino<prima?'<br><span style="color:#C62828;font-weight:bold;">⚠ Data precedente all\'attuale chiusura: il periodo dal '+fmtDataGMA(giornoDopoISO(s.fino))+' al '+fmtDataGMA(prima)+' viene RIAPERTO.</span>':'')
+      +(s.fino>=oggiISO()?'<br><span style="color:#C62828;">⚠ Il giorno scelto è oggi o nel futuro.</span>':'')
+      +(function(){var n=dcFinoCM(s.fino);return n.righe?'<br><span style="color:#C55A11;font-weight:bold;">⚠ Ci sono '+n.righe+' imballi del magazzino da confermare ('+n.pz+' pz) con data fino al '+fmtDataGMA(s.fino)+': confermali prima, poi saranno bloccati.</span>':'';})();
+    tc.innerHTML=TABELLE_CM.map(function(x){
+      var d=div[x.t];
+      return '<tr><td><strong>'+x.nome+'</strong></td>'
+        +'<td>'+d.chiuse.length+' <span style="color:#888;">('+pezziCM(d.chiuse,x.qta)+' pz)'+(classica?'':' bloccate')+'</span></td>'
+        +'<td>'+d.restano.length+' <span style="color:#888;">('+pezziCM(d.restano,x.qta)+' pz)</span></td></tr>';
+    }).join('');
+    tb.innerHTML='';aggiornaTotRiporti();
+    return;
+  }
+  document.getElementById('riporti-descr').textContent='Si chiudono (archivio + tolte dalla lista di lavoro) solo le righe di WA Entrata, WA Uscita, Imballo e Verniciato con data fino al giorno scelto, compreso. Le righe con data successiva restano.';
   info.innerHTML='Si chiude fino al <strong>'+fmtDataGMA(s.fino)+'</strong> compreso. Riporti con nota "RIPORTO DA '+s.etichetta+'" e data '+fmtDataGMA(s.dataNuovo)+'.'
     +(s.fino>=oggiISO()?'<br><span style="color:#C62828;">⚠ Il giorno scelto è oggi o nel futuro: si chiudono anche le righe di oggi.</span>':'')
     +(function(){var n=dcFinoCM(s.fino);return n.righe?'<br><span style="color:#C55A11;font-weight:bold;">⚠ Ci sono '+n.righe+' imballi del magazzino da confermare ('+n.pz+' pz) con data fino al '+fmtDataGMA(s.fino)+': non vengono chiusi. Se li confermi dopo, finiscono in un mese già chiuso.</span>':'';})();
@@ -9746,6 +9777,7 @@ async function confermaChiudiMese(){
   var dati=await caricaDatiCM();
   if(!dati){alert('Errore caricamento WA, Imballo o Verniciato: mese NON chiuso, riprova.');return;}
   var div=divisioneCM(dati,s.fino);
+  if(getCliente()==='AZZURRA'){await confermaChiudiMeseAzzurra(s,div);return;}
   var testoTab=TABELLE_CM.map(function(x){
     var d=div[x.t];
     return '• '+x.nome+': '+d.chiuse.length+' chiuse ('+pezziCM(d.chiuse,x.qta)+' pz), '+d.restano.length+' restano ('+pezziCM(d.restano,x.qta)+' pz)';
@@ -9889,6 +9921,33 @@ async function applicaCorreggiRiporti(){
   if(typeof caricaVerniciatoP==='function')caricaVerniciatoP();
 }
 
+// AZZURRA: ultima chiusura classica (fino al 30/11/2026: archivio + svuota, senza riporti)
+// oppure, dopo, solo blocco del mese. In entrambi i casi alla fine chiuso_fino = giorno scelto.
+var ULTIMA_CHIUSURA_CLASSICA_AZZURRA='2026-11-30';
+async function confermaChiudiMeseAzzurra(s,div){
+  if(localStorage.getItem('ddt_admin')!=='1'){alert('Solo admin.');return;}
+  var classica=s.fino<=ULTIMA_CHIUSURA_CLASSICA_AZZURRA;
+  var prima=await getChiusoFino(true);
+  var testoTab=TABELLE_CM.map(function(x){
+    var d=div[x.t];
+    return '• '+x.nome+': '+d.chiuse.length+(classica?' chiuse':' bloccate')+' ('+pezziCM(d.chiuse,x.qta)+' pz), '+d.restano.length+' restano ('+pezziCM(d.restano,x.qta)+' pz)';
+  }).join('\n');
+  var nDC=dcFinoCM(s.fino);
+  if(!confirm((classica?'ULTIMA CHIUSURA CLASSICA AZZURRA fino al ':'AZZURRA: bloccare il mese fino al ')+fmtDataGMA(s.fino)+' compreso?\n\n'+testoTab
+    +(nDC.righe?'\n\n⚠ '+nDC.righe+' imballi del magazzino da confermare ('+nDC.pz+' pz) con data fino al '+fmtDataGMA(s.fino)+'.':'')
+    +(prima&&s.fino<prima?'\n\n⚠ RIAPRE il periodo dal '+fmtDataGMA(giornoDopoISO(s.fino))+' al '+fmtDataGMA(prima)+'.':'')
+    +(classica?'\n\nLe righe chiuse vanno in archivio e spariscono dalla lista di lavoro. NESSUN RIPORTO: dal '+fmtDataGMA(s.dataNuovo)+' vale il saldo iniziale di Fasi magazzino.'
+      :'\n\nLe righe restano nelle tabelle, solo bloccate. Niente archivio, niente riporti.')))return;
+  document.getElementById('modal-riporti').style.display='none';
+  if(classica){
+    var ok=await eseguiChiudiMese(s,div,[]);
+    if(ok===false)return; // errore: mese non bloccato, si puo' controllare e riprovare
+  }
+  if(!(await setChiusoFino(s.fino))){showMsg('msg-cfg','⚠ '+(classica?'Righe archiviate, ma ':'')+'blocco del mese NON salvato: riprova da Config (mese chiuso fino al).','err');return;}
+  if(!classica)showMsg('msg-cfg','🔒 AZZURRA chiuso fino al '+fmtDataGMA(s.fino)+': righe bloccate, niente archiviato.','ok');
+  impostaFinoGiorno('');
+}
+
 // Inserisce righe in archivio a blocchi da 500 (ogni richiesta e' tutto o niente).
 async function archiviaBlocchi(righe){
   var c=getConfig(),ids=[];
@@ -9912,7 +9971,7 @@ async function cancellaPerId(t,ids){
 }
 
 async function eseguiChiudiMese(s,div,idsRiporto){
-  var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
+  var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return false;}
   var cl=getCliente();
   var notaCM='Chiusura mese - '+new Date().toLocaleDateString('it-IT');
   var adesso=new Date().toISOString();
@@ -9942,7 +10001,7 @@ async function eseguiChiudiMese(s,div,idsRiporto){
       try{await cancellaPerId('archivio',archIds);}catch(e){console.error(e);}
       for(var k=0;k<idsRiporto.length;k++)await apiDel('verniciato','id=eq.'+idsRiporto[k]);
       showMsg('msg-cfg','Errore nell\'archiviare '+x.nome+': mese NON chiuso, niente è stato cancellato. ('+ris.errore+')','err');
-      return;
+      return false;
     }
   }
   // 2. Tolgo dalla lista di lavoro solo le righe appena archiviate (per id): quelle dopo
@@ -9957,9 +10016,10 @@ async function eseguiChiudiMese(s,div,idsRiporto){
   impostaFinoGiorno('');
   if(errDel.length){
     showMsg('msg-cfg','⚠ Righe archiviate, ma errore nel toglierle dalla lista di lavoro per: '+errDel.join(', ')+'. NON rifare Chiudi Mese: le righe rimaste sarebbero archiviate due volte. Controlla le liste.','err');
-    return;
+    return false;
   }
   showMsg('msg-cfg','✓ Chiuso fino al '+fmtDataGMA(s.fino)+': '+nChiuse+' righe archiviate e tolte dalla lista di lavoro, '+nRestano+' righe successive restano'+(idsRiporto.length?(', '+idsRiporto.length+' riporto/i Verniciato creati al '+fmtDataGMA(s.dataNuovo)):'')+'. DDT e Confronto restano con lo storico completo.','ok');
+  return true;
 }
 
 async function azzeraTutto(){
@@ -13326,7 +13386,9 @@ function applicaVisibilitaTab(){
     t.style.display=(inClient&&(!isAdminTab||isAdmin))?'':'none';
   });
   var bcr=document.getElementById('btn-correggi-riporti');
-  if(bcr)bcr.style.display=isAdmin&&getCliente()!=='ALTRI'?'':'none';
+  if(bcr)bcr.style.display=isAdmin&&getCliente()==='BERGAMASCO'?'':'none';
+  // AZZURRA non si svuota piu' (Chiudi mese = blocco): niente SVUOTA
+  document.querySelectorAll('.solo-non-azzurra').forEach(function(b){b.style.display=getCliente()==='AZZURRA'?'none':'';});
   var bch=document.getElementById('cfg-chiuso-box');
   if(bch)bch.style.display=isAdmin&&getCliente()==='AZZURRA'?'':'none';
   aggiornaBadgeChiuso();
