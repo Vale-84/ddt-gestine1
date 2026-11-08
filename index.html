@@ -21,6 +21,15 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { padding: 11px 13px; color: #aac4e0; font-size: 12px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; flex-shrink: 0; }
 .tab.active { color: white; border-bottom-color: #FFD966; }
+/* Menu "Altro" della barra schede */
+.tab-altro { padding: 11px 13px; color: #aac4e0; font-size: 12px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; flex-shrink: 0; position: sticky; right: 0; margin-left: auto; background: #163a5e; box-shadow: -6px 0 8px -4px rgba(0,0,0,0.35); -webkit-tap-highlight-color: transparent; user-select: none; }
+.tab-altro.active { color: white; border-bottom-color: #FFD966; font-weight: bold; }
+.tab-altro.aperto { background: #1F4E79; color: white; }
+.tab-menu { display: none; position: fixed; z-index: 1000; background: white; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); padding: 6px 0; min-width: 200px; max-width: calc(100vw - 16px); max-height: 70vh; overflow-y: auto; }
+.tab-menu.open { display: block; }
+.tab-menu .tab { display: block; color: #1F4E79; font-size: 14px; padding: 12px 16px; border-bottom: none; border-left: 4px solid transparent; }
+.tab-menu .tab:hover { background: #EEF4FF; }
+.tab-menu .tab.active { color: #1F4E79; font-weight: bold; background: #FFF6D6; border-left-color: #FFD966; }
 .page { display: none; padding: 14px; max-width: 1400px; margin: 0 auto; }
 .page.active { display: block; }
 @media (max-width: 900px) {
@@ -370,15 +379,19 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   <div class="tab" data-page="verniciato" onclick="showPage('verniciato',this)">Verniciato</div>
   <div class="tab admin-tab" data-page="ddt-entrata" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
-  <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
   <div class="tab admin-tab" data-page="fasi" onclick="showPage('fasi',this)" style="display:none">Fasi magazzino</div>
+  <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
+  <div class="tab-altro" id="tab-altro" onclick="toggleMenuAltro(event)">Altro ▾</div>
+</div>
+<!-- Menu "Altro": schede secondarie (stesse regole cliente/admin di applicaVisibilitaTab) -->
+<div class="tab-menu" id="tab-menu">
+  <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
   <div class="tab" data-page="dettaglio" onclick="showPage('dettaglio',this)">Dettaglio</div>
   <div class="tab" data-page="extra" onclick="showPage('extra',this)">EXTRA</div>
   <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
   <div class="tab admin-tab" data-page="riepilogo-ber" onclick="showPage('riepilogo-ber',this)" style="display:none">Riepilogo</div>
   <div class="tab admin-tab" data-page="controllo-date" onclick="showPage('controllo-date',this)" style="display:none">Controllo Date</div>
   <div class="tab admin-tab" data-page="riepilogo-wa" onclick="showPage('riepilogo-wa',this)" style="display:none">Riepilogo WA</div>
-  <div class="tab admin-tab" data-page="confronto" onclick="showPage('confronto',this)" style="display:none">Confronto</div>
   <div class="tab admin-tab" data-page="abbinamenti-azzurra" onclick="showPage('abbinamenti-azzurra',this)" style="display:none">Abbinamenti AZZURRA</div>
   <div class="tab admin-tab" data-page="sostituzioni-azzurra" onclick="showPage('sostituzioni-azzurra',this)" style="display:none">Sostituzioni AZZURRA</div>
   <div class="tab admin-tab" data-page="abbinamenti-ber" onclick="showPage('abbinamenti-ber',this)" style="display:none">Abbinamenti BERGAMASCO</div>
@@ -13597,6 +13610,56 @@ window.onload=function(){
   if(!getOperatore())apriSceltaOperatore();
   gestisciFotoCondivise();
 };
+
+// ── MENU "ALTRO" BARRA SCHEDE ─────────────────────────────────────────
+// Solo interfaccia: le schede del menu sono normali .tab (stesse regole
+// cliente/admin di applicaVisibilitaTab, stesso showPage).
+function chiudiMenuAltro(){
+  var m=document.getElementById('tab-menu'),b=document.getElementById('tab-altro');
+  if(m)m.classList.remove('open');if(b)b.classList.remove('aperto');
+}
+function toggleMenuAltro(ev){
+  if(ev)ev.stopPropagation();
+  var m=document.getElementById('tab-menu'),b=document.getElementById('tab-altro');
+  if(!m||!b)return;
+  if(m.classList.contains('open')){chiudiMenuAltro();return;}
+  m.classList.add('open');b.classList.add('aperto');
+  var r=b.getBoundingClientRect();
+  m.style.top=Math.round(r.bottom+2)+'px';
+  var w=m.offsetWidth,left=r.right-w;
+  if(left<8)left=8;
+  if(left+w>window.innerWidth-8)left=Math.max(8,window.innerWidth-8-w);
+  m.style.left=Math.round(left)+'px';
+}
+function aggiornaTabAltro(){
+  var b=document.getElementById('tab-altro'),m=document.getElementById('tab-menu');
+  if(!b||!m)return;
+  var visibili=0,attiva=null;
+  m.querySelectorAll('.tab').forEach(function(t){
+    if(t.style.display!=='none')visibili++;
+    if(t.classList.contains('active'))attiva=t;
+  });
+  b.style.display=visibili?'':'none';
+  if(attiva){b.textContent=attiva.textContent.trim()+' ▾';b.classList.add('active');}
+  else{b.textContent='Altro ▾';b.classList.remove('active');}
+}
+(function(){
+  var _showPage=showPage;
+  showPage=function(name,el){var r=_showPage.apply(this,arguments);chiudiMenuAltro();aggiornaTabAltro();return r;};
+  var _applica=applicaVisibilitaTab;
+  applicaVisibilitaTab=function(){var r=_applica.apply(this,arguments);aggiornaTabAltro();return r;};
+  // tocco/clic fuori dal menu = chiude
+  function fuori(e){
+    var m=document.getElementById('tab-menu'),b=document.getElementById('tab-altro');
+    if(m&&m.classList.contains('open')&&!m.contains(e.target)&&!(b&&b.contains(e.target)))chiudiMenuAltro();
+  }
+  document.addEventListener('click',fuori);
+  document.addEventListener('touchstart',fuori,{passive:true});
+  window.addEventListener('resize',chiudiMenuAltro);
+  window.addEventListener('scroll',chiudiMenuAltro,{passive:true});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')chiudiMenuAltro();});
+  var tb=document.querySelector('.tabs');if(tb)tb.addEventListener('scroll',chiudiMenuAltro);
+})();
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(function(reg){
