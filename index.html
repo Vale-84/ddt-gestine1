@@ -370,6 +370,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   <div class="tab admin-tab" data-page="ddt-entrata" onclick="showPage('ddt-entrata',this)" style="display:none">DDT Entrata</div>
   <div class="tab admin-tab" data-page="ddt-uscita" onclick="showPage('ddt-uscita',this)" style="display:none">DDT Uscita</div>
   <div class="tab admin-tab" data-page="magazzino" onclick="showPage('magazzino',this)" style="display:none">Magazzino</div>
+  <div class="tab admin-tab" data-page="fasi" onclick="showPage('fasi',this)" style="display:none">Fasi magazzino</div>
   <div class="tab" data-page="dettaglio" onclick="showPage('dettaglio',this)">Dettaglio</div>
   <div class="tab" data-page="extra" onclick="showPage('extra',this)">EXTRA</div>
   <div class="tab admin-tab" data-page="sost-ber" onclick="showPage('sost-ber',this)" style="display:none">Sostituzioni</div>
@@ -1294,6 +1295,66 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 <!-- (Riepilogo page removed) -->
 
 <!-- MAGAZZINO -->
+<!-- FASI MAGAZZINO (solo AZZURRA): saldo iniziale (saldo_fasi) + movimenti dopo la data -->
+<div id="page-fasi" class="page">
+  <div id="msg-fasi"></div>
+  <div class="card" id="fasi-solo-azzurra" style="display:none;"><div class="warn-box">Disponibile per ora solo per AZZURRA.</div></div>
+  <div id="fasi-contenuto">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <div>
+          <h2 style="margin-bottom:4px;">Fasi magazzino</h2>
+          <div id="fasi-saldo-info" style="font-size:13px;color:#666;">Caricamento...</div>
+          <div id="fasi-agg" style="font-size:12px;color:#888;margin-top:2px;"></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-blue btn-sm" style="width:auto;" onclick="caricaFasi()" title="Aggiorna">↻</button>
+          <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;" onclick="scaricaModelloSaldo()">SCARICA MODELLO SALDO</button>
+          <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;" onclick="apriImportSaldo()">IMPORTA SALDO INIZIALE</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;" id="fasi-seg">
+        <button class="btn btn-sm" style="width:auto;" data-fase="grezzo" onclick="setFase('grezzo')">GREZZO</button>
+        <button class="btn btn-sm" style="width:auto;" data-fase="verniciato" onclick="setFase('verniciato')">VERNICIATO DA IMBALLARE</button>
+        <button class="btn btn-sm" style="width:auto;" data-fase="imballato" onclick="setFase('imballato')">IMBALLATO DA SPEDIRE</button>
+        <button class="btn btn-sm" style="width:auto;" data-fase="ddt" onclick="setFase('ddt')">SPEDITO, DDT DA FARE</button>
+        <button class="btn btn-sm" style="width:auto;" data-fase="nova" onclick="setFase('nova')">CONTROLLO NOVA</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+        <input class="cerca-input" id="fasi-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderFasi()" autocomplete="off" style="flex:1;min-width:200px;margin:0;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:normal;white-space:nowrap;"><input type="checkbox" id="fasi-solo-nonzero" checked onchange="renderFasi()" style="width:auto;margin:0;"> Solo diversi da zero</label>
+      </div>
+    </div>
+    <div class="card">
+      <div id="fasi-nota" style="font-size:12px;color:#666;margin-bottom:8px;"></div>
+      <div id="fasi-tot" style="font-size:13px;font-weight:bold;margin-bottom:8px;"></div>
+      <div class="rc-table-scroll"><table class="rc-table"><thead id="fasi-thead"></thead><tbody id="fasi-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT SALDO INIZIALE FASI -->
+<div class="modal" id="modal-saldo-fasi">
+  <div class="modal-box" style="max-width:900px;">
+    <h3 style="color:#C55A11;">Importa saldo iniziale — AZZURRA</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:8px;">File Excel o CSV con le colonne <strong>Codice</strong>, <strong>Verniciato</strong> (da imballare) e <strong>Imballato</strong> (da spedire) dal conteggio fisico; facoltative <strong>Descrizione</strong> e <strong>Grezzo</strong>. Il saldo vale a inizio giornata della data scelta: contano i movimenti con data da quel giorno compreso. "Spedito, DDT da fare" iniziale = 0.</p>
+    <label>Data del saldo (inizio giornata)</label>
+    <input type="date" id="saldo-data" onchange="anteprimaSaldo()">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="saldo-grezzo-nova" checked onchange="anteprimaSaldo()" style="width:auto;margin:0;"> Calcola il Grezzo da Nova: carico aperto al giorno prima − Verniciato − Imballato</label>
+    <label>File del conteggio</label>
+    <input type="file" id="saldo-file" accept=".xlsx,.xls,.csv" onchange="leggiFileSaldo(this)">
+    <p id="saldo-info" style="font-size:12px;color:#666;margin:6px 0;"></p>
+    <div class="rc-table-scroll"><table class="rc-table">
+      <thead><tr><th>Codice</th><th>Descrizione</th><th>Carico Nova al giorno prima</th><th>Verniciato</th><th>Imballato</th><th>Grezzo</th><th></th></tr></thead>
+      <tbody id="saldo-tbody"></tbody>
+    </table></div>
+    <p id="saldo-tot" style="font-size:13px;font-weight:bold;color:#C55A11;margin:8px 0 0;"></p>
+    <br>
+    <button class="btn btn-orange" id="saldo-btn-salva" style="padding:12px 20px;font-size:15px;" onclick="salvaSaldoFasi()">SALVA SALDO</button>
+    <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="document.getElementById('modal-saldo-fasi').style.display='none'">ANNULLA</button>
+  </div>
+</div>
+
 <div id="page-magazzino" class="page">
   <div id="msg-magazzino"></div>
   <div class="card">
@@ -2111,6 +2172,7 @@ function showPage(name,el){
     var it=document.getElementById('imb-tot');if(it)it.textContent='0';
   }
   if(name==='verniciato'){caricaVerniciatoP();}
+  if(name==='fasi'){try{var ff=localStorage.getItem('fasi_fase');if(ff&&(FASI_DEF[ff]||ff==='nova'))_fasi.fase=ff;}catch(e){}renderFasi();caricaFasi();}
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
@@ -8834,6 +8896,370 @@ function renderMagazzino(){
   }).join('');
 }
 
+// ── FASI MAGAZZINO (solo AZZURRA) ──────────────────────────────────────
+// Saldo iniziale per fase (tabella saldo_fasi, ultimo data_saldo del cliente) a inizio
+// giornata della data, + movimenti con data da quel giorno compreso:
+//   Grezzo                 = saldo + DDT Entrata (IA -> A0) − Verniciato
+//   Verniciato da imballare = saldo + Verniciato − Imballo
+//   Imballato da spedire    = saldo + Imballo − WA Uscita
+//   Spedito, DDT da fare    = saldo + WA Uscita − DDT Uscita
+// Controllo Nova: carico aperto di oggi (Saldo carico del Confronto) vs somma delle quattro.
+// Movimenti = tabelle di lavoro + archivio con data dal giorno del saldo; righe "RIPORTO DA"
+// escluse (sono doppioni di pezzi gia' contati prima). Imballo da confermare: solo informazione.
+var FASI_DEF={
+  grezzo:{nome:'Grezzo',s:'grezzo',piu:'E',meno:'V',lPiu:'+ DDT Entrata',lMeno:'− Verniciato',formula:'Grezzo = saldo + DDT Entrata − Verniciato'},
+  verniciato:{nome:'Verniciato da imballare',s:'verniciato',piu:'V',meno:'I',lPiu:'+ Verniciato',lMeno:'− Imballo',formula:'Verniciato da imballare = saldo + Verniciato − Imballo'},
+  imballato:{nome:'Imballato da spedire',s:'imballato',piu:'I',meno:'W',lPiu:'+ Imballo',lMeno:'− WA Uscita',formula:'Imballato da spedire = saldo + Imballo − WA Uscita'},
+  ddt:{nome:'Spedito, DDT da fare',s:'ddt',piu:'W',meno:'U',lPiu:'+ WA Uscita',lMeno:'− DDT Uscita',formula:'Spedito, DDT da fare = saldo + WA Uscita − DDT Uscita'}
+};
+var _fasi={fase:'grezzo',dati:null,n:0};
+
+// Lettura diretta per distinguere "tabella mancante" da "nessun saldo"
+async function leggiSaldoFasi(cl){
+  var c=getConfig(),tutte=[];
+  try{
+    while(true){
+      var r=await fetch(c.url+'/rest/v1/saldo_fasi?select=*&cliente=eq.'+encodeURIComponent(cl)+'&order=id.asc&limit=1000&offset='+tutte.length,{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key},cache:'no-store'});
+      if(!r.ok){var t=await r.text();return {errore:/saldo_fasi/.test(t)&&/exist|find|42P01|PGRST205/i.test(t)?'Tabella saldo_fasi non trovata: esegui lo SQL in Supabase.':t};}
+      var b=await r.json();if(!b.length)break;tutte=tutte.concat(b);
+    }
+  }catch(e){return {errore:e.message};}
+  var data='';tutte.forEach(function(x){var d=String(x.data_saldo||'').slice(0,10);if(d>data)data=d;});
+  return {data:data,righe:tutte.filter(function(x){return String(x.data_saldo||'').slice(0,10)===data;}),dateTutte:tutte.map(function(x){return String(x.data_saldo).slice(0,10);}).filter(function(v,i,a){return a.indexOf(v)===i;}).sort()};
+}
+
+function setFase(f){
+  _fasi.fase=f;
+  try{localStorage.setItem('fasi_fase',f);}catch(e){}
+  renderFasi();
+}
+
+async function caricaFasi(silenzioso){
+  var az=getCliente()==='AZZURRA';
+  document.getElementById('fasi-solo-azzurra').style.display=az?'none':'';
+  document.getElementById('fasi-contenuto').style.display=az?'':'none';
+  if(!az)return;
+  var n=++_fasi.n;
+  if(!silenzioso)document.getElementById('fasi-saldo-info').textContent='Caricamento...';
+  var saldo=await leggiSaldoFasi('AZZURRA');
+  var res=await Promise.all([
+    caricaBaseCarico(),
+    apiGetTutto('verniciato','order=id.asc'),apiGetTutto('imballo','order=id.asc'),apiGetTutto('whatsapp_uscita','order=id.asc'),
+    apiGetTutto('imballo_da_confermare','order=id.asc'),
+    saldo.data?apiGetTutto('archivio','cliente=eq.AZZURRA&tabella_origine=in.(verniciato,imballo,whatsapp_uscita)&data_inserimento=gte.'+saldo.data+'&order=id.asc'):Promise.resolve([])
+  ]);
+  if(n!==_fasi.n||getCliente()!=='AZZURRA')return;
+  var info=document.getElementById('fasi-saldo-info');
+  if(saldo.errore){info.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(saldo.errore)+'</span>';_fasi.dati=null;renderFasi();return;}
+  if(res.some(function(x){return !x;})){
+    document.getElementById('fasi-agg').innerHTML='<span style="color:#C00000;">⚠ Non aggiornato: errore di connessione'+(_fasi.dati?' (dati delle '+_fasi.dati.ora+')':'')+'</span>';
+    if(!_fasi.dati)info.textContent='Errore di caricamento.';
+    return;
+  }
+  if(!saldo.data){
+    info.innerHTML='<strong>Nessun saldo iniziale.</strong> Scarica il modello, fai il conteggio fisico e importalo con "IMPORTA SALDO INIZIALE".';
+    _fasi.dati=null;renderFasi();return;
+  }
+  _fasi.dati=calcolaFasi(saldo,res[0],res[1],res[2],res[3],res[4],res[5]);
+  var op=saldo.righe.map(function(r){return r.inserito_da;}).filter(Boolean)[0]||'';
+  var quando=saldo.righe.map(function(r){return r.created_at;}).filter(Boolean).sort().pop();
+  info.innerHTML='Saldo iniziale al <strong>'+fmtDataGMA(saldo.data)+'</strong> (inizio giornata): '+_fasi.dati.nSaldo+' articoli'
+    +(op?' · inserito da '+escAbb(op):'')+(quando?' il '+new Date(quando).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'')
+    +'. Movimenti contati dal '+fmtDataGMA(saldo.data)+' compreso.'
+    +(saldo.dateTutte.length>1?' <span style="color:#888;">(altri saldi salvati: '+saldo.dateTutte.slice(0,-1).map(fmtDataGMA).join(', ')+')</span>':'');
+  document.getElementById('fasi-agg').textContent='Aggiornato alle '+_fasi.dati.ora;
+  renderFasi();
+}
+
+function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
+  function up(s){return String(s||'').trim().toUpperCase();}
+  var mappaIA={},descNova={};
+  (abzCache||[]).forEach(function(r){var ia=up(r.codice_ia),a0=up(r.codice_a0);if(ia&&a0)mappaIA[ia]=a0;if(r.descrizione_ia&&!descNova[a0||ia])descNova[a0||ia]=r.descrizione_ia;});
+  var artDesc={};(artCache||[]).forEach(function(a){var k=up(a.codice_articolo);if(k&&a.descrizione&&!artDesc[k])artDesc[k]=a.descrizione;});
+  function key(c){c=up(c);return mappaIA[c]||c;}
+  var dSaldo=saldo.data,m={},senzaCodice=0;
+  function voce(cod,desc){
+    var k=key(cod);if(!k||fuoriMag(k))return null;
+    if(!m[k])m[k]={cod:k,desc:'',s:{grezzo:0,verniciato:0,imballato:0,ddt:0},E:0,V:0,I:0,W:0,U:0,att:0,nova:null};
+    if(!m[k].desc&&desc)m[k].desc=desc;
+    return m[k];
+  }
+  saldo.righe.forEach(function(r){var v=voce(r.codice_articolo,r.descrizione);if(v&&v.s.hasOwnProperty(r.fase))v.s[r.fase]+=Number(r.quantita)||0;});
+  var nSaldo=Object.keys(m).length;
+  function dopo(r){var d=dataRigaLav(r);return !!d&&d>=dSaldo&&!isRiportoVern(r);}
+  function somma(righe,campo,qta,descF){
+    righe.forEach(function(r){
+      if(!dopo(r))return;
+      if(!r.codice_articolo){senzaCodice++;return;}
+      var v=voce(r.codice_articolo,r[descF]);if(v)v[campo]+=Number(r[qta])||0;
+    });
+  }
+  somma(vern,'V','quantita','descrizione');
+  somma(imb,'I','totale','articolo');
+  somma(wau,'W','quantita','descrizione_articolo');
+  // Archivio: righe di mesi chiusi dopo la data del saldo
+  somma(arch.filter(function(r){return r.tabella_origine==='verniciato';}),'V','quantita','descrizione');
+  somma(arch.filter(function(r){return r.tabella_origine==='imballo';}),'I','totale','descrizione');
+  somma(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}),'W','quantita','descrizione');
+  function ddtDopo(r){var d=dataDDTCarico(r);return !!d&&d>=dSaldo;}
+  base.ent.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v.E+=Number(r.quantita_ddt)||0;}});
+  base.usc.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v.U+=Number(r.quantita_ddt)||0;}});
+  (dc||[]).forEach(function(r){if(r.codice_articolo){var v=voce(r.codice_articolo,r.descrizione);if(v)v.att+=Number(r.quantita)||0;}});
+  // Carico aperto Nova di oggi (stesso calcolo del Saldo carico del Confronto)
+  var car=calcolaCaricoAperto(base,oggiISO());
+  if(car.disp)Object.keys(car.A).forEach(function(k){if(fuoriMag(k))return;var v=car.A[k];if(!v&&!m[k])return;voce(k,'');m[k].nova=v;});
+  var lista=Object.keys(m).map(function(k){
+    var a=m[k];
+    a.desc=a.desc||artDesc[k]||descNova[k]||'';
+    a.r={
+      grezzo:a.s.grezzo+a.E-a.V,
+      verniciato:a.s.verniciato+a.V-a.I,
+      imballato:a.s.imballato+a.I-a.W,
+      ddt:a.s.ddt+a.W-a.U
+    };
+    a.somma=a.r.grezzo+a.r.verniciato+a.r.imballato+a.r.ddt;
+    if(car.disp&&a.nova===null)a.nova=0;
+    a.diffNova=car.disp?a.nova-a.somma:null;
+    return a;
+  });
+  var o=new Date();
+  return {lista:lista,data:dSaldo,nSaldo:nSaldo,senzaCodice:senzaCodice,car:car,novaX:base.nova?base.nova.x:'',ora:String(o.getHours()).padStart(2,'0')+':'+String(o.getMinutes()).padStart(2,'0')};
+}
+
+function renderFasi(){
+  document.querySelectorAll('#fasi-seg button').forEach(function(b){b.className='btn btn-sm '+(b.getAttribute('data-fase')===_fasi.fase?'btn-blue':'btn-gray');});
+  var th=document.getElementById('fasi-thead'),tb=document.getElementById('fasi-tbody');
+  var nota=document.getElementById('fasi-nota'),tot=document.getElementById('fasi-tot');
+  var d=_fasi.dati;
+  if(!d){th.innerHTML='';tb.innerHTML='';nota.textContent='';tot.textContent='';return;}
+  var q=(document.getElementById('fasi-cerca').value||'').trim().toUpperCase();
+  var soloNZ=document.getElementById('fasi-solo-nonzero').checked;
+  function filtroTesto(a){return !q||(a.cod+' '+a.desc).toUpperCase().indexOf(q)>=0;}
+  var avvisoSenza=d.senzaCodice?' <span style="color:#C55A11;">⚠ '+d.senzaCodice+' righe di movimento senza codice articolo non contate.</span>':'';
+  if(_fasi.fase==='nova'){
+    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Differenza</th></tr>';
+    if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';return;}
+    nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Differenza = Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
+    var l=d.lista.filter(function(a){return filtroTesto(a)&&(!soloNZ||a.diffNova!==0);})
+      .sort(function(a,b){return Math.abs(b.diffNova)-Math.abs(a.diffNova)||a.cod.localeCompare(b.cod);});
+    var tS=0,tN=0;
+    tb.innerHTML=l.length?l.map(function(a){
+      tS+=a.somma;tN+=a.nova;
+      var bg=a.diffNova!==0?' style="background-color:#fde2e2;"':'';
+      return '<tr'+bg+'><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
+        +[a.r.grezzo,a.r.verniciato,a.r.imballato,a.r.ddt].map(function(v){return '<td style="text-align:right;'+(v<0?'color:#C00000;font-weight:bold;':'')+'">'+v+'</td>';}).join('')
+        +'<td style="text-align:right;font-weight:bold;">'+a.somma+'</td><td style="text-align:right;font-weight:bold;">'+a.nova+'</td>'
+        +'<td style="text-align:right;font-weight:bold;color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td></tr>';
+    }).join(''):'<tr><td colspan="9" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
+    tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Differenza: '+(tN-tS):'';
+    return;
+  }
+  var f=FASI_DEF[_fasi.fase];
+  th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Saldo al '+fmtDataGMA(d.data)+'</th><th>'+f.lPiu+'</th><th>'+f.lMeno+'</th><th>Residuo</th></tr>';
+  nota.innerHTML=f.formula+', con i movimenti dal '+fmtDataGMA(d.data)+' compreso. Negativi in rosso = anomalia (manca un movimento o il saldo).'
+    +(_fasi.fase==='verniciato'?' Gli imballi del magazzino da confermare non sono contati: sono indicati a parte.':'')+avvisoSenza;
+  var lista=d.lista.filter(function(a){
+    if(!filtroTesto(a))return false;
+    if(soloNZ&&a.r[_fasi.fase]===0&&a.s[f.s]===0&&a[f.piu]===0&&a[f.meno]===0)return false;
+    return true;
+  }).sort(function(a,b){
+    var na=a.r[_fasi.fase]<0?0:1,nb=b.r[_fasi.fase]<0?0:1;
+    return na-nb||b.r[_fasi.fase]-a.r[_fasi.fase]||a.cod.localeCompare(b.cod);
+  });
+  var tSal=0,tP=0,tM=0,tR=0,nNeg=0;
+  tb.innerHTML=lista.length?lista.map(function(a){
+    var r=a.r[_fasi.fase];
+    tSal+=a.s[f.s];tP+=a[f.piu];tM+=a[f.meno];tR+=r;if(r<0)nNeg++;
+    return '<tr'+(r<0?' style="background-color:#fde2e2;"':'')+'><td><strong>'+escAbb(a.cod)+'</strong></td>'
+      +'<td>'+escAbb(a.desc)+(r<0?' <span class="badge badge-err">⚠ anomalia</span>':'')
+        +(_fasi.fase==='verniciato'&&a.att?' <span class="badge badge-warn" title="Imballi del magazzino da confermare">'+a.att+' in attesa di conferma</span>':'')+'</td>'
+      +'<td style="text-align:right;">'+a.s[f.s]+'</td><td style="text-align:right;">'+a[f.piu]+'</td><td style="text-align:right;">'+a[f.meno]+'</td>'
+      +'<td style="text-align:right;font-weight:bold;'+(r<0?'color:#C00000;':'')+'">'+r+'</td></tr>';
+  }).join(''):'<tr><td colspan="6" style="text-align:center;padding:14px;color:#999;">Nessun articolo.</td></tr>';
+  tot.innerHTML=lista.length?f.nome+' — articoli: '+lista.length+' · Saldo: '+tSal+' · '+f.lPiu+': '+tP+' · '+f.lMeno+': '+tM+' · Residuo: '+tR
+    +(nNeg?' · <span style="color:#C00000;">'+nNeg+' negativi</span>':''):'';
+}
+
+// Aggiornamento automatico: ogni 60 s e quando la pagina torna visibile, solo con la scheda aperta
+function aggiornaFasiAuto(){
+  var p=document.getElementById('page-fasi');
+  if(!p||!p.classList.contains('active')||document.hidden)return;
+  if(document.getElementById('modal-saldo-fasi').style.display==='flex')return;
+  caricaFasi(true);
+}
+setInterval(aggiornaFasiAuto,60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)aggiornaFasiAuto();});
+
+// ── Modello per il conteggio fisico ──
+async function scaricaModelloSaldo(){
+  if(getCliente()!=='AZZURRA'){alert('Disponibile per ora solo per AZZURRA.');return;}
+  var nova=await getSaldoNovaAzzurra();
+  var vern=await apiGetTutto('verniciato','order=id.asc'),imb=await apiGetTutto('imballo','order=id.asc');
+  if(!nova||!vern||!imb){alert('Errore di connessione, riprova.');return;}
+  var cod={},desc={};
+  function up(s){return String(s||'').trim().toUpperCase();}
+  (artCache||[]).forEach(function(a){var k=up(a.codice_articolo);if(k&&a.descrizione&&!desc[k])desc[k]=a.descrizione;});
+  (abzCache||[]).forEach(function(r){var k=up(r.codice_a0)||up(r.codice_ia);if(k&&r.descrizione_ia&&!desc[k])desc[k]=r.descrizione_ia;});
+  Object.keys(nova.saldoX).forEach(function(k){if(nova.saldoX[k]>0&&!fuoriMag(k))cod[k]=true;});
+  vern.concat(imb).forEach(function(r){var k=up(r.codice_articolo);if(k&&!fuoriMag(k)){cod[k]=true;if(!desc[k])desc[k]=r.descrizione||r.articolo||'';}});
+  var righe=Object.keys(cod).sort().map(function(k){return {Codice:k,Descrizione:desc[k]||'',Verniciato:'',Imballato:''};});
+  var ws=XLSX.utils.json_to_sheet(righe,{header:['Codice','Descrizione','Verniciato','Imballato']});
+  ws['!cols']=[{wch:16},{wch:48},{wch:12},{wch:12}];
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Saldo');
+  XLSX.writeFile(wb,'modello_saldo_fasi_AZZURRA.xlsx');
+}
+
+// ── Import saldo iniziale ──
+var _saldoImp={base:null,file:null,righe:[]};
+async function apriImportSaldo(){
+  if(localStorage.getItem('ddt_admin')!=='1'){alert('Solo admin.');return;}
+  if(getCliente()!=='AZZURRA'){alert('Disponibile per ora solo per AZZURRA.');return;}
+  var base=await caricaBaseCarico();
+  if(!base){alert('Errore nel leggere DDT o inevasi Nova: riprova.');return;}
+  _saldoImp={base:base,file:null,righe:[]};
+  var x=base.nova&&base.nova.x;
+  var el=document.getElementById('saldo-data');
+  el.value=x?giornoDopoISO(x):'';
+  document.getElementById('saldo-file').value='';
+  document.getElementById('saldo-grezzo-nova').checked=true;
+  anteprimaSaldo();
+  document.getElementById('modal-saldo-fasi').style.display='flex';
+}
+
+function numSaldo(v){
+  if(v===null||v===undefined||v==='')return 0;
+  if(typeof v==='number')return v;
+  var s=String(v).replace(/\s/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s))s=s.replace(/\./g,'');
+  return parseFloat(s.replace(',','.'))||0;
+}
+
+async function leggiFileSaldo(input){
+  var file=input.files[0];if(!file)return;
+  try{
+    var aoa;
+    if(/\.csv$/i.test(file.name)){
+      var testo=(await file.text()).replace(/^﻿/,'');
+      var righeT=testo.split(/\r?\n/).filter(function(l){return l.trim();});
+      var sep=(righeT[0].split(';').length>=righeT[0].split(',').length)?';':',';
+      aoa=righeT.map(function(l){return l.split(sep).map(function(c){return c.replace(/^"|"$/g,'').trim();});});
+    } else {
+      var wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    }
+    var h=-1;
+    for(var i=0;i<Math.min(aoa.length,20);i++){if(aoa[i].some(function(c){return /^\s*cod/i.test(String(c));})){h=i;break;}}
+    if(h<0)throw new Error('Nessuna colonna "Codice" nelle prime righe del file.');
+    var intest=aoa[h].map(function(c){return String(c).trim();});
+    function col(re){for(var j=0;j<intest.length;j++)if(re.test(intest[j]))return j;return -1;}
+    var cC=col(/^cod/i),cD=col(/descr/i),cV=col(/vernic/i),cI=col(/imball/i),cG=col(/grezz/i);
+    if(cV<0||cI<0)throw new Error('Servono le colonne "Verniciato" e "Imballato".');
+    var mappaIA={};(abzCache||[]).forEach(function(r){var ia=String(r.codice_ia||'').trim().toUpperCase(),a0=String(r.codice_a0||'').trim().toUpperCase();if(ia&&a0)mappaIA[ia]=a0;});
+    var m={},ordine=[],doppi=0,convIA=0;
+    aoa.slice(h+1).forEach(function(r){
+      var c=String(r[cC]||'').trim().toUpperCase();if(!c)return;
+      if(mappaIA[c]){c=mappaIA[c];convIA++;}
+      if(m[c])doppi++;else{m[c]={cod:c,desc:'',v:0,i:0,g:null};ordine.push(c);}
+      if(cD>=0&&!m[c].desc)m[c].desc=String(r[cD]||'').trim();
+      m[c].v+=numSaldo(r[cV]);m[c].i+=numSaldo(r[cI]);
+      if(cG>=0&&String(r[cG]).trim()!=='')m[c].g=(m[c].g||0)+numSaldo(r[cG]);
+    });
+    _saldoImp.file={nome:file.name,righe:ordine.map(function(k){return m[k];}),doppi:doppi,convIA:convIA,haGrezzo:cG>=0};
+  }catch(e){alert('Errore nel file: '+e.message);_saldoImp.file=null;input.value='';}
+  anteprimaSaldo();
+}
+
+function anteprimaSaldo(){
+  var info=document.getElementById('saldo-info'),tb=document.getElementById('saldo-tbody'),tot=document.getElementById('saldo-tot');
+  var btn=document.getElementById('saldo-btn-salva');
+  var data=document.getElementById('saldo-data').value;
+  var useNova=document.getElementById('saldo-grezzo-nova').checked;
+  var f=_saldoImp.file,avvisi=[];
+  _saldoImp.righe=[];btn.disabled=true;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){info.textContent='Scegli la data del saldo.';tb.innerHTML='';tot.textContent='';return;}
+  var car=null;
+  if(useNova){
+    car=calcolaCaricoAperto(_saldoImp.base,giornoPrimaISO(data));
+    if(!car.disp)avvisi.push('<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(car.avviso)+' Grezzo non calcolabile: carica gli inevasi Nova con data fino al '+fmtDataGMA(giornoPrimaISO(data))+' o togli la spunta.</span>');
+    else avvisi.push('Carico aperto al '+fmtDataGMA(giornoPrimaISO(data))+' = inevasi Nova con uscite scalate fino al '+fmtDataGMA(_saldoImp.base.nova.x)+(_saldoImp.base.nova.x<giornoPrimaISO(data)?' + DDT dell\'app fino al '+fmtDataGMA(giornoPrimaISO(data)):'')+'.');
+  }
+  if(!f){info.innerHTML=avvisi.join('<br>')+(avvisi.length?'<br>':'')+'Scegli il file del conteggio.';tb.innerHTML='';tot.textContent='';return;}
+  avvisi.push('File '+escAbb(f.nome)+': '+f.righe.length+' codici'+(f.doppi?', '+f.doppi+' righe con codice ripetuto sommate':'')+(f.convIA?', '+f.convIA+' codici IA convertiti in A0':'')+'.');
+  if(useNova&&f.haGrezzo)avvisi.push('La colonna Grezzo del file è ignorata: il Grezzo è calcolato da Nova.');
+  var m={},ordine=[];
+  f.righe.forEach(function(r){m[r.cod]={cod:r.cod,desc:r.desc,v:r.v,i:r.i,gFile:r.g,nova:null,inFile:true};ordine.push(r.cod);});
+  if(useNova&&car&&car.disp)Object.keys(car.A).forEach(function(k){
+    if(fuoriMag(k))return;
+    if(!m[k]){if(!car.A[k])return;m[k]={cod:k,desc:'',v:0,i:0,gFile:null,inFile:false};ordine.push(k);}
+    m[k].nova=car.A[k];
+  });
+  var descA={};(artCache||[]).forEach(function(a){var k=String(a.codice_articolo||'').trim().toUpperCase();if(k&&a.descrizione&&!descA[k])descA[k]=a.descrizione;});
+  (abzCache||[]).forEach(function(r){var k=String(r.codice_a0||r.codice_ia||'').trim().toUpperCase();if(k&&r.descrizione_ia&&!descA[k])descA[k]=r.descrizione_ia;});
+  var righe=ordine.map(function(k){
+    var a=m[k];a.desc=a.desc||descA[k]||'';
+    if(useNova){a.nova=a.nova===null?0:a.nova;a.g=car&&car.disp?a.nova-a.v-a.i:null;}
+    else a.g=a.gFile===null?0:a.gFile;
+    a.avv=[];
+    if(a.g!==null&&a.g<0)a.avv.push('grezzo negativo');
+    if(useNova&&car&&car.disp&&!car.A.hasOwnProperty(k)&&(a.v||a.i))a.avv.push('non nel carico Nova');
+    return a;
+  }).sort(function(a,b){return (b.avv.length-a.avv.length)||a.cod.localeCompare(b.cod);});
+  _saldoImp.righe=righe;_saldoImp.data=data;_saldoImp.useNova=useNova;
+  info.innerHTML=avvisi.join('<br>');
+  tb.innerHTML=righe.map(function(a){
+    return '<tr'+(a.avv.length?' style="background-color:#fde2e2;"':'')+'><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
+      +'<td style="text-align:right;">'+(a.nova===null?'—':a.nova)+'</td><td style="text-align:right;">'+a.v+'</td><td style="text-align:right;">'+a.i+'</td>'
+      +'<td style="text-align:right;font-weight:bold;">'+(a.g===null?'—':a.g)+'</td><td>'+a.avv.map(function(x){return '<span class="badge badge-err">'+x+'</span>';}).join(' ')+'</td></tr>';
+  }).join('');
+  var sv=0,si=0,sg=0,nAvv=0;righe.forEach(function(a){sv+=a.v;si+=a.i;sg+=a.g||0;if(a.avv.length)nAvv++;});
+  tot.textContent=righe.length+' articoli · Verniciato '+sv+' · Imballato '+si+' · Grezzo '+sg+(nAvv?' · '+nAvv+' righe da controllare (in cima, in rosso)':'');
+  btn.disabled=!righe.length||(useNova&&!(car&&car.disp));
+}
+
+async function salvaSaldoFasi(){
+  var righe=_saldoImp.righe,data=_saldoImp.data;
+  if(!righe.length||!data)return;
+  var c=getConfig(),cl='AZZURRA',op=getOperatore()||null,adesso=new Date().toISOString();
+  var prima=await leggiSaldoFasi(cl);
+  if(prima.errore){alert(prima.errore);return;}
+  var esistenti=(await apiGetTutto('saldo_fasi','cliente=eq.'+cl+'&data_saldo=eq.'+data+'&order=id.asc'))||[];
+  var nota=_saldoImp.useNova?'Grezzo = carico Nova al '+fmtDataGMA(giornoPrimaISO(data))+' − verniciato − imballato':'';
+  var ins=[];
+  righe.forEach(function(a){
+    [['verniciato',a.v,'conteggio'],['imballato',a.i,'conteggio'],['grezzo',a.g||0,_saldoImp.useNova?'calcolato_nova':'file']].forEach(function(x){
+      if(!x[1])return;
+      ins.push({cliente:cl,data_saldo:data,codice_articolo:a.cod,descrizione:a.desc||null,fase:x[0],quantita:x[1],origine:x[2],note:x[0]==='grezzo'?(nota||null):null,inserito_da:op,created_at:adesso});
+    });
+  });
+  if(!ins.length){alert('Tutte le quantità sono 0: niente da salvare.');return;}
+  var nAvv=righe.filter(function(a){return a.avv.length;}).length;
+  if(!confirm('Salvare il saldo iniziale AZZURRA al '+fmtDataGMA(data)+'?\n\n'+righe.length+' articoli, '+ins.length+' righe'+(nAvv?'\n⚠ '+nAvv+' righe da controllare (grezzo negativo o codice non nel carico Nova)':'')
+    +(esistenti.length?'\n\nATTENZIONE: esiste già un saldo al '+fmtDataGMA(data)+' ('+esistenti.length+' righe): verrà SOSTITUITO.':'')
+    +(prima.data&&prima.data>data?'\n\nNota: esiste un saldo più recente (al '+fmtDataGMA(prima.data)+'): la scheda continuerà a usare quello.':'')))return;
+  var hdr={'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key};
+  try{
+    if(esistenti.length){
+      var rd=await fetch(c.url+'/rest/v1/saldo_fasi?cliente=eq.'+cl+'&data_saldo=eq.'+data,{method:'DELETE',headers:hdr});
+      if(!rd.ok)throw new Error(await rd.text());
+    }
+    for(var i=0;i<ins.length;i+=500){
+      var r=await fetch(c.url+'/rest/v1/saldo_fasi',{method:'POST',headers:Object.assign({'Prefer':'return=minimal'},hdr),body:JSON.stringify(ins.slice(i,i+500))});
+      if(!r.ok)throw new Error(await r.text());
+    }
+  }catch(e){
+    console.error(e);
+    // Tutto o niente: tolgo quanto inserito e rimetto il saldo di prima
+    try{
+      await fetch(c.url+'/rest/v1/saldo_fasi?cliente=eq.'+cl+'&data_saldo=eq.'+data,{method:'DELETE',headers:hdr});
+      if(esistenti.length)await fetch(c.url+'/rest/v1/saldo_fasi',{method:'POST',headers:hdr,body:JSON.stringify(esistenti.map(function(x){var y=Object.assign({},x);delete y.id;return y;}))});
+    }catch(e2){console.error(e2);}
+    alert('Saldo NON salvato: '+e.message);return;
+  }
+  document.getElementById('modal-saldo-fasi').style.display='none';
+  showMsg('msg-fasi','✅ Saldo iniziale al '+fmtDataGMA(data)+' salvato: '+righe.length+' articoli.','ok');
+  caricaFasi();
+}
+
 // ── DETTAGLIO ARTICOLO ─────────────────────────────────────────────────
 function resetDettaglioArt(){
   var c=document.getElementById('det-cerca');if(c)c.value='';
@@ -12802,8 +13228,8 @@ function moduloImballoPagina(D){
 
 // ── MULTI CLIENTE ─────────────────────────────────────────────────────
 var CLIENTE_TABS={
-  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','cfg'],
-  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','cfg'],
+  AZZURRA:['wa','imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','fasi','dettaglio','riepilogo-wa','controllo-date','confronto','abbinamenti-azzurra','sost-ber','cfg'],
+  BERGAMASCO:['imballo','verniciato','ddt-entrata','ddt-uscita','magazzino','fasi','dettaglio','sost-ber','riepilogo-ber','controllo-date','confronto','abbinamenti-ber','cfg'],
   ALTRI:['extra'] // piccoli clienti (anche Foppa Pedretti): solo la scheda EXTRA
 };
 
@@ -12845,6 +13271,7 @@ function cambiaCliente(){
     if(name==='ddt-entrata')caricaDDTE();
     if(name==='ddt-uscita')caricaDDTU();
     if(name==='magazzino')caricaMagazzino();
+    if(name==='fasi'){_fasi.dati=null;renderFasi();caricaFasi();}
     if(name==='dettaglio')resetDettaglioArt();
     if(name==='sost-ber')caricaSostituzioni();
     if(name==='riepilogo-wa')caricaRiepilogoWA();
