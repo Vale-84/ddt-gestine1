@@ -601,6 +601,10 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="color:#5B2C8D;margin:0;">Confronto Produzione</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <label class="no-print solo-azzurra" style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px;white-space:nowrap;" title="AZZURRA: conta solo le righe e i DDT Uscita da questo giorno compreso. Di default il giorno dopo il mese chiuso">Dal giorno
+              <input type="date" id="imb2-verifica-dal" style="width:auto;margin:0;padding:6px;" onchange="impostaDalGiorno(this.value,true);verificaVerniciatoImballo()">
+              <button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" title="Torna al periodo aperto (giorno dopo il mese chiuso)" onclick="impostaDalGiorno(null,true);verificaVerniciatoImballo()">↺</button>
+            </label>
             <label class="no-print" style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px;white-space:nowrap;" title="Conta solo le righe e i DDT Uscita fino a questo giorno compreso (vuoto = tutto)">Fino al giorno
               <input type="date" id="imb2-verifica-fino" style="width:auto;margin:0;padding:6px;" onchange="impostaFinoGiorno(this.value);verificaVerniciatoImballo()">
               <button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" title="Togli il filtro" onclick="impostaFinoGiorno('');verificaVerniciatoImballo()">✕</button>
@@ -842,6 +846,10 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 <div id="page-riepilogo-wa" class="page">
   <div class="card">
     <h2>Entrate e Uscite WA</h2>
+    <label class="solo-azzurra" style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px;" title="AZZURRA: conta solo le righe da questo giorno compreso. Di default il giorno dopo il mese chiuso">Dal giorno
+      <input type="date" id="rwa-dal" style="width:auto;margin:0;padding:6px;" onchange="impostaDalGiorno(this.value,true);caricaRiepilogoWA()">
+      <button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" title="Torna al periodo aperto (giorno dopo il mese chiuso)" onclick="impostaDalGiorno(null,true);caricaRiepilogoWA()">↺</button>
+    </label>
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;" title="Conta solo le righe fino a questo giorno compreso (vuoto = tutto)">Fino al giorno
       <input type="date" id="rwa-fino" style="width:auto;margin:0;padding:6px;" onchange="impostaFinoGiorno(this.value);caricaRiepilogoWA()">
       <button type="button" class="btn btn-gray btn-sm" style="width:auto;padding:6px 10px;" title="Togli il filtro" onclick="impostaFinoGiorno('');caricaRiepilogoWA()">✕</button>
@@ -1985,6 +1993,7 @@ async function getChiusoFino(forza){
     var d=await r.json(),v=d.length?String(d[0].valore||'').slice(0,10):'';
     _chiusoCache={v:/^\d{4}-\d{2}-\d{2}$/.test(v)?v:'',t:Date.now()};
   }catch(e){console.error(e);} // errore di lettura: resta l'ultimo valore noto
+  if(!_dalManuale)impostaDalGiorno(null);
   aggiornaBadgeChiuso();
   return _chiusoCache.v;
 }
@@ -1992,14 +2001,17 @@ async function setChiusoFino(v){
   var ok=await apiUpsert('impostazioni_azzurra',[{chiave:CHIAVE_CHIUSO_FINO,valore:v||''}],'chiave');
   if(ok===null)return false;
   _chiusoCache={v:v||'',t:Date.now()};
+  if(!_dalManuale)impostaDalGiorno(null);
   aggiornaBadgeChiuso();
   return true;
 }
 function aggiornaBadgeChiuso(){
   var el=document.getElementById('badge-chiuso');if(!el)return;
   var v=getCliente()==='AZZURRA'?_chiusoCache.v:'';
-  el.style.display=v?'':'none';
-  el.textContent=v?'🔒 Mese chiuso fino al '+fmtDataGMA(v):'';
+  var dal=getCliente()==='AZZURRA'?_periodoDal:'';
+  el.style.display=(v||dal)?'':'none';
+  el.textContent=(v?'🔒 Mese chiuso fino al '+fmtDataGMA(v):'')+(v&&dal?' · ':'')+(dal?'righe dal '+fmtDataGMA(dal):'');
+  document.querySelectorAll('.solo-azzurra').forEach(function(x){x.style.display=getCliente()==='AZZURRA'?'':'none';});
   var inp=document.getElementById('cfg-chiuso-fino');if(inp&&document.activeElement!==inp)inp.value=_chiusoCache.v;
 }
 async function salvaChiusoFinoCfg(togli){
@@ -2010,6 +2022,25 @@ async function salvaChiusoFinoCfg(togli){
   if(!confirm(togli?'Togliere il blocco del mese chiuso'+(prima?' (ora fino al '+fmtDataGMA(prima)+')':'')+'?':'Bloccare le righe AZZURRA con data fino al '+fmtDataGMA(v)+' compreso?'+(prima&&v<prima?'\n\nATTENZIONE: riapri il periodo dal '+fmtDataGMA(giornoDopoISO(v))+' al '+fmtDataGMA(prima)+'.':'')))return;
   var ok=await setChiusoFino(v);
   showMsg('msg-cfg',ok===false?'Errore nel salvataggio.':(v?'🔒 Mese chiuso fino al '+fmtDataGMA(v):'Blocco tolto.'),ok===false?'err':'ok');
+}
+// ── PERIODO "DAL GIORNO" (solo AZZURRA, al posto dello svuotamento mensile) ──
+// Le tabelle di lavoro AZZURRA non si svuotano piu': liste e controlli mensili contano le
+// righe da _periodoDal compreso. Di default = giorno dopo il mese chiuso (periodo aperto);
+// si puo' cambiare dai campi "Dal giorno" (Confronto Produzione, Riepilogo WA).
+// Vuoto (nessun mese chiuso) = tutte le righe, come prima.
+var _periodoDal='',_dalManuale=false;
+function dalAttivo(){return getCliente()==='AZZURRA'?_periodoDal:'';}
+function paramDal(){var d=dalAttivo();return d?'&data_inserimento=gte.'+d:'';}
+// Parametri di apiGet con il filtro del periodo (p vuoto = ordine e limite predefiniti di apiGet)
+function pDal(p){return (p||'order=created_at.desc.nullslast,id.desc&limit=5000')+paramDal();}
+function rigaDal(r){var d=dalAttivo();return !d||dataRigaLav(r)>=d;}
+// v=null: torna al default (giorno dopo il mese chiuso)
+function impostaDalGiorno(v,manuale){
+  if(v===null){_dalManuale=false;v=_chiusoCache.v?giornoDopoISO(_chiusoCache.v):'';}
+  else if(manuale)_dalManuale=true;
+  _periodoDal=v||'';
+  ['imb2-verifica-dal','rwa-dal'].forEach(function(id){var el=document.getElementById(id);if(el)el.value=_periodoDal;});
+  aggiornaBadgeChiuso();
 }
 // true = si puo' procedere. date = date delle righe toccate (vecchie e nuove).
 async function permessoDateChiuse(t,date,azione){
@@ -2446,7 +2477,7 @@ async function aggiungiWAEntrata(){
 }
 
 async function caricaEntrate(){
-  var d=await apiGet('whatsapp_righe');if(!d)return;
+  var d=await apiGet('whatsapp_righe',pDal());if(!d)return;
   if(document.getElementById('st-e'))document.getElementById('st-e').textContent=d.length;
   var l=document.getElementById('e-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
@@ -2985,7 +3016,7 @@ async function aggiungiWAUscita(){
 }
 
 async function caricaUscite(){
-  var d=await apiGet('whatsapp_uscita');if(!d)return;
+  var d=await apiGet('whatsapp_uscita',pDal());if(!d)return;
   if(document.getElementById('st-u'))document.getElementById('st-u').textContent=d.length;
   var l=document.getElementById('u-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
@@ -3124,10 +3155,10 @@ function fmtDiffSegno(n){return (n>0?'+':(n<0?'−':''))+Math.abs(n);}
 function fmtDataGMA(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:String(iso||'');}
 
 async function verificaVerniciatoImballo(){
-  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
-  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET+paramDal());
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET+paramDal());
   var isAz=getCliente()==='AZZURRA';
-  var wau=isAz?await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET):null;
+  var wau=isAz?await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET+paramDal()):null;
   var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   var ddte=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
   if(isAz&&!abzCache.length){var dAbz=await apiGetTutto('abbinamenti_azzurra','order=codice_ia.asc,id.asc');if(dAbz)abzCache=dAbz;}
@@ -3168,6 +3199,8 @@ async function verificaVerniciatoImballo(){
   [isAz?wau:[],imb,vern].forEach(function(arr){
     arr.forEach(function(r){var d=dataLista(r);if(d&&(!inizio||d<inizio))inizio=d;});
   });
+  // AZZURRA senza svuotamento: l'inizio e' il giorno scelto in "Dal giorno"
+  if(dalAttivo())inizio=dalAttivo();
 
   // DDT Entrata/Uscita raggruppati sul codice A0 (AZZURRA: codici IA risolti via
   // abbinamenti_azzurra) o B0 (BERGAMASCO). mapDDT = Uscita dal periodo; mapDDTUTot e
@@ -3416,8 +3449,8 @@ async function aggiungiBypassAImballo(cod, desc){
   if(_bypassInCorso)return;
   _bypassInCorso=true;
   try{
-    var wau=await apiGet('whatsapp_uscita');
-    var imb=await apiGet('imballo');
+    var wau=await apiGet('whatsapp_uscita',pDal());
+    var imb=await apiGet('imballo',pDal());
     if(!wau||!imb){alert('Errore caricamento WA Uscita o Imballo.');return;}
     var key=String(cod).trim().toLowerCase();
     var fino=_finoGiorno;
@@ -3592,7 +3625,7 @@ async function salvaVerniciato(){
 
 async function caricaVerniciato(){
   if(!document.getElementById('vern-lista'))return;
-  var d=await apiGet('verniciato');if(!d)return;
+  var d=await apiGet('verniciato',pDal());if(!d)return;
   var l=document.getElementById('vern-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
   var map={};
@@ -3705,7 +3738,7 @@ async function salvaVerniciatoP(){
 }
 
 async function caricaVerniciatoP(){
-  var d=await apiGet('verniciato');if(!d)return;
+  var d=await apiGet('verniciato',pDal());if(!d)return;
   var l=document.getElementById('vernp-lista');if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
   d.sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
@@ -3783,7 +3816,7 @@ async function salvaVerniciato2(){
 }
 
 async function caricaVerniciato2(){
-  var d=await apiGet('verniciato');if(!d)return;
+  var d=await apiGet('verniciato',pDal());if(!d)return;
   var l=document.getElementById('imb2-vern-lista');if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo</div>';return;}
   d.sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
@@ -4449,8 +4482,8 @@ async function verificaDisponibilitaSost(){
   // quello che resta è pronto ma non ancora spedito. Se per un codice non c'è verniciato
   // registrato, si usa l'Entrata-Uscita (ddt_entrata/ddt_uscita) come stima al suo posto,
   // dato che verniciato dovrebbe normalmente coincidere con l'entrata.
-  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
-  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET+paramDal());
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET+paramDal());
   var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
   var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
   var scartiDB=await apiGet('scarti_ber');
@@ -4520,8 +4553,8 @@ async function verificaDisponibilitaSost(){
 async function caricaRiepilogoWA(){await caricaRwa();}
 async function caricaRwa(){
   // Tutte le righe (a pagine), poi filtro "Fino al giorno" se impostato.
-  var we=await apiGetTutto('whatsapp_righe');
-  var wu=await apiGetTutto('whatsapp_uscita');
+  var we=await apiGetTutto('whatsapp_righe','order=id.asc'+paramDal());
+  var wu=await apiGetTutto('whatsapp_uscita','order=id.asc'+paramDal());
   var lE=document.getElementById('rwa-entrate');
   var lU=document.getElementById('rwa-uscite');
   if(!we||!wu){if(lE)lE.innerHTML='<div class="empty">Errore connessione</div>';return;}
@@ -8399,7 +8432,7 @@ async function svuotaImballo(){
 }
 
 async function caricaImballo(){
-  var d=await apiGet('imballo','order=data_inserimento.desc.nullslast,created_at.desc.nullslast,id.desc&limit=5000');if(!d)return;
+  var d=await apiGet('imballo',pDal('order=data_inserimento.desc.nullslast,created_at.desc.nullslast,id.desc&limit=5000'));if(!d)return;
   if(document.getElementById('st-imb'))document.getElementById('st-imb').textContent=d.length;
   var l=document.getElementById('imb-lista');
   var l2=document.getElementById('imb2-lista');
@@ -9380,8 +9413,8 @@ async function selDettaglioArt(cod,desc){
   var codUp=cod.toUpperCase();
   var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
   var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
-  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
-  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
+  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET+paramDal());
+  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET+paramDal());
   var abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
   // se il codice e' un finito (B0), trova il grezzo (BER) abbinato; se e' un grezzo (BER), trova TUTTI i finiti (B0) abbinati
   var altCodes=[];
@@ -10040,7 +10073,7 @@ async function azzeraTutto(){
 
 // ── ESPORTA IMBALLO EXCEL ─────────────────────────────────────────────
 async function esportaImballoExcel(){
-  var wa=await apiGet('imballo');
+  var wa=await apiGet('imballo',pDal());
   if(!wa||!wa.length){alert('Nessuna riga Imballo da esportare!');return;}
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
@@ -10112,7 +10145,7 @@ function unisciVerniciatoPerData(){
 
 async function apriUnisciPerData(tab){
   var cfg=UIPD_CFG[tab];
-  var imb=await apiGet(cfg.tab);
+  var imb=await apiGet(cfg.tab,pDal());
   if(!imb||!imb.length){alert(cfg.vuoto);return;}
   _uipdCfg=cfg;
   var titEl=document.getElementById('uipd-titolo');if(titEl)titEl.textContent=cfg.titolo;
@@ -10218,7 +10251,7 @@ function generaCsvUnisciImballo(){
 
 // ── ESPORTA VERNICIATO EXCEL ──────────────────────────────────────────
 async function esportaVerniciatoExcel(){
-  var d=await apiGet('verniciato');
+  var d=await apiGet('verniciato',pDal());
   if(!d||!d.length){alert('Nessun verniciato da esportare!');return;}
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
@@ -10322,7 +10355,7 @@ async function unisciDuplicatiUscita(){
 
 async function unisciDuplicatiImballo(){
   if(!confirm('Unire gli imballi duplicati della stessa data?'))return;
-  var d=await apiGet('imballo','order=created_at.asc&limit=500');
+  var d=await apiGet('imballo',pDal('order=created_at.asc&limit=5000'));
   if(!d||!d.length)return;
   var map={};
   d.forEach(function(r){
@@ -10369,7 +10402,7 @@ async function unisciDuplicatiImballo(){
 
 async function unisciDuplicatiVerniciato(){
   if(!confirm('Unire i verniciati duplicati della stessa data?'))return;
-  var d=await apiGet('verniciato','order=created_at.asc&limit=500');
+  var d=await apiGet('verniciato',pDal('order=created_at.asc&limit=5000'));
   if(!d||!d.length)return;
   var map={};
   d.forEach(function(r){

@@ -159,10 +159,10 @@ function msg(id,txt,tipo){var el=document.getElementById(id);el.innerHTML=txt?'<
 function hdr(extra){var h={apikey:CFG.key,Authorization:'Bearer '+CFG.key};for(var k in extra)h[k]=extra[k];return h;}
 // Tutte le righe del cliente, a blocchi da 1000 (come apiGetTutto dell'app): si va avanti
 // finche' arriva un blocco vuoto, cosi' funziona anche se il server ne manda meno per volta.
-async function leggi(tabella,select){
+async function leggi(tabella,select,filtro){
   var tutte=[];
   while(true){
-    var r=await fetch(CFG.url+'/rest/v1/'+tabella+'?select='+select+'&cliente=eq.'+encodeURIComponent(cliente)+'&order=id.asc&limit=1000&offset='+tutte.length,{headers:hdr({}),cache:'no-store'});
+    var r=await fetch(CFG.url+'/rest/v1/'+tabella+'?select='+select+'&cliente=eq.'+encodeURIComponent(cliente)+(filtro||'')+'&order=id.asc&limit=1000&offset='+tutte.length,{headers:hdr({}),cache:'no-store'});
     if(!r.ok)throw new Error(tabella+': '+r.status+' '+(await r.text()));
     var b=await r.json();
     if(!b.length)return tutte;
@@ -200,9 +200,14 @@ var _caricaN=0,_ultimoOk=null;
 async function carica(silenzioso){
   var n=++_caricaN,cl=cliente;
   try{
+    // AZZURRA con saldo iniziale (Fasi magazzino): resta = saldo "verniciato da imballare"
+    // + Verniciato (scarti e riparati compresi) − Imballo, dalla data del saldo, riporti esclusi.
+    // Senza saldo: tutte le righe di lavoro, come prima.
+    var sal=cl==='AZZURRA'?await leggiSaldoVerniciato():null;
+    var filtro=sal?'&data_inserimento=gte.'+sal.data:'';
     var res=await Promise.all([
-      leggi('verniciato','id,codice_articolo,descrizione,quantita'),
-      leggi('imballo','id,codice_articolo,articolo,totale'),
+      leggi('verniciato','id,codice_articolo,descrizione,quantita,note',filtro),
+      leggi('imballo','id,codice_articolo,articolo,totale,note',filtro),
       leggi(TAB,'id,codice_articolo,descrizione,data_inserimento,testo_seq,quantita,inserito_da,note,created_at')
     ]);
     if(n!==_caricaN||cl!==cliente)return; // nel frattempo e' cambiato il cliente
@@ -214,6 +219,10 @@ async function carica(silenzioso){
       if(!m[k].desc&&desc)m[k].desc=desc;
       return m[k];
     }
+    function riporto(r){return sal&&/^RIPORTO DA /i.test(r.note||'');}
+    if(sal)sal.righe.forEach(function(r){var v=voce(r.codice_articolo,r.descrizione);if(v)v.vern+=Number(r.quantita)||0;});
+    res[0]=res[0].filter(function(r){return !riporto(r);});
+    res[1]=res[1].filter(function(r){return !riporto(r);});
     res[0].forEach(function(r){var v=voce(r.codice_articolo,r.descrizione);if(v)v.vern+=Number(r.quantita)||0;});
     // Imballo e righe in attesa contano solo sugli articoli che sono nel Verniciato
     res[1].forEach(function(r){var v=m[chiave(r.codice_articolo,r.articolo)];if(v)v.imb+=Number(r.totale)||0;});
@@ -315,6 +324,20 @@ async function aggiungi(){
   chiudiForm();
   msg('msg','✅ Aggiunto: '+esc(desc)+' — '+num(tot)+' pz','ok');
   carica();
+}
+
+// Saldo iniziale piu' recente AZZURRA, fase "verniciato" (da imballare): {data, righe} o null.
+// Tabella mancante o nessun saldo: null (si usa il calcolo di prima).
+async function leggiSaldoVerniciato(){
+  try{
+    var r=await fetch(CFG.url+'/rest/v1/saldo_fasi?select=data_saldo&cliente=eq.AZZURRA&order=data_saldo.desc&limit=1',{headers:hdr({}),cache:'no-store'});
+    if(!r.ok)return null;
+    var d=await r.json();if(!d.length)return null;
+    var data=String(d[0].data_saldo).slice(0,10);
+    var r2=await fetch(CFG.url+'/rest/v1/saldo_fasi?select=codice_articolo,descrizione,quantita&cliente=eq.AZZURRA&fase=eq.verniciato&data_saldo=eq.'+data+'&limit=5000',{headers:hdr({}),cache:'no-store'});
+    if(!r2.ok)return null;
+    return {data:data,righe:await r2.json()};
+  }catch(e){return null;}
 }
 
 // Ultimo giorno chiuso per AZZURRA ('' = nessun blocco; errore di lettura = nessun blocco,
