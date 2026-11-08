@@ -9330,11 +9330,22 @@ function renderFasi(){
   function filtroTesto(a){return !q||(a.cod+' '+a.desc).toUpperCase().indexOf(q)>=0;}
   var avvisoSenza=d.senzaCodice?' <span style="color:#C55A11;">⚠ '+d.senzaCodice+' righe di movimento senza codice articolo non contate.</span>':'';
   if(_fasi.fase==='nova'){
-    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Scarti</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Differenza</th></tr>';
+    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Scarti</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Nova − App</th><th>Cosa fare</th></tr>';
     if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';return;}
-    nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Differenza = Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
+    nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Nova − App = carico Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
     var l=d.lista.filter(function(a){return filtroTesto(a)&&(!soloNZ||a.diffNova!==0);})
       .sort(function(a,b){return Math.abs(b.diffNova)-Math.abs(a.diffNova)||a.cod.localeCompare(b.cod);});
+    // Coppie di colore: stessa base (codice senza le ultime 2 lettere del colore) e differenze opposte
+    var perBase={};
+    d.lista.forEach(function(a){if(a.diffNova&&a.cod.length>4){var b=a.cod.slice(0,-2);(perBase[b]=perBase[b]||[]).push(a);}});
+    function cosaFare(a){
+      if(!a.diffNova)return '';
+      if(a.r.grezzo<0&&a.nova===0)return '<span style="color:#C00000;font-weight:bold;">Manca DDT Entrata ('+Math.abs(a.r.grezzo)+' pz)</span>';
+      var gemello=(perBase[a.cod.slice(0,-2)]||[]).filter(function(x){return x.cod!==a.cod&&x.diffNova===-a.diffNova;})[0];
+      if(gemello)return '<span style="color:#C55A11;font-weight:bold;">Probabile colore scambiato con '+escAbb(gemello.cod)+': controlla DDT Entrata</span>';
+      return a.diffNova<0?'Nell\'app più pezzi di Nova: manca un DDT Uscita in app o un carico in Nova'
+        :'In Nova più pezzi: manca un DDT Entrata in app o un movimento';
+    }
     var tS=0,tN=0;
     tb.innerHTML=l.length?l.map(function(a){
       tS+=a.somma;tN+=a.nova;
@@ -9342,10 +9353,11 @@ function renderFasi(){
       return '<tr style="cursor:pointer;'+bg+'" onclick="toggleDettFasi(\''+escAbb(a.cod).replace(/'/g,"\\'")+'\')"><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
         +ORDINE_FASI.map(function(f){return a.r[f];}).map(function(v){return '<td style="text-align:right;'+(v<0?'color:#C00000;font-weight:bold;':'')+'">'+v+'</td>';}).join('')
         +'<td style="text-align:right;font-weight:bold;">'+a.somma+'</td><td style="text-align:right;font-weight:bold;">'+a.nova+'</td>'
-        +'<td style="text-align:right;font-weight:bold;color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td></tr>'
-        +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,10):'');
-    }).join(''):'<tr><td colspan="10" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
-    tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Differenza: '+(tN-tS):'';
+        +'<td style="text-align:right;font-weight:bold;color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td>'
+        +'<td style="white-space:normal;min-width:220px;font-size:12px;">'+cosaFare(a)+'</td></tr>'
+        +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,11):'');
+    }).join(''):'<tr><td colspan="11" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
+    tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Nova − App: '+(tN-tS):'';
     return;
   }
   var f=FASI_DEF[_fasi.fase]||FASI_DEF.grezzo,fk=FASI_DEF[_fasi.fase]?_fasi.fase:'grezzo';
