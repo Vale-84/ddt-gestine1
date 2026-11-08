@@ -353,6 +353,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       <h1>DDT Gestione</h1>
       <p id="conn-status">Configura Supabase nelle Impostazioni</p>
     </div>
+    <span id="badge-chiuso" style="display:none;background:#FFF2CC;color:#7B4A00;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:bold;margin-left:auto;margin-right:8px;" title="Righe con data fino a questo giorno: non modificabili (admin con conferma)"></span>
     <div id="cliente-selector" style="display:none">
       <select id="cliente-sel" onchange="cambiaCliente()" style="background:#2a5f8f;color:white;border:1px solid #aac4e0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:bold;cursor:pointer;">
         <option value="AZZURRA">AZZURRA</option>
@@ -1570,7 +1571,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <input type="date" id="cfg-data-chiusura" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:10px;">
     <button class="btn btn-blue" onclick="salvaCfgDataChiusura()">SALVA DATA</button>
   </div>
-  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Archivia e toglie le righe di WA, Imballo e Verniciato fino al giorno che scegli; quelle successive restano. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button><button class="btn btn-orange" id="btn-correggi-riporti" style="display:none;margin-top:8px;" onclick="apriCorreggiRiporti()" title="Solo admin: limita i riporti Verniciato già creati al carico aperto del giorno di chiusura">CORREGGI RIPORTI A CARICO APERTO</button></div>
+  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Archivia e toglie le righe di WA, Imballo e Verniciato fino al giorno che scegli; quelle successive restano. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button><div id="cfg-chiuso-box" style="display:none;margin-top:10px;padding:10px;border:1px dashed #C55A11;border-radius:8px;"><label style="margin:0 0 4px;">AZZURRA · mese chiuso fino al giorno (compreso)</label><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="date" id="cfg-chiuso-fino" style="width:auto;margin:0;"><button class="btn btn-orange btn-sm" style="width:auto;" onclick="salvaChiusoFinoCfg()">SALVA</button><button class="btn btn-gray btn-sm" style="width:auto;" onclick="salvaChiusoFinoCfg(true)">TOGLI BLOCCO</button></div><p style="font-size:12px;color:#666;margin:6px 0 0;">Righe di WA, Imballo e Verniciato con data fino a questo giorno: bloccate per tutti, l'admin le può cambiare con conferma.</p></div><button class="btn btn-orange" id="btn-correggi-riporti" style="display:none;margin-top:8px;" onclick="apriCorreggiRiporti()" title="Solo admin: limita i riporti Verniciato già creati al carico aperto del giorno di chiusura">CORREGGI RIPORTI A CARICO APERTO</button></div>
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
@@ -1965,8 +1966,77 @@ async function apiGetTutto(t,p){
   return tutte;
 }
 
+// ── MESE CHIUSO (solo AZZURRA) ─────────────────────────────────────────
+// impostazioni_azzurra 'chiuso_fino_AZZURRA' = ultimo giorno chiuso (YYYY-MM-DD). Righe di
+// WA Entrata/Uscita, Imballo e Verniciato con data fino a quel giorno: chi non e' admin non
+// puo' inserirle, modificarle o cancellarle; l'admin puo' farlo dopo una conferma (che vale
+// 2 minuti, cosi' un'operazione su piu' righe chiede una volta sola).
+var TABELLE_CHIUSURA=['whatsapp_righe','whatsapp_uscita','imballo','verniciato'];
+var CHIAVE_CHIUSO_FINO='chiuso_fino_AZZURRA';
+var _chiusoCache={v:'',t:0},_sbloccoAdminFino=0;
+async function getChiusoFino(forza){
+  if(!forza&&Date.now()-_chiusoCache.t<30000)return _chiusoCache.v;
+  var c=getConfig();
+  try{
+    var r=await fetch(c.url+'/rest/v1/impostazioni_azzurra?select=valore&chiave=eq.'+encodeURIComponent(CHIAVE_CHIUSO_FINO)+'&limit=1',{headers:{'apikey':c.key,'Authorization':'Bearer '+c.key},cache:'no-store'});
+    if(!r.ok)throw new Error(await r.text());
+    var d=await r.json(),v=d.length?String(d[0].valore||'').slice(0,10):'';
+    _chiusoCache={v:/^\d{4}-\d{2}-\d{2}$/.test(v)?v:'',t:Date.now()};
+  }catch(e){console.error(e);} // errore di lettura: resta l'ultimo valore noto
+  aggiornaBadgeChiuso();
+  return _chiusoCache.v;
+}
+async function setChiusoFino(v){
+  var ok=await apiUpsert('impostazioni_azzurra',[{chiave:CHIAVE_CHIUSO_FINO,valore:v||''}],'chiave');
+  if(ok===null)return false;
+  _chiusoCache={v:v||'',t:Date.now()};
+  aggiornaBadgeChiuso();
+  return true;
+}
+function aggiornaBadgeChiuso(){
+  var el=document.getElementById('badge-chiuso');if(!el)return;
+  var v=getCliente()==='AZZURRA'?_chiusoCache.v:'';
+  el.style.display=v?'':'none';
+  el.textContent=v?'🔒 Mese chiuso fino al '+fmtDataGMA(v):'';
+  var inp=document.getElementById('cfg-chiuso-fino');if(inp&&document.activeElement!==inp)inp.value=_chiusoCache.v;
+}
+async function salvaChiusoFinoCfg(togli){
+  if(localStorage.getItem('ddt_admin')!=='1'||getCliente()!=='AZZURRA')return;
+  var v=togli?'':document.getElementById('cfg-chiuso-fino').value;
+  if(!togli&&!/^\d{4}-\d{2}-\d{2}$/.test(v)){alert('Scegli il giorno.');return;}
+  var prima=await getChiusoFino(true);
+  if(!confirm(togli?'Togliere il blocco del mese chiuso'+(prima?' (ora fino al '+fmtDataGMA(prima)+')':'')+'?':'Bloccare le righe AZZURRA con data fino al '+fmtDataGMA(v)+' compreso?'+(prima&&v<prima?'\n\nATTENZIONE: riapri il periodo dal '+fmtDataGMA(giornoDopoISO(v))+' al '+fmtDataGMA(prima)+'.':'')))return;
+  var ok=await setChiusoFino(v);
+  showMsg('msg-cfg',ok===false?'Errore nel salvataggio.':(v?'🔒 Mese chiuso fino al '+fmtDataGMA(v):'Blocco tolto.'),ok===false?'err':'ok');
+}
+// true = si puo' procedere. date = date delle righe toccate (vecchie e nuove).
+async function permessoDateChiuse(t,date,azione){
+  if(getCliente()!=='AZZURRA'||TABELLE_CHIUSURA.indexOf(t)<0)return true;
+  var fino=await getChiusoFino();
+  if(!fino)return true;
+  var chiuse=date.filter(function(d){return d&&String(d).slice(0,10)<=fino;});
+  if(!chiuse.length)return true;
+  var isAdmin=localStorage.getItem('ddt_admin')==='1';
+  var msg='Mese chiuso fino al '+fmtDataGMA(fino)+': '+(chiuse.length===1?'la riga ha':chiuse.length+' righe hanno')+' data '+fmtDataGMA(chiuse.slice().sort()[0])+(chiuse.length>1?' o successiva entro la chiusura':'')+'.';
+  if(!isAdmin){alert(msg+'\n\nNon si può '+azione+'. Chiedi all\'amministratore.');return false;}
+  if(Date.now()<_sbloccoAdminFino)return true;
+  if(!confirm(msg+'\n\nSei admin: vuoi '+azione+' comunque?'))return false;
+  _sbloccoAdminFino=Date.now()+120000;
+  return true;
+}
+// Date delle righe che un filtro PostgREST (id=eq.5, data_inserimento=eq...) andrebbe a toccare
+async function dateRigheFiltro(t,f){
+  if(getCliente()!=='AZZURRA'||TABELLE_CHIUSURA.indexOf(t)<0||!(await getChiusoFino()))return [];
+  var d=await apiGet(t,f+'&select=data_inserimento,created_at&limit=5000');
+  return (d||[]).map(dataRigaLav);
+}
+
 async function apiPost(t,b){
   var c=getConfig();if(!c.url){alert('Configura Supabase!');return null;}
+  if(TABELLE_CHIUSURA.indexOf(t)>=0&&getCliente()==='AZZURRA'){
+    var dPost=(Array.isArray(b)?b:[b]).map(function(x){return (x&&x.data_inserimento)||oggiISO();});
+    if(!(await permessoDateChiuse(t,dPost,'inserire righe in un mese chiuso')))return null;
+  }
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','archivio'];
   if(tables.indexOf(t)>=0) b.cliente=getCliente();
   if(tables.indexOf(t)>=0 && !b.created_at) b.created_at=new Date().toISOString();
@@ -2044,11 +2114,15 @@ function aggiornaLabelOperatore(){
 
 async function apiDel(t,f){
   var c=getConfig();if(!c.url)return;
+  if(!(await permessoDateChiuse(t,await dateRigheFiltro(t,f),'cancellare righe di un mese chiuso')))return false;
   await fetch(c.url+'/rest/v1/'+t+'?'+f,{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
 }
 
 async function apiPatch(t,f,b){
   var c=getConfig();if(!c.url)return false;
+  var dPatch=await dateRigheFiltro(t,f);
+  if(b&&b.data_inserimento)dPatch.push(b.data_inserimento);
+  if(!(await permessoDateChiuse(t,dPatch,'modificare righe di un mese chiuso')))return false;
   var r=await fetch(c.url+'/rest/v1/'+t+'?'+f,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key},body:JSON.stringify(b)});
   return r.ok;
 }
@@ -13253,6 +13327,9 @@ function applicaVisibilitaTab(){
   });
   var bcr=document.getElementById('btn-correggi-riporti');
   if(bcr)bcr.style.display=isAdmin&&getCliente()!=='ALTRI'?'':'none';
+  var bch=document.getElementById('cfg-chiuso-box');
+  if(bch)bch.style.display=isAdmin&&getCliente()==='AZZURRA'?'':'none';
+  aggiornaBadgeChiuso();
   var active=document.querySelector('.page.active');
   if(active){
     var name=active.id.replace('page-','');
@@ -13269,6 +13346,7 @@ function cambiaCliente(){
   var c=getCliente();localStorage.setItem('ddt_cliente',c);
   applicaVisibilitaTab();caricaArticoli();
   caricaDaConfermare(); // anche fuori dalla scheda Imballo: aggiorna il numero sulla linguetta
+  getChiusoFino(true);
   var active=document.querySelector('.page.active');
   if(active){
     var name=active.id.replace('page-','');
@@ -13311,6 +13389,7 @@ window.onload=function(){
   if(c.url){
     document.getElementById('conn-status').textContent='Connesso: '+c.url.replace('https://','').split('.')[0];
     caricaArticoli();caricaEntrate();caricaVerniciato();caricaImballo();caricaDaConfermare();
+    getChiusoFino(true);
   }
   // Imposta le date di default a oggi per i campi nuova inserzione
   var today=oggiISO();

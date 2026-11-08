@@ -298,6 +298,11 @@ async function aggiungi(){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){msg('f-msg','Scegli la data.','err');return;}
   if(!seq||!(tot>0)){msg('f-msg','Scrivi i pezzi, es. 37+37+37.','err');return;}
   var btn=document.getElementById('f-btn');btn.disabled=true;
+  // AZZURRA: niente righe in un mese gia' chiuso dall'ufficio
+  if(cliente==='AZZURRA'){
+    var fino=await chiusoFino();
+    if(fino&&data<=fino){btn.disabled=false;msg('f-msg','Il mese è chiuso fino al '+dataIt(fino)+': scegli una data successiva.','err');return;}
+  }
   var riga={cliente:cliente,codice_articolo:sel&&sel.cod?sel.cod:null,descrizione:desc,data_inserimento:data,
     testo_seq:seq,quantita:tot,inserito_da:nome,note:note||null};
   try{
@@ -310,6 +315,17 @@ async function aggiungi(){
   chiudiForm();
   msg('msg','✅ Aggiunto: '+esc(desc)+' — '+num(tot)+' pz','ok');
   carica();
+}
+
+// Ultimo giorno chiuso per AZZURRA ('' = nessun blocco; errore di lettura = nessun blocco,
+// il controllo vero lo rifa' l'app quando l'ufficio conferma)
+async function chiusoFino(){
+  try{
+    var r=await fetch(CFG.url+'/rest/v1/impostazioni_azzurra?select=valore&chiave=eq.chiuso_fino_AZZURRA&limit=1',{headers:hdr({}),cache:'no-store'});
+    if(!r.ok)return '';
+    var d=await r.json(),v=d.length?String(d[0].valore||'').slice(0,10):'';
+    return /^\d{4}-\d{2}-\d{2}$/.test(v)?v:'';
+  }catch(e){return '';}
 }
 
 async function annulla(id){
