@@ -1939,7 +1939,8 @@ function printSection(id,orizzontale){
 
 async function apiGet(t,p){
   var c=getConfig();if(!c.url)return null;
-  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','imballo_da_confermare'];
+  // scarti_ber: un totale per codice e per cliente (prima si leggeva senza filtro cliente)
+  var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','imballo_da_confermare','scarti_ber'];
   var params = p ||'order=created_at.desc.nullslast,id.desc&limit=5000';
   if(tables.indexOf(t)>=0){
     var cl=getCliente();
@@ -1969,6 +1970,10 @@ async function apiPost(t,b){
   var tables=['whatsapp_righe','whatsapp_uscita','imballo','verniciato','ddt_entrata','ddt_uscita','articoli','archivio'];
   if(tables.indexOf(t)>=0) b.cliente=getCliente();
   if(tables.indexOf(t)>=0 && !b.created_at) b.created_at=new Date().toISOString();
+  // resi_azzurra (Sostituzioni AZZURRA): il cliente non veniva mai scritto e il database
+  // metteva il suo predefinito ('BERGAMASCO'). scarti_ber: sempre il cliente attivo.
+  if(t==='resi_azzurra')(Array.isArray(b)?b:[b]).forEach(function(x){if(x)x.cliente='AZZURRA';});
+  if(t==='scarti_ber')(Array.isArray(b)?b:[b]).forEach(function(x){if(x)x.cliente=getCliente();});
   // Chi ha inserito la riga (nome operatore del dispositivo), per tutte le vie di inserimento.
   var op=getOperatore();
   if(op&&TABELLE_OPERATORE.indexOf(t)>=0){
@@ -4085,11 +4090,13 @@ async function aggiornaScarto(key,inputId){
   var val=parseInt(document.getElementById(inputId).value)||0;
   scartoBer[key]=val;
   // Salva su Supabase: cerca se esiste già
+  // Solo le righe del cliente attivo (apiGet filtra per cliente; apiPost lo scrive)
+  var cl=getCliente();
   var esistente=await apiGet('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key));
   if(esistente&&esistente.length){
-    await apiPatch('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key),{quantita:val});
+    await apiPatch('scarti_ber','codice_articolo=eq.'+encodeURIComponent(key)+'&cliente=eq.'+encodeURIComponent(cl),{quantita:val});
   } else {
-    await apiPost('scarti_ber',{codice_articolo:key,quantita:val,cliente:'BERGAMASCO'});
+    await apiPost('scarti_ber',{codice_articolo:key,quantita:val});
   }
   caricaRiepilogoBer();
 }
