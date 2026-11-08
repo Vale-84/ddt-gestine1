@@ -5123,6 +5123,18 @@ async function caricaApertiBer(){
   righe.sort(function(a,b){return (a.desc||a.cod).localeCompare(b.desc||b.cod,'it');});
   var descBer={};Object.keys(mE).forEach(function(k){descBer[k]=mE[k].desc;});
   var senza=gruppiSenzaEntrataBer(fifo,descBer);
+  // Differenze accettate (ber_differenze_accettate): solo visualizzazione, vale l'ultima per gruppo.
+  // Tabella mancante o errore di lettura: tutti i gruppi restano nel riquadro rosso.
+  var accLette=await apiGetTutto('ber_differenze_accettate','cliente=eq.BERGAMASCO&order=id.desc');
+  _berAccTabellaOk=!!accLette;
+  var accPerGruppo={};
+  (accLette||[]).forEach(function(a){var k=chiaveGruppoBer(String(a.codici_ber||'').split('+'));if(k&&!accPerGruppo[k])accPerGruppo[k]=a;});
+  senza.forEach(function(g){
+    var a=accPerGruppo[chiaveGruppoBer(g.bers)];
+    g.acc=a||null;
+    g.accettato=!!a&&Math.abs(g.diff)<=Math.abs(Number(a.differenza)||0);
+    g.nuova=a&&!g.accettato?Math.abs(g.diff)-Math.abs(Number(a.differenza)||0):0;
+  });
   _apertiBerUltimoRis=righe;_apertiBerSenzaEntrata=senza;_apertiBerCtrl=!!ctrl;
   if(!tb)return;
   var html=righe.map(function(r){
@@ -5138,23 +5150,80 @@ async function caricaApertiBer(){
   }).join('');
   if(senza.length&&!soloDiff){
     // Colonne del riquadro: Codice | Descrizione | Entrata BER | Uscita totale | Coperta da entrata | Senza entrata / Differenza
-    var vuote=ctrl?'<td></td><td></td>':'';
     var thS='style="background:#F5F5F5;font-size:11px;font-weight:600;text-align:right;padding:4px 8px;"';
-    html+='<tr><td colspan="'+nCol+'" style="background:#FDECEA;color:#C00000;font-weight:600;padding:8px;">⚠ Uscite senza entrata — per ogni gruppo di BER: quanto è entrato, quanto è uscito dei B0 abbinati e quale B0 è rimasto senza entrata</td></tr>'
-      +'<tr><td '+thS.replace('right','left')+'>Codice</td><td '+thS.replace('right','left')+'>Descrizione</td><td '+thS+'>Entrata BER</td><td '+thS+'>Uscita totale</td><td '+thS+'>Coperta da entrata</td>'
-      +(ctrl?'<td '+thS+'></td><td '+thS+'></td>':'')+'<td '+thS+'>Senza entrata / Differenza</td></tr>'
-      +senza.map(function(g){
-        var testa='<tr style="background:#FFF4F2;border-top:2px solid #E8B4AE;"><td><strong>'+g.bers.map(escAbb).join(' + ')+'</strong></td><td>'+escAbb(g.desc||'')+'</td>'
-          +'<td style="text-align:right;font-weight:bold;">'+g.entrata+'</td><td style="text-align:right;font-weight:bold;">'+g.uscita+'</td><td></td>'+vuote
-          +'<td style="text-align:right;"><span class="badge '+(g.diff<0?'badge-err':'badge-ok')+'" title="Entrata BER − Uscita totale dei B0 abbinati">'+(g.diff>0?'+':'')+g.diff+'</span></td></tr>';
-        return testa+g.righe.map(function(r){
-          return '<tr><td style="padding-left:22px;">'+(r.senza?'<strong>'+escAbb(r.b0)+'</strong>':escAbb(r.b0))+'</td><td style="font-size:12px;">'+escAbb(r.desc||'')+'</td><td></td>'
-            +'<td style="text-align:right;">'+r.tot+'</td><td style="text-align:right;">'+r.coperta+'</td>'+vuote
-            +'<td style="text-align:right;">'+(r.senza?'<span class="badge badge-err">-'+r.senza+'</span>':'<span style="color:#999;">0</span>')+'</td></tr>';
-        }).join('');
-      }).join('');
+    var intest='<tr><td '+thS.replace('right','left')+'>Codice</td><td '+thS.replace('right','left')+'>Descrizione</td><td '+thS+'>Entrata BER</td><td '+thS+'>Uscita totale</td><td '+thS+'>Coperta da entrata</td>'
+      +(ctrl?'<td '+thS+'></td><td '+thS+'></td>':'')+'<td '+thS+'>Senza entrata / Differenza</td></tr>';
+    var aperti=[],accettati=[];
+    senza.forEach(function(g,i){(g.accettato?accettati:aperti).push(i);});
+    if(aperti.length){
+      html+='<tr><td colspan="'+nCol+'" style="background:#FDECEA;color:#C00000;font-weight:600;padding:8px;">⚠ Uscite senza entrata — per ogni gruppo di BER: quanto è entrato, quanto è uscito dei B0 abbinati e quale B0 è rimasto senza entrata</td></tr>'
+        +intest+aperti.map(function(i){return htmlGruppoSenzaEntrata(senza[i],i,ctrl);}).join('');
+    }
+    if(accettati.length){
+      html+='<tr><td colspan="'+nCol+'" style="background:#EAF3EA;color:#2E6B2E;font-weight:600;padding:8px;cursor:pointer;" onclick="_berAccAperto=!_berAccAperto;document.querySelectorAll(\'.ber-acc-riga\').forEach(function(el){el.style.display=_berAccAperto?\'\':\'none\';});this.querySelector(\'span\').textContent=_berAccAperto?\'▾\':\'▸\';">'
+        +'<span>'+(_berAccAperto?'▾':'▸')+'</span> Differenze accettate ('+accettati.length+' gruppi) — clicca per '+'aprire/chiudere</td></tr>'
+        +intest.replace('<tr>','<tr class="ber-acc-riga" style="display:'+(_berAccAperto?'':'none')+';">')
+        +accettati.map(function(i){return htmlGruppoSenzaEntrata(senza[i],i,ctrl,true);}).join('');
+    }
+  }
+  if(!_berAccTabellaOk&&senza.length&&!soloDiff&&localStorage.getItem('ddt_admin')==='1'){
+    html+='<tr><td colspan="'+nCol+'" style="font-size:11px;color:#999;padding:6px 8px;">Tabella ber_differenze_accettate non trovata: "Accetta differenza" non è disponibile.</td></tr>';
   }
   tb.innerHTML=html||'<tr><td colspan="'+nCol+'" style="text-align:center;padding:20px;color:#999;">'+(soloDiff?'Nessuna differenza con Nova.':'Nessun articolo aperto.')+'</td></tr>';
+}
+
+// ── DIFFERENZE ACCETTATE (Uscite senza entrata BERGAMASCO) ────────────
+// Tabella ber_differenze_accettate: codici_ber = BER del gruppo ordinati e uniti da '+'.
+// Solo visualizzazione: un gruppo con |differenza| <= |accettata| va nella sezione chiusa.
+var _berAccTabellaOk=false,_berAccAperto=false;
+function chiaveGruppoBer(bers){
+  return (bers||[]).map(function(b){return String(b||'').trim().toUpperCase();}).filter(Boolean).sort().join('+');
+}
+// Righe html di un gruppo (testata BER + righe B0). inAccettati: righe della sezione chiusa.
+function htmlGruppoSenzaEntrata(g,i,ctrl,inAccettati){
+  var vuote=ctrl?'<td></td><td></td>':'';
+  var admin=localStorage.getItem('ddt_admin')==='1';
+  var cls=inAccettati?' class="ber-acc-riga"':'';
+  var disp=inAccettati&&!_berAccAperto?'display:none;':'';
+  var btnS='style="width:auto;margin:4px 0 0 0;padding:2px 8px;font-size:11px;"';
+  var info='',btn='';
+  if(g.acc){
+    var a=g.acc;
+    info='<div style="font-size:11px;color:#2E6B2E;margin-top:3px;">Accettata '+Number(a.differenza)+' il '+fmtData(a.created_at)
+      +(a.inserito_da?' da '+escAbb(a.inserito_da):'')+(a.nota?': <em>'+escAbb(a.nota)+'</em>':'')+'</div>';
+    if(!g.accettato)info+='<div style="font-size:11px;color:#C00000;font-weight:bold;">di cui nuova: '+g.nuova+'</div>';
+  }
+  if(admin&&_berAccTabellaOk){
+    if(!g.accettato)btn+='<button class="btn btn-sm btn-gray" '+btnS+' onclick="accettaDiffBer('+i+')">Accetta differenza</button> ';
+    if(g.acc)btn+='<button class="btn btn-sm btn-gray" '+btnS+' onclick="togliDiffBer('+i+')">Togli</button>';
+  }
+  var sfondo=g.accettato?'#F3F8F3':'#FFF4F2',bordo=g.accettato?'#B7D3B7':'#E8B4AE';
+  var testa='<tr'+cls+' style="'+disp+'background:'+sfondo+';border-top:2px solid '+bordo+';"><td><strong>'+g.bers.map(escAbb).join(' + ')+'</strong>'+info+(btn?'<div>'+btn+'</div>':'')+'</td><td>'+escAbb(g.desc||'')+'</td>'
+    +'<td style="text-align:right;font-weight:bold;">'+g.entrata+'</td><td style="text-align:right;font-weight:bold;">'+g.uscita+'</td><td></td>'+vuote
+    +'<td style="text-align:right;"><span class="badge '+(g.diff<0&&!g.accettato?'badge-err':'badge-ok')+'" title="Entrata BER − Uscita totale dei B0 abbinati">'+(g.diff>0?'+':'')+g.diff+'</span></td></tr>';
+  return testa+g.righe.map(function(r){
+    return '<tr'+cls+' style="'+disp+'"><td style="padding-left:22px;">'+(r.senza?'<strong>'+escAbb(r.b0)+'</strong>':escAbb(r.b0))+'</td><td style="font-size:12px;">'+escAbb(r.desc||'')+'</td><td></td>'
+      +'<td style="text-align:right;">'+r.tot+'</td><td style="text-align:right;">'+r.coperta+'</td>'+vuote
+      +'<td style="text-align:right;">'+(r.senza?'<span class="badge '+(g.accettato?'badge-ok':'badge-err')+'">-'+r.senza+'</span>':'<span style="color:#999;">0</span>')+'</td></tr>';
+  }).join('');
+}
+async function accettaDiffBer(i){
+  if(localStorage.getItem('ddt_admin')!=='1'){alert('Solo admin.');return;}
+  var g=(_apertiBerSenzaEntrata||[])[i];if(!g)return;
+  var nota=prompt('Accetta differenza '+g.diff+' per '+g.bers.join(' + ')+'.\nScrivi una nota (perché è accettata):','');
+  if(nota===null)return;
+  nota=nota.trim();
+  if(!nota){alert('La nota è obbligatoria.');return;}
+  var r=await apiPost('ber_differenze_accettate',{cliente:'BERGAMASCO',codici_ber:chiaveGruppoBer(g.bers),differenza:g.diff,nota:nota,inserito_da:getOperatore()||null});
+  if(r)caricaApertiBer();
+}
+// Toglie tutte le accettazioni del gruppo (anche quelle vecchie, superate da una piu' recente)
+async function togliDiffBer(i){
+  if(localStorage.getItem('ddt_admin')!=='1'){alert('Solo admin.');return;}
+  var g=(_apertiBerSenzaEntrata||[])[i];if(!g||!g.acc)return;
+  if(!confirm('Togliere la differenza accettata per '+g.bers.join(' + ')+'? Il gruppo torna nel riquadro rosso.'))return;
+  await apiDel('ber_differenze_accettate','cliente=eq.BERGAMASCO&codici_ber=eq.'+encodeURIComponent(chiaveGruppoBer(g.bers)));
+  caricaApertiBer();
 }
 
 function esportaApertiBerExcel(){
@@ -5176,13 +5245,15 @@ function esportaApertiBerExcel(){
   var r2=[];
   (_apertiBerSenzaEntrata||[]).forEach(function(g){
     var nome=g.bers.join(' + ');
-    r2.push({'Gruppo BER':nome,'Codice':nome,'Descrizione':g.desc||'','Entrata BER':g.entrata,'Uscita totale':g.uscita,'Coperta da entrata':'','Senza entrata':'','Differenza':g.diff});
+    var stato=g.accettato?'Accettata':(g.acc?'Da verificare (di cui nuova: '+g.nuova+')':'Da verificare');
+    var accTxt=g.acc?(Number(g.acc.differenza)+' il '+fmtData(g.acc.created_at)+(g.acc.nota?': '+g.acc.nota:'')):'';
+    r2.push({'Gruppo BER':nome,'Codice':nome,'Descrizione':g.desc||'','Entrata BER':g.entrata,'Uscita totale':g.uscita,'Coperta da entrata':'','Senza entrata':'','Differenza':g.diff,'Stato':stato,'Accettazione':accTxt});
     g.righe.forEach(function(r){
-      r2.push({'Gruppo BER':nome,'Codice':r.b0,'Descrizione':r.desc||'','Entrata BER':'','Uscita totale':r.tot,'Coperta da entrata':r.coperta,'Senza entrata':r.senza,'Differenza':''});
+      r2.push({'Gruppo BER':nome,'Codice':r.b0,'Descrizione':r.desc||'','Entrata BER':'','Uscita totale':r.tot,'Coperta da entrata':r.coperta,'Senza entrata':r.senza,'Differenza':'','Stato':'','Accettazione':''});
     });
   });
   if(!r2.length)r2=[{'Gruppo BER':'Nessuna uscita senza entrata'}];
-  var ws2=XLSX.utils.json_to_sheet(r2);ws2['!cols']=[{wch:24},{wch:16},{wch:45},{wch:12},{wch:13},{wch:17},{wch:13},{wch:11}];
+  var ws2=XLSX.utils.json_to_sheet(r2);ws2['!cols']=[{wch:24},{wch:16},{wch:45},{wch:12},{wch:13},{wch:17},{wch:13},{wch:11},{wch:28},{wch:40}];
   XLSX.utils.book_append_sheet(wb,ws2,'Uscite senza entrata');
   var oggi=new Date();
   var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
@@ -8889,6 +8960,8 @@ function gruppiSenzaEntrataBer(fifo,descCod){
       if(tot||senza)righe.push({b0:b0,desc:fifo.descB0[b0]||'',tot:tot,coperta:tot-senza,senza:senza});
     });
     righe.sort(function(a,b){return b.senza-a.senza||a.b0.localeCompare(b.b0);});
+    // BER senza descrizione: quella del primo B0 del gruppo
+    if(!desc)righe.some(function(r){if(r.desc){desc=r.desc;return true;}return false;});
     gruppi.push({bers:bers,desc:desc,entrata:entrata,uscita:uscita,diff:entrata-uscita,righe:righe});
   });
   gruppi.sort(function(a,b){return (a.bers[0]||'').localeCompare(b.bers[0]||'');});
