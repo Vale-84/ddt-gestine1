@@ -1110,9 +1110,28 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   </div>
 </div>
 
+<!-- MODAL CORREZIONE UNA TANTUM DEI RIPORTI (solo admin) -->
+<div class="modal" id="modal-corr-riporti">
+  <div class="modal-box" style="max-width:900px;">
+    <h3 style="color:#C55A11;">Correggi riporti Verniciato a carico aperto</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:8px;">Righe Verniciato "RIPORTO DA ..." del cliente attivo. Nuovo riporto proposto = il minore tra il riporto attuale e il carico aperto al giorno di chiusura (data del riporto − 1), mai sotto 0. Sono elencate solo le righe che cambiano. Puoi correggere il nuovo riporto a mano. 0 = riga cancellata, altrimenti la riga si abbassa con nota "... - corretto a carico aperto".</p>
+    <p id="corr-rip-info" style="font-size:12px;color:#666;margin-bottom:8px;"></p>
+    <div class="rc-table-scroll">
+      <table class="rc-table">
+        <thead><tr><th>Codice</th><th>Descrizione</th><th>Chiusura</th><th>Riporto attuale</th><th>Carico aperto</th><th>Aperto oggi</th><th>Nuovo riporto</th></tr></thead>
+        <tbody id="corr-rip-tbody"></tbody>
+      </table>
+    </div>
+    <p id="corr-rip-tot" style="font-size:13px;font-weight:bold;color:#C55A11;margin:8px 0 0;"></p>
+    <br>
+    <button class="btn btn-orange" style="padding:12px 20px;font-size:15px;" onclick="applicaCorreggiRiporti()">OK, APPLICA</button>
+    <button class="btn btn-gray" style="padding:12px 20px;font-size:15px;" onclick="document.getElementById('modal-corr-riporti').style.display='none'">ANNULLA</button>
+  </div>
+</div>
+
 <!-- MODAL ANTEPRIMA RIPORTI CHIUDI MESE -->
 <div class="modal" id="modal-riporti">
-  <div class="modal-box" style="max-width:640px;">
+  <div class="modal-box" style="max-width:900px;">
     <h3 style="color:#1F6B75;">Chiudi mese — fino al giorno</h3>
     <p style="font-size:13px;color:#666;margin-bottom:10px;">Si chiudono (archivio + tolte dalla lista di lavoro) solo le righe di WA Entrata, WA Uscita, Imballo e Verniciato con data fino al giorno scelto, compreso. Le righe con data successiva restano.</p>
     <label>Chiudi fino al giorno (compreso)</label>
@@ -1126,9 +1145,10 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     </div>
     <h3 style="color:#1F6B75;font-size:15px;margin-bottom:4px;">Riporti Verniciato</h3>
     <p style="font-size:12px;color:#666;margin-bottom:8px;">Residuo = Verniciato − il più alto tra Imballo e WA Uscita, contando solo le righe fino al giorno scelto. Correggi o togli le quantità (0 = nessun riporto). Se cambi il giorno le quantità vengono ricalcolate.</p>
+    <p id="riporti-carico-info" style="font-size:12px;color:#666;margin-bottom:8px;"></p>
     <div class="rc-table-scroll">
       <table class="rc-table">
-        <thead><tr><th>Codice</th><th>Descrizione</th><th>Riporto</th><th></th></tr></thead>
+        <thead><tr><th>Codice</th><th>Descrizione</th><th>Calcolato</th><th>Carico aperto</th><th>Aperto oggi</th><th>Riporto</th><th></th></tr></thead>
         <tbody id="riporti-tbody"></tbody>
       </table>
     </div>
@@ -1489,7 +1509,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <input type="date" id="cfg-data-chiusura" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:10px;">
     <button class="btn btn-blue" onclick="salvaCfgDataChiusura()">SALVA DATA</button>
   </div>
-  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Archivia e toglie le righe di WA, Imballo e Verniciato fino al giorno che scegli; quelle successive restano. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button></div>
+  <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Archivia e toglie le righe di WA, Imballo e Verniciato fino al giorno che scegli; quelle successive restano. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button><button class="btn btn-orange" id="btn-correggi-riporti" style="display:none;margin-top:8px;" onclick="apriCorreggiRiporti()" title="Solo admin: limita i riporti Verniciato già creati al carico aperto del giorno di chiusura">CORREGGI RIPORTI A CARICO APERTO</button></div>
   <div class="card" style="border: 2px solid #ffaaaa;">
     <h2 style="color:#C00000;">Azzera tutto</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
@@ -8942,12 +8962,146 @@ function salvaCfgDataChiusura(){
 // riporti Verniciato = residuo Verniciato − max(Imballo, WA Uscita) sulle sole righe
 // chiuse, se > 0, modificabile); confermaChiudiMese() crea i riporti al giorno dopo,
 // archivia le righe chiuse e le toglie dalla lista di lavoro.
-var _riportiCM=[],_datiCM=null,_dcCM=[];
+var _riportiCM=[],_datiCM=null,_dcCM=[],_baseCaricoCM=null;
 // Imballi da confermare (letti all'apertura di Chiudi Mese) con data fino al giorno 'fino'
 function dcFinoCM(fino){
   var r=(_dcCM||[]).filter(function(x){return rigaFino(x,fino);});
   return {righe:r.length,pz:pezziCM(r,'quantita')};
 }
+// ── CARICO APERTO AL GIORNO (limite dei riporti Verniciato) ──────────────
+// A = carico aperto a fine giornata 'fino' (proposto come limite del riporto):
+//   AZZURRA: inevasi Nova con uscite scalate fino al X (getSaldoNovaAzzurra, codici IA -> A0)
+//     + DDT Entrata − DDT Uscita dell'app con data in (X, fino]. Stesso calcolo del Saldo
+//     carico del Confronto. fino < X o inevasi senza X: non disponibile (nessuna riduzione).
+//   BERGAMASCO: Aperto di Articoli Aperti al giorno 'fino': DDT Entrata BER − uscite dei B0
+//     assegnate in FIFO (calcolaFifoBer), solo DDT fino a quel giorno. Un B0 prende l'Aperto
+//     dei suoi BER; i B0 che condividono BER formano un gruppo con l'Aperto in comune.
+//     B0 senza abbinamento BER (ne' entrata col proprio codice): nessuna riduzione.
+// B = Aperto di oggi (solo informazione): AZZURRA colonna Aperto di Articoli Aperti
+//   (inevaso Nova dell'ultimo import), BERGAMASCO lo stesso FIFO senza limite di data.
+async function caricaBaseCarico(){
+  var cl=getCliente();
+  var ent=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
+  var usc=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
+  if(!ent||!usc)return null;
+  var base={cliente:cl,ent:ent,usc:usc};
+  if(cl==='AZZURRA'){
+    base.nova=await getSaldoNovaAzzurra(); // aggiorna anche abzCache
+    if(!base.nova)return null;
+  } else {
+    base.abb=await apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc');
+    if(!base.abb)return null;
+  }
+  return base;
+}
+
+function dataDDTCarico(r){return String(r.data_ddt||r.created_at||'').slice(0,10);}
+
+// → {disp, avviso, A:{COD:n}, B:{COD:n}, senza:{COD:true}, comp:{COD:id}, compAperto:{id:n}}
+function calcolaCaricoAperto(base,fino){
+  var out={disp:true,avviso:'',A:{},B:{},senza:{},comp:{},compAperto:{}};
+  function up(s){return String(s||'').trim().toUpperCase();}
+  if(base.cliente==='AZZURRA'){
+    var nova=base.nova;
+    (abzCache||[]).forEach(function(r){
+      var ia=up(r.codice_ia);if(!ia)return;
+      var k=up(r.codice_a0)||ia;
+      out.B[k]=(out.B[k]||0)+(Number(r.giacenza_iniziale)||0);
+    });
+    if(!nova.x){out.disp=false;out.avviso='Inevasi Nova non caricati con la data "Uscite scalate in Nova fino al": carico aperto non disponibile, riporti non ridotti.';return out;}
+    if(fino<nova.x){out.disp=false;out.avviso='Inevasi Nova con uscite scalate fino al '+fmtDataGMA(nova.x)+', dopo il '+fmtDataGMA(fino)+': carico aperto al '+fmtDataGMA(fino)+' non disponibile, riporti non ridotti. Carica gli inevasi con data fino al '+fmtDataGMA(fino)+'.';return out;}
+    var mappaIA={};
+    (abzCache||[]).forEach(function(r){var ia=up(r.codice_ia),a0=up(r.codice_a0);if(ia&&a0)mappaIA[ia]=a0;});
+    function cod(r){var c=up(r.codice_articolo);return mappaIA[c]||c;}
+    Object.keys(nova.saldoX).forEach(function(k){out.A[k]=nova.saldoX[k];});
+    function dentro(r){var d=dataDDTCarico(r);return d&&d>nova.x&&d<=fino;}
+    base.ent.forEach(function(r){if(r.codice_articolo&&dentro(r)){var k=cod(r);out.A[k]=(out.A[k]||0)+(Number(r.quantita_ddt)||0);}});
+    base.usc.forEach(function(r){if(r.codice_articolo&&dentro(r)){var k=cod(r);out.A[k]=(out.A[k]||0)-(Number(r.quantita_ddt)||0);}});
+    return out;
+  }
+  // BERGAMASCO
+  out.ber=true;
+  function apertoBer(ent,usc){
+    var fifo=calcolaFifoBer(ent,usc,base.abb),totE={};
+    ent.forEach(function(r){var k=up(r.codice_articolo);if(k)totE[k]=(totE[k]||0)+(Number(r.quantita_ddt)||0);});
+    // Aperto per codice di carico (BER, o B0 con entrata registrata col proprio codice)
+    var ap={};
+    Object.keys(totE).forEach(function(k){ap[k]=totE[k]-(fifo.lavoratiPerBer[k]||0);});
+    // Codice di carico fuori dagli abbinamenti (il FIFO non lo vede): uscite dello stesso codice
+    usc.forEach(function(r){
+      var k=up(r.codice_articolo);
+      if(k&&ap.hasOwnProperty(k)&&!fifo.berToB0[k]&&!fifo.b0ToBer[k])ap[k]-=Number(r.quantita_ddt||r.quantita||0);
+    });
+    return {fifo:fifo,ap:ap};
+  }
+  var oggi=apertoBer(base.ent,base.usc);
+  var alGiorno=apertoBer(base.ent.filter(function(r){var d=dataDDTCarico(r);return !d||d<=fino;}),
+                         base.usc.filter(function(r){var d=dataDDTCarico(r);return !d||d<=fino;}));
+  var b0ToBer=alGiorno.fifo.b0ToBer,berToB0=alGiorno.fifo.berToB0;
+  // Gruppi: B0 collegati da BER in comune (union-find sui codici)
+  var pad={};
+  function trova(x){while(pad[x]&&pad[x]!==x)x=pad[x];return x;}
+  function unisci(a,b){a=trova(a);b=trova(b);if(a!==b)pad[b]=a;}
+  Object.keys(berToB0).forEach(function(ber){pad[ber]=pad[ber]||ber;berToB0[ber].forEach(function(b0){pad[b0]=pad[b0]||b0;unisci(ber,b0);});});
+  var carichiComp={};
+  // Codici di carico di un B0: i suoi BER + se stesso se ha entrate col proprio codice
+  function carichiDi(b0){var l=(b0ToBer[b0]||[]).slice();if(alGiorno.ap.hasOwnProperty(b0)||oggi.ap.hasOwnProperty(b0))l.push(b0);return l;}
+  var tuttiB0={};
+  Object.keys(b0ToBer).forEach(function(b0){tuttiB0[b0]=true;});
+  Object.keys(alGiorno.ap).concat(Object.keys(oggi.ap)).forEach(function(k){if(!berToB0[k])tuttiB0[k]=true;});
+  Object.keys(tuttiB0).forEach(function(b0){
+    var car=carichiDi(b0);
+    if(!car.length){out.senza[b0]=true;return;}
+    out.A[b0]=car.reduce(function(t,c){return t+(alGiorno.ap[c]||0);},0);
+    out.B[b0]=car.reduce(function(t,c){return t+(oggi.ap[c]||0);},0);
+    pad[b0]=pad[b0]||b0;
+    var id=trova(b0);out.comp[b0]=id;
+    (carichiComp[id]=carichiComp[id]||{});car.forEach(function(c){carichiComp[id][c]=true;});
+  });
+  Object.keys(carichiComp).forEach(function(id){
+    out.compAperto[id]=Object.keys(carichiComp[id]).reduce(function(t,c){return t+(alGiorno.ap[c]||0);},0);
+  });
+  return out;
+}
+
+// righe [{cod,desc,qtaCalc}] → aggiunge aperto, apertoOggi, qta (proposta), ridotto, diffAB,
+// senzaAbb, gruppoOltre. Proposta = max(0, min(qtaCalc, A)); senza A disponibile = qtaCalc.
+// BERGAMASCO: se piu' B0 dello stesso gruppo insieme superano l'Aperto del gruppo,
+// segnalazione "gruppo oltre il carico" (la quantita' la corregge chi controlla).
+function applicaLimiteCarico(righe,car){
+  var sommaComp={};
+  righe.forEach(function(a){
+    var k=String(a.cod||'').trim().toUpperCase();
+    a.aperto=null;a.apertoOggi=null;a.senzaAbb=false;a.gruppoOltre=false;a.diffAB=false;
+    a.qta=Math.max(0,a.qtaCalc);
+    if(!car||!k){a.ridotto=false;return;}
+    a.apertoOggi=car.B.hasOwnProperty(k)?car.B[k]:0;
+    // BERGAMASCO: B0 senza BER abbinato ne' entrate col proprio codice → nessuna riduzione
+    if(car.senza[k]||(car.ber&&!car.comp[k])){a.senzaAbb=true;a.apertoOggi=null;}
+    else if(car.disp){
+      a.aperto=car.A.hasOwnProperty(k)?car.A[k]:0;
+      a.qta=Math.max(0,Math.min(a.qtaCalc,a.aperto));
+      a.diffAB=a.aperto!==a.apertoOggi;
+      if(car.comp[k]){a._comp=car.comp[k];sommaComp[a._comp]=(sommaComp[a._comp]||0)+a.qta;}
+    }
+    a.ridotto=a.qta<a.qtaCalc;
+  });
+  righe.forEach(function(a){
+    if(a._comp&&sommaComp[a._comp]>Math.max(0,car.compAperto[a._comp]||0))a.gruppoOltre=true;
+  });
+  return righe;
+}
+
+// Cella con le etichette della riga (ridotto / A≠B / gruppo / senza abbinamento)
+function htmlEtichetteCarico(a){
+  var s='';
+  if(a.ridotto)s+='<span class="badge badge-warn" style="margin-right:3px;">ridotto</span>';
+  if(a.gruppoOltre)s+='<span class="badge badge-err" style="margin-right:3px;">⚠ gruppo oltre il carico</span>';
+  if(a.senzaAbb)s+='<span class="badge" style="background:#eee;color:#555;">senza abbinamento BER: non ridotto</span>';
+  return s;
+}
+function fmtCarico(n){return n===null||n===undefined?'—':String(n);}
+
 var MESI_IT=['GENNAIO','FEBBRAIO','MARZO','APRILE','MAGGIO','GIUGNO','LUGLIO','AGOSTO','SETTEMBRE','OTTOBRE','NOVEMBRE','DICEMBRE'];
 var TABELLE_CM=[
   {t:'whatsapp_righe',nome:'WA Entrata',qta:'quantita'},
@@ -8993,6 +9147,8 @@ async function chiudiMese(){
   _datiCM=dati;
   // Imballi del magazzino ancora da confermare: non vengono chiusi, solo segnalati
   _dcCM=(await apiGet('imballo_da_confermare','select=id,data_inserimento,quantita&limit=5000'))||[];
+  // DDT e inevasi per il limite dei riporti al carico aperto (null = non letti: nessuna riduzione)
+  _baseCaricoCM=await caricaBaseCarico();
   document.getElementById('riporti-fino').value=_finoGiorno||fineMeseScorsoISO();
   aggiornaAnteprimaCM();
   document.getElementById('modal-riporti').style.display='flex';
@@ -9014,12 +9170,20 @@ function aggiornaAnteprimaCM(){
       +'<td>'+d.chiuse.length+' <span style="color:#888;">('+pezziCM(d.chiuse,x.qta)+' pz)</span></td>'
       +'<td>'+d.restano.length+' <span style="color:#888;">('+pezziCM(d.restano,x.qta)+' pz)</span></td></tr>';
   }).join('');
-  _riportiCM=calcolaRiportiCM(div.verniciato.chiuse,div.imballo.chiuse,div.whatsapp_uscita.chiuse);
+  var car=_baseCaricoCM?calcolaCaricoAperto(_baseCaricoCM,s.fino):null;
+  var avvCar=document.getElementById('riporti-carico-info');
+  if(avvCar)avvCar.innerHTML=!car?'<span style="color:#C62828;font-weight:bold;">⚠ DDT o inevasi non letti: carico aperto non disponibile, riporti non ridotti.</span>'
+    :(!car.disp?'<span style="color:#C62828;font-weight:bold;">⚠ '+car.avviso+'</span>'
+      :'Riporto proposto = il minore tra il residuo calcolato e il carico aperto al '+fmtDataGMA(s.fino)+' (mai sotto 0). "Aperto oggi" è solo informativo: righe gialle = carico al giorno diverso da Aperto oggi.');
+  _riportiCM=applicaLimiteCarico(calcolaRiportiCM(div.verniciato.chiuse,div.imballo.chiuse,div.whatsapp_uscita.chiuse),car);
   tb.innerHTML=_riportiCM.length?_riportiCM.map(function(a,i){
-    return '<tr id="riporti-tr-'+i+'"><td><strong>'+(a.cod||'—')+'</strong></td><td>'+a.desc+'</td>'
+    return '<tr id="riporti-tr-'+i+'"'+(a.diffAB?' style="background-color:#FFF3CD;"':'')+'><td><strong>'+(a.cod||'—')+'</strong></td><td>'+a.desc+(htmlEtichetteCarico(a)?'<br>'+htmlEtichetteCarico(a):'')+'</td>'
+      +'<td style="text-align:right;">'+a.qtaCalc+'</td>'
+      +'<td style="text-align:right;font-weight:bold;">'+fmtCarico(a.aperto)+'</td>'
+      +'<td style="text-align:right;color:#888;">'+fmtCarico(a.apertoOggi)+'</td>'
       +'<td><input type="number" min="0" step="1" id="riporti-qta-'+i+'" value="'+a.qta+'" style="width:80px;margin:0;" oninput="aggiornaTotRiporti()"></td>'
       +'<td><button class="del-btn" title="Togli" onclick="document.getElementById(\'riporti-qta-'+i+'\').value=0;document.getElementById(\'riporti-tr-'+i+'\').style.opacity=0.4;aggiornaTotRiporti();">✕</button></td></tr>';
-  }).join(''):'<tr><td colspan="4" style="text-align:center;padding:14px;color:#999;">Nessun residuo da riportare.</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:14px;color:#999;">Nessun residuo da riportare.</td></tr>';
   aggiornaTotRiporti();
 }
 
@@ -9027,8 +9191,17 @@ function aggiornaAnteprimaCM(){
 function riportiDaModale(){
   return _riportiCM.map(function(a,i){
     var el=document.getElementById('riporti-qta-'+i);
-    return {cod:a.cod,desc:a.desc,qta:el?(Number(el.value)||0):0};
+    var q=el?Math.max(0,Math.round(Number(el.value)||0)):0;
+    return {cod:a.cod,desc:a.desc,qta:q,qtaCalc:a.qtaCalc,aperto:a.aperto,ridotto:q<a.qtaCalc};
   }).filter(function(a){return a.qta>0;});
+}
+// Riporti scesi sotto il residuo calcolato (anche quelli portati a 0), per il messaggio di conferma
+function riportiRidottiDaModale(){
+  return _riportiCM.map(function(a,i){
+    var el=document.getElementById('riporti-qta-'+i);
+    var q=el?Math.max(0,Math.round(Number(el.value)||0)):0;
+    return {cod:a.cod,desc:a.desc,qta:q,qtaCalc:a.qtaCalc};
+  }).filter(function(a){return a.qta<a.qtaCalc;});
 }
 
 function aggiornaTotRiporti(){
@@ -9050,7 +9223,7 @@ function calcolaRiportiCM(vern,imb,wu){
   imb.forEach(function(r){var k=chiave(r.codice_articolo,r.articolo);if(k)voce(k,r.codice_articolo,r.articolo).imb+=Number(r.totale)||0;});
   wu.forEach(function(r){var d=r.descrizione_articolo||r.descrizione;var k=chiave(r.codice_articolo,d);if(k)voce(k,r.codice_articolo,d).wa+=Number(r.quantita)||0;});
   return Object.keys(m).map(function(k){
-    var a=m[k];return {cod:a.cod,desc:a.desc,qta:a.vern-Math.max(a.imb,a.wa)};
+    var a=m[k],q=a.vern-Math.max(a.imb,a.wa);return {cod:a.cod,desc:a.desc,qta:q,qtaCalc:q};
   }).filter(function(a){return a.qta>0;}).sort(function(a,b){return (a.cod||a.desc).localeCompare(b.cod||b.desc);});
 }
 
@@ -9070,19 +9243,25 @@ async function confermaChiudiMese(){
     var d=div[x.t];
     return '• '+x.nome+': '+d.chiuse.length+' chiuse ('+pezziCM(d.chiuse,x.qta)+' pz), '+d.restano.length+' restano ('+pezziCM(d.restano,x.qta)+' pz)';
   }).join('\n');
-  var testoRip=riporti.slice(0,15).map(function(a){return '• '+(a.cod||a.desc)+': '+a.qta+' pz';}).join('\n')
+  var testoRip=riporti.slice(0,15).map(function(a){return '• '+(a.cod||a.desc)+': '+a.qta+' pz'+(a.ridotto?' (ridotto da '+a.qtaCalc+')':'');}).join('\n')
     +(riporti.length>15?'\n… e altri '+(riporti.length-15):'')||'• nessuno';
+  var ridotti=riportiRidottiDaModale();
+  var testoRid=ridotti.length?'\n\nRidotti rispetto al residuo calcolato ('+ridotti.length+'):\n'
+    +ridotti.slice(0,15).map(function(a){return '• '+(a.cod||a.desc)+': '+a.qtaCalc+' → '+a.qta+(a.qta?'':' (nessun riporto)');}).join('\n')
+    +(ridotti.length>15?'\n… e altri '+(ridotti.length-15):''):'';
   var nDC=dcFinoCM(s.fino);
   if(!confirm('Chiudere fino al '+fmtDataGMA(s.fino)+' compreso?\n\n'+testoTab
     +(nDC.righe?'\n\n⚠ '+nDC.righe+' imballi del magazzino da confermare ('+nDC.pz+' pz) con data fino al '+fmtDataGMA(s.fino)+' NON vengono chiusi.':'')
     +'\n\nRiporti Verniciato al '+fmtDataGMA(s.dataNuovo)+' ('+riporti.length+' articoli, '+pezziCM(riporti,'qta')+' pz):\n'+testoRip
+    +testoRid
     +'\n\nLe righe chiuse vanno in archivio (restano nel Confronto) e spariscono dalla lista di lavoro. Le righe dopo il '+fmtDataGMA(s.fino)+' restano. I DDT restano.'))return;
   document.getElementById('modal-riporti').style.display='none';
   var nota='RIPORTO DA '+s.etichetta;
   var idsRiporto=[];
   for(var j=0;j<riporti.length;j++){
     var a=riporti[j];
-    var res=await apiPost('verniciato',{codice_articolo:a.cod||null,descrizione:a.desc,quantita:a.qta,sequenza:String(a.qta),note:nota,data_inserimento:s.dataNuovo});
+    // La nota resta "RIPORTO DA ..." all'inizio (isRiportoVern): solo un'aggiunta se ridotto
+    var res=await apiPost('verniciato',{codice_articolo:a.cod||null,descrizione:a.desc,quantita:a.qta,sequenza:String(a.qta),note:nota+(a.ridotto?' - ridotto a carico aperto':''),data_inserimento:s.dataNuovo});
     if(!res||!res[0]){
       // Riporto non salvato: tolgo quelli gia' creati e non chiudo, cosi' si puo' riprovare pulito.
       for(var k=0;k<idsRiporto.length;k++)await apiDel('verniciato','id=eq.'+idsRiporto[k]);
@@ -9092,6 +9271,115 @@ async function confermaChiudiMese(){
     idsRiporto.push(res[0].id);
   }
   await eseguiChiudiMese(s,div,idsRiporto);
+}
+
+// ── CORREZIONE UNA TANTUM DEI RIPORTI GIA' CREATI (solo admin) ────────────
+// Ogni riga "RIPORTO DA ..." e' stata creata il giorno dopo la chiusura: il carico aperto
+// si calcola alla data del riporto − 1. Stessa regola di Chiudi Mese (applicaLimiteCarico).
+var _corrRip=[];
+function giornoPrimaISO(iso){var d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);}
+
+async function apriCorreggiRiporti(){
+  if(localStorage.getItem('ddt_admin')!=='1'){alert('Solo admin.');return;}
+  var cl=getCliente();
+  if(cl!=='AZZURRA'&&cl!=='BERGAMASCO'){alert('Scegli AZZURRA o BERGAMASCO.');return;}
+  showMsg('msg-cfg','Calcolo carico aperto...','ok');
+  var vern=await apiGetTutto('verniciato','note=ilike.'+encodeURIComponent('RIPORTO DA *')+'&order=id.asc');
+  var base=await caricaBaseCarico();
+  if(!vern||!base){alert('Errore nel leggere Verniciato, DDT o inevasi: riprova.');return;}
+  vern=vern.filter(isRiportoVern);
+  if(!vern.length){alert('Nessuna riga di riporto nel Verniciato '+cl+'.');return;}
+  // Per giorno di chiusura: righe raggruppate per codice (il limite vale sulla somma)
+  var perFino={},avvisi={};
+  vern.forEach(function(r){
+    var d=dataRigaLav(r);if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return;
+    var fino=giornoPrimaISO(d);
+    var k=String(r.codice_articolo||'').trim().toUpperCase();
+    if(!k)return; // senza codice: nessun carico da confrontare
+    perFino[fino]=perFino[fino]||{};
+    (perFino[fino][k]=perFino[fino][k]||[]).push(r);
+  });
+  var out=[];
+  Object.keys(perFino).sort().forEach(function(fino){
+    var car=calcolaCaricoAperto(base,fino);
+    if(!car.disp)avvisi[car.avviso]=true;
+    var voci=Object.keys(perFino[fino]).map(function(k){
+      var righe=perFino[fino][k];
+      return {cod:k,desc:righe[0].descrizione||'',qtaCalc:righe.reduce(function(t,r){return t+(Number(r.quantita)||0);},0),righe:righe,fino:fino};
+    });
+    applicaLimiteCarico(voci,car);
+    voci.forEach(function(v){
+      // Nuovo totale distribuito sulle righe dello stesso codice, nell'ordine
+      var resto=v.qta;
+      v.righe.forEach(function(r){
+        var att=Number(r.quantita)||0,nuovo=Math.min(att,Math.max(0,resto));resto-=nuovo;
+        if(nuovo!==att||v.gruppoOltre)out.push({r:r,cod:v.cod,desc:v.desc,fino:fino,att:att,nuovo:nuovo,aperto:v.aperto,apertoOggi:v.apertoOggi,
+          diffAB:v.diffAB,ridotto:nuovo<att,gruppoOltre:v.gruppoOltre,senzaAbb:v.senzaAbb});
+      });
+    });
+  });
+  _corrRip=out;
+  document.getElementById('corr-rip-info').innerHTML=Object.keys(avvisi).map(function(a){return '<span style="color:#C62828;font-weight:bold;">⚠ '+a+'</span>';}).join('<br>')
+    +(Object.keys(avvisi).length?'<br>':'')+vern.length+' righe di riporto '+cl+' lette. Righe gialle = carico al giorno diverso da Aperto oggi (solo informativo).';
+  var tb=document.getElementById('corr-rip-tbody');
+  tb.innerHTML=out.length?out.map(function(x,i){
+    return '<tr'+(x.diffAB?' style="background-color:#FFF3CD;"':'')+'><td><strong>'+escAbb(x.cod)+'</strong></td>'
+      +'<td>'+escAbb(x.desc)+(htmlEtichetteCarico(x)?'<br>'+htmlEtichetteCarico(x):'')+'</td>'
+      +'<td>'+fmtDataGMA(x.fino)+'</td>'
+      +'<td style="text-align:right;">'+x.att+'</td>'
+      +'<td style="text-align:right;font-weight:bold;">'+fmtCarico(x.aperto)+'</td>'
+      +'<td style="text-align:right;color:#888;">'+fmtCarico(x.apertoOggi)+'</td>'
+      +'<td><input type="number" min="0" step="1" id="corr-rip-qta-'+i+'" value="'+x.nuovo+'" style="width:80px;margin:0;" oninput="aggiornaTotCorrRip()"></td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:14px;color:#999;">Nessun riporto da correggere: sono tutti entro il carico aperto.</td></tr>';
+  aggiornaTotCorrRip();
+  document.getElementById('msg-cfg').innerHTML='';
+  document.getElementById('modal-corr-riporti').style.display='flex';
+}
+
+// Modifiche come sono ora nella finestra (solo le righe che cambiano davvero)
+function modificheCorrRip(){
+  return _corrRip.map(function(x,i){
+    var el=document.getElementById('corr-rip-qta-'+i);
+    var n=el?Math.max(0,Math.round(Number(el.value)||0)):x.nuovo;
+    return {x:x,n:n};
+  }).filter(function(m){return m.n!==m.x.att;});
+}
+
+function aggiornaTotCorrRip(){
+  var m=modificheCorrRip();
+  var canc=m.filter(function(v){return v.n===0;}).length;
+  var prima=m.reduce(function(t,v){return t+v.x.att;},0),dopo=m.reduce(function(t,v){return t+v.n;},0);
+  document.getElementById('corr-rip-tot').textContent=m.length?(m.length+' righe cambiano ('+canc+' cancellate, '+(m.length-canc)+' abbassate): '+prima+' → '+dopo+' pz'):'Nessuna modifica.';
+}
+
+async function applicaCorreggiRiporti(){
+  var m=modificheCorrRip();
+  if(!m.length){alert('Nessuna modifica da applicare.');return;}
+  var testo=m.slice(0,25).map(function(v){return '• '+v.x.cod+': '+v.x.att+' → '+v.n+(v.n?'':' (cancellata)');}).join('\n')+(m.length>25?'\n… e altre '+(m.length-25):'');
+  if(!confirm('Applicare '+m.length+' correzioni ai riporti Verniciato '+getCliente()+'?\n\n'+testo))return;
+  document.getElementById('modal-corr-riporti').style.display='none';
+  var c=getConfig(),cl=getCliente(),ok=0,errori=[];
+  for(var i=0;i<m.length;i++){
+    var r=m[i].x.r,n=m[i].n;
+    try{
+      var f='id=eq.'+r.id+'&cliente=eq.'+encodeURIComponent(cl);
+      var resp;
+      if(n===0){
+        resp=await fetch(c.url+'/rest/v1/verniciato?'+f,{method:'DELETE',headers:{'apikey':c.key,'Authorization':'Bearer '+c.key}});
+      } else {
+        // La nota deve iniziare sempre con "RIPORTO DA" (isRiportoVern)
+        var nota=String(r.note||'');
+        if(!/^RIPORTO DA /i.test(nota))nota='RIPORTO DA '+nota;
+        if(!/corretto a carico aperto/i.test(nota))nota+=' - corretto a carico aperto';
+        resp=await fetch(c.url+'/rest/v1/verniciato?'+f,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':c.key,'Authorization':'Bearer '+c.key},body:JSON.stringify({quantita:n,sequenza:String(n),note:nota})});
+      }
+      if(!resp.ok)throw new Error(await resp.text());
+      ok++;
+    }catch(e){console.error(e);errori.push(m[i].x.cod+': '+e.message);}
+  }
+  showMsg('msg-cfg',(ok?'✅ Riporti corretti: '+ok+'.':'')+(errori.length?' Errori ('+errori.length+'): '+escAbb(errori.join('; ')):''),errori.length?'err':'ok');
+  if(errori.length)alert('Alcune correzioni non sono andate:\n'+errori.join('\n'));
+  if(typeof caricaVerniciatoP==='function')caricaVerniciatoP();
 }
 
 // Inserisce righe in archivio a blocchi da 500 (ogni richiesta e' tutto o niente).
@@ -12530,6 +12818,8 @@ function applicaVisibilitaTab(){
     var isAdminTab=t.classList.contains('admin-tab');
     t.style.display=(inClient&&(!isAdminTab||isAdmin))?'':'none';
   });
+  var bcr=document.getElementById('btn-correggi-riporti');
+  if(bcr)bcr.style.display=isAdmin&&getCliente()!=='ALTRI'?'':'none';
   var active=document.querySelector('.page.active');
   if(active){
     var name=active.id.replace('page-','');
