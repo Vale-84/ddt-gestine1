@@ -5121,9 +5121,8 @@ async function caricaApertiBer(){
   });
   righe=righe.filter(function(r){return (r.aperto!==0||(ctrl&&r.nova!==0))&&(!soloDiff||r.diff!==0);});
   righe.sort(function(a,b){return (a.desc||a.cod).localeCompare(b.desc||b.cod,'it');});
-  var senza=Object.keys(fifo.uscNonAssegnate).map(function(b0){
-    return {b0:b0,desc:fifo.descB0[b0]||'',qta:fifo.uscNonAssegnate[b0],bers:(fifo.b0ToBer[b0]||[]).slice()};
-  }).sort(function(a,b){return a.b0.localeCompare(b.b0);});
+  var descBer={};Object.keys(mE).forEach(function(k){descBer[k]=mE[k].desc;});
+  var senza=gruppiSenzaEntrataBer(fifo,descBer);
   _apertiBerUltimoRis=righe;_apertiBerSenzaEntrata=senza;_apertiBerCtrl=!!ctrl;
   if(!tb)return;
   var html=righe.map(function(r){
@@ -5138,12 +5137,21 @@ async function caricaApertiBer(){
       +'<td style="font-size:12px;">'+r.b0s.join(', ')+badge+'</td></tr>';
   }).join('');
   if(senza.length&&!soloDiff){
-    html+='<tr><td colspan="'+nCol+'" style="background:#FDECEA;color:#C00000;font-weight:600;padding:8px;">⚠ Uscite senza entrata (spedito più di quanto entrato per i BER abbinati, oppure B0 non abbinato)</td></tr>'
-      +senza.map(function(r){
-        return '<tr><td><strong>'+r.b0+'</strong></td><td>'+(r.desc||'')+'</td><td></td>'
-          +'<td style="text-align:right;">'+r.qta+'</td><td style="text-align:right;"><span class="badge badge-err">-'+r.qta+'</span></td>'
-          +(ctrl?'<td></td><td></td>':'')
-          +'<td style="font-size:12px;">'+(r.bers.length?'abbinato a '+r.bers.join(', '):'nessun abbinamento')+'</td></tr>';
+    // Colonne del riquadro: Codice | Descrizione | Entrata BER | Uscita totale | Coperta da entrata | Senza entrata / Differenza
+    var vuote=ctrl?'<td></td><td></td>':'';
+    var thS='style="background:#F5F5F5;font-size:11px;font-weight:600;text-align:right;padding:4px 8px;"';
+    html+='<tr><td colspan="'+nCol+'" style="background:#FDECEA;color:#C00000;font-weight:600;padding:8px;">⚠ Uscite senza entrata — per ogni gruppo di BER: quanto è entrato, quanto è uscito dei B0 abbinati e quale B0 è rimasto senza entrata</td></tr>'
+      +'<tr><td '+thS.replace('right','left')+'>Codice</td><td '+thS.replace('right','left')+'>Descrizione</td><td '+thS+'>Entrata BER</td><td '+thS+'>Uscita totale</td><td '+thS+'>Coperta da entrata</td>'
+      +(ctrl?'<td '+thS+'></td><td '+thS+'></td>':'')+'<td '+thS+'>Senza entrata / Differenza</td></tr>'
+      +senza.map(function(g){
+        var testa='<tr style="background:#FFF4F2;border-top:2px solid #E8B4AE;"><td><strong>'+g.bers.map(escAbb).join(' + ')+'</strong></td><td>'+escAbb(g.desc||'')+'</td>'
+          +'<td style="text-align:right;font-weight:bold;">'+g.entrata+'</td><td style="text-align:right;font-weight:bold;">'+g.uscita+'</td><td></td>'+vuote
+          +'<td style="text-align:right;"><span class="badge '+(g.diff<0?'badge-err':'badge-ok')+'" title="Entrata BER − Uscita totale dei B0 abbinati">'+(g.diff>0?'+':'')+g.diff+'</span></td></tr>';
+        return testa+g.righe.map(function(r){
+          return '<tr><td style="padding-left:22px;">'+(r.senza?'<strong>'+escAbb(r.b0)+'</strong>':escAbb(r.b0))+'</td><td style="font-size:12px;">'+escAbb(r.desc||'')+'</td><td></td>'
+            +'<td style="text-align:right;">'+r.tot+'</td><td style="text-align:right;">'+r.coperta+'</td>'+vuote
+            +'<td style="text-align:right;">'+(r.senza?'<span class="badge badge-err">-'+r.senza+'</span>':'<span style="color:#999;">0</span>')+'</td></tr>';
+        }).join('');
       }).join('');
   }
   tb.innerHTML=html||'<tr><td colspan="'+nCol+'" style="text-align:center;padding:20px;color:#999;">'+(soloDiff?'Nessuna differenza con Nova.':'Nessun articolo aperto.')+'</td></tr>';
@@ -5165,11 +5173,16 @@ function esportaApertiBerExcel(){
     ?[{wch:14},{wch:45},{wch:12},{wch:10},{wch:10},{wch:10},{wch:11},{wch:40},{wch:20}]
     :[{wch:14},{wch:45},{wch:12},{wch:10},{wch:10},{wch:40},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws1,'Aperti BER');
-  var r2=(_apertiBerSenzaEntrata||[]).map(function(r){
-    return {'Codice B0':r.b0,'Descrizione':r.desc||'','Spedito senza entrata':r.qta,'BER abbinati':r.bers.join(', ')||'nessuno'};
+  var r2=[];
+  (_apertiBerSenzaEntrata||[]).forEach(function(g){
+    var nome=g.bers.join(' + ');
+    r2.push({'Gruppo BER':nome,'Codice':nome,'Descrizione':g.desc||'','Entrata BER':g.entrata,'Uscita totale':g.uscita,'Coperta da entrata':'','Senza entrata':'','Differenza':g.diff});
+    g.righe.forEach(function(r){
+      r2.push({'Gruppo BER':nome,'Codice':r.b0,'Descrizione':r.desc||'','Entrata BER':'','Uscita totale':r.tot,'Coperta da entrata':r.coperta,'Senza entrata':r.senza,'Differenza':''});
+    });
   });
-  if(!r2.length)r2=[{'Codice B0':'Nessuna uscita senza entrata'}];
-  var ws2=XLSX.utils.json_to_sheet(r2);ws2['!cols']=[{wch:16},{wch:45},{wch:20},{wch:30}];
+  if(!r2.length)r2=[{'Gruppo BER':'Nessuna uscita senza entrata'}];
+  var ws2=XLSX.utils.json_to_sheet(r2);ws2['!cols']=[{wch:24},{wch:16},{wch:45},{wch:12},{wch:13},{wch:17},{wch:13},{wch:11}];
   XLSX.utils.book_append_sheet(wb,ws2,'Uscite senza entrata');
   var oggi=new Date();
   var dataStr=oggi.getFullYear()+('0'+(oggi.getMonth()+1)).slice(-2)+('0'+oggi.getDate()).slice(-2);
@@ -8811,7 +8824,7 @@ function calcolaFifoBer(ent,usc,abb){
   });
   function dataRiga(r){return (r.data_ddt||r.created_at||'').slice(0,10);}
   function ordina(a,b){return a.data.localeCompare(b.data)||(a.id-b.id);}
-  var entAperte=[];
+  var entAperte=[],entPerCod={};
   (ent||[]).forEach(function(r){
     var k=(r.codice_articolo||'').trim().toUpperCase();
     var qty=Number(r.quantita_ddt)||0;
@@ -8820,14 +8833,16 @@ function calcolaFifoBer(ent,usc,abb){
     // la chiudono le uscite di quello stesso B0.
     if(!k||qty<=0||(!berToB0[k]&&!b0ToBer[k]))return;
     entAperte.push({ber:k,data:dataRiga(r),id:Number(r.id)||0,residuo:qty});
+    entPerCod[k]=(entPerCod[k]||0)+qty; // solo per la vista "Uscite senza entrata"
   });
   entAperte.sort(ordina);
-  var uscB0=[];
+  var uscB0=[],uscTotB0={};
   (usc||[]).forEach(function(r){
     var k=(r.codice_articolo||'').trim().toUpperCase();
     var qty=Number(r.quantita_ddt||r.quantita||0);
     if(!k||!b0ToBer[k]||qty<=0)return;
     uscB0.push({b0:k,data:dataRiga(r),id:Number(r.id)||0,qty:qty,desc:r.descrizione||''});
+    uscTotB0[k]=(uscTotB0[k]||0)+qty; // solo per la vista "Uscite senza entrata"
   });
   uscB0.sort(ordina);
   var lavoratiPerBer={},uscNonAssegnate={},descB0={};
@@ -8843,7 +8858,41 @@ function calcolaFifoBer(ent,usc,abb){
     }
     if(resto>0)uscNonAssegnate[u.b0]=(uscNonAssegnate[u.b0]||0)+resto;
   });
-  return {b0ToBer:b0ToBer,berToB0:berToB0,lavoratiPerBer:lavoratiPerBer,uscNonAssegnate:uscNonAssegnate,descB0:descB0};
+  return {b0ToBer:b0ToBer,berToB0:berToB0,lavoratiPerBer:lavoratiPerBer,uscNonAssegnate:uscNonAssegnate,descB0:descB0,
+    entPerCod:entPerCod,uscTotB0:uscTotB0};
+}
+
+// Vista "Uscite senza entrata" (Confronto BERGAMASCO): un gruppo per ogni insieme di BER
+// collegati da B0 in comune (es. BER00238+BER00232 tramite B0RETIBI) che ha almeno un B0
+// con uscite non coperte. Legge solo i risultati di calcolaFifoBer, non ricalcola niente.
+function gruppiSenzaEntrataBer(fifo,descCod){
+  var visti={},gruppi=[];
+  Object.keys(fifo.uscNonAssegnate).sort().forEach(function(b0Start){
+    if(visti[b0Start])return;
+    var bers=[],b0s=[],coda=[b0Start];visti[b0Start]=true;
+    while(coda.length){
+      var b0=coda.shift();b0s.push(b0);
+      (fifo.b0ToBer[b0]||[]).forEach(function(ber){
+        if(bers.indexOf(ber)>=0)return;
+        bers.push(ber);
+        (fifo.berToB0[ber]||[]).forEach(function(x){if(!visti[x]){visti[x]=true;coda.push(x);}});
+      });
+    }
+    bers.sort();
+    var entrata=0,uscita=0,desc='';
+    bers.forEach(function(b){entrata+=fifo.entPerCod[b]||0;if(!desc&&descCod[b])desc=descCod[b];});
+    var righe=[];
+    b0s.forEach(function(b0){
+      entrata+=fifo.entPerCod[b0]||0; // entrate registrate direttamente col codice B0
+      var tot=fifo.uscTotB0[b0]||0,senza=fifo.uscNonAssegnate[b0]||0;
+      uscita+=tot;
+      if(tot||senza)righe.push({b0:b0,desc:fifo.descB0[b0]||'',tot:tot,coperta:tot-senza,senza:senza});
+    });
+    righe.sort(function(a,b){return b.senza-a.senza||a.b0.localeCompare(b.b0);});
+    gruppi.push({bers:bers,desc:desc,entrata:entrata,uscita:uscita,diff:entrata-uscita,righe:righe});
+  });
+  gruppi.sort(function(a,b){return (a.bers[0]||'').localeCompare(b.bers[0]||'');});
+  return gruppi;
 }
 
 // Giacenza per codice, identica alla scheda Magazzino (senza il numero Nova di AZZURRA):
