@@ -622,6 +622,11 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       <div class="card" style="margin-bottom:10px;">
         <h2 style="color:#1F4E79;">Scarto e Rimanenza</h2>
         <p style="font-size:12px;color:#666;margin-bottom:10px;">Verniciato → Imballo → Scarto = Rimanenza</p>
+        <div class="solo-azzurra" style="margin-bottom:8px;">
+          <label style="margin:0 0 4px;">Data dello scarto / riparato</label>
+          <input type="date" id="scarto-data" style="width:auto;margin:0;">
+          <p style="font-size:11px;color:#888;margin:4px 0 0;">AZZURRA: ogni SCARTO o RIPARATO è un movimento (riga Verniciato con data, operatore e ora), non sovrascrive il numero.</p>
+        </div>
         <button class="btn btn-blue btn-sm" onclick="caricaRiepilogoBer()">↻ AGGIORNA</button>
       </div>
       <div class="card">
@@ -1329,6 +1334,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
         <button class="btn btn-sm" style="width:auto;" data-fase="verniciato" onclick="setFase('verniciato')">VERNICIATO DA IMBALLARE</button>
         <button class="btn btn-sm" style="width:auto;" data-fase="imballato" onclick="setFase('imballato')">IMBALLATO DA SPEDIRE</button>
         <button class="btn btn-sm" style="width:auto;" data-fase="ddt" onclick="setFase('ddt')">SPEDITO, DDT DA FARE</button>
+        <button class="btn btn-sm" style="width:auto;" data-fase="scarti" onclick="setFase('scarti')">SCARTI DA RENDERE</button>
         <button class="btn btn-sm" style="width:auto;" data-fase="nova" onclick="setFase('nova')">CONTROLLO NOVA</button>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
@@ -1348,7 +1354,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 <div class="modal" id="modal-saldo-fasi">
   <div class="modal-box" style="max-width:900px;">
     <h3 style="color:#C55A11;">Importa saldo iniziale — AZZURRA</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:8px;">File Excel o CSV con le colonne <strong>Codice</strong>, <strong>Verniciato</strong> (da imballare) e <strong>Imballato</strong> (da spedire) dal conteggio fisico; facoltative <strong>Descrizione</strong> e <strong>Grezzo</strong>. Il saldo vale a inizio giornata della data scelta: contano i movimenti con data da quel giorno compreso. "Spedito, DDT da fare" iniziale = 0.</p>
+    <p style="font-size:13px;color:#666;margin-bottom:8px;">File Excel o CSV con le colonne <strong>Codice</strong>, <strong>Verniciato</strong> (da imballare) e <strong>Imballato</strong> (da spedire) dal conteggio fisico; facoltative <strong>Scarti</strong> (in attesa di reso), <strong>Descrizione</strong> e <strong>Grezzo</strong>. Il saldo vale a inizio giornata della data scelta: contano i movimenti con data da quel giorno compreso. "Spedito, DDT da fare" iniziale = 0.</p>
     <label>Data del saldo (inizio giornata)</label>
     <input type="date" id="saldo-data" onchange="anteprimaSaldo()">
     <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="saldo-grezzo-nova" checked onchange="anteprimaSaldo()" style="width:auto;margin:0;"> Calcola il Grezzo da Nova: carico aperto al giorno prima − Verniciato − Imballato</label>
@@ -1356,7 +1362,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <input type="file" id="saldo-file" accept=".xlsx,.xls,.csv" onchange="leggiFileSaldo(this)">
     <p id="saldo-info" style="font-size:12px;color:#666;margin:6px 0;"></p>
     <div class="rc-table-scroll"><table class="rc-table">
-      <thead><tr><th>Codice</th><th>Descrizione</th><th>Carico Nova al giorno prima</th><th>Verniciato</th><th>Imballato</th><th>Grezzo</th><th></th></tr></thead>
+      <thead><tr><th>Codice</th><th>Descrizione</th><th>Carico Nova al giorno prima</th><th>Verniciato</th><th>Imballato</th><th>Scarti</th><th>Grezzo</th><th></th></tr></thead>
       <tbody id="saldo-tbody"></tbody>
     </table></div>
     <p id="saldo-tot" style="font-size:13px;font-weight:bold;color:#C55A11;margin:8px 0 0;"></p>
@@ -3173,7 +3179,7 @@ async function verificaVerniciatoImballo(){
   var fino=_finoGiorno;
   function ddtFino(r){var d=(r.data_ddt||r.created_at||'').slice(0,10);return !fino||!d||d<=fino;}
   imb=imb.filter(function(r){return rigaFino(r,fino);});
-  vern=vern.filter(function(r){return rigaFino(r,fino);});
+  vern=vern.filter(function(r){return rigaFino(r,fino)&&!isMovScarto(r);});
   if(isAz)wau=wau.filter(function(r){return rigaFino(r,fino);});
   ddtu=ddtu.filter(ddtFino);
   ddte=ddte.filter(ddtFino);
@@ -3226,7 +3232,7 @@ async function verificaVerniciatoImballo(){
     var c=codDDT(r);
     if(ddtDopoX(r))sommaDDT(mapDDTUTot,c,r);
     var d=(r.data_ddt||r.created_at||'').slice(0,10);
-    if(inizio&&d&&d>=inizio)sommaDDT(mapDDT,c,r);
+    if(inizio&&d&&d>=inizio&&!isDdtScarti(r))sommaDDT(mapDDT,c,r); // C610 = reso scarti, non produzione
   });
   ddte.forEach(function(r){
     if(!r.codice_articolo)return;
@@ -3598,7 +3604,7 @@ async function salvaVerniciato(){
   var esistenti=await apiGet('verniciato','data_inserimento=eq.'+dataSel+'&order=id.desc&limit=1000');
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
+      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r) && !isMovScarto(r);
     });
     if(dup){
       var nuovaQty=(dup.quantita||0)+qty;
@@ -3712,7 +3718,7 @@ async function salvaVerniciatoP(){
   var esistenti=await apiGet('verniciato','data_inserimento=eq.'+dataSel+'&order=id.desc&limit=1000');
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
+      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r) && !isMovScarto(r);
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -3790,7 +3796,7 @@ async function salvaVerniciato2(){
   var esistenti=await apiGet('verniciato','data_inserimento=eq.'+dataSel+'&order=id.desc&limit=1000');
   if(esistenti){
     var dup=esistenti.find(function(r){
-      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r);
+      return dataRigaLav(r)===dataSel && r.codice_articolo===cod && !isRiportoVern(r) && !isMovScarto(r);
     });
     if(dup){
       var nq=(dup.quantita||0)+qty;
@@ -4149,7 +4155,79 @@ async function caricaRiepilogoBerNew(){
 var scartoBer={};
 var _verificaVernImbUltimoRis=null;
 
+// ── SCARTO E RIMANENZA AZZURRA: movimenti SCARTO / RIPARATO in Verniciato ──
+// Rimanenza = saldo "verniciato da imballare" + Verniciato − Imballo − Scarti + Riparati,
+// dalla data del saldo iniziale (Fasi magazzino) o, senza saldo, dal "Dal giorno"/tutte le righe.
+// Scarto mostrato = Scarti − Riparati. Stesso calcolo della pagina ragazze e di Fasi magazzino.
+var _scartiAzz={};
+function idScartoAz(cod){return 'scaz-'+String(cod||'').replace(/[^a-zA-Z0-9]/g,'_');}
+async function caricaScartiAzzurra(){
+  var l=document.getElementById('ber-riepilogo-lista'),tEl=document.getElementById('ber-riepilogo-tot');
+  if(!l)return;
+  var dEl=document.getElementById('scarto-data');if(dEl&&!dEl.value)dEl.value=oggiISO();
+  var sal=await leggiSaldoFasi('AZZURRA');
+  var dFrom=(sal&&!sal.errore&&sal.data)||dalAttivo()||'';
+  var filt=dFrom?'&data_inserimento=gte.'+dFrom:'';
+  var vern=await apiGetTutto('verniciato','order=id.asc'+filt),imb=await apiGetTutto('imballo','order=id.asc'+filt);
+  if(!vern||!imb){l.innerHTML='<div class="warn-box">Errore di caricamento Verniciato o Imballo.</div>';return;}
+  var conSaldo=!!(sal&&!sal.errore&&sal.data);
+  var m={};
+  function voce(cod,desc){
+    var k=String(cod||'').trim().toUpperCase();if(!k)return null;
+    if(!m[k])m[k]={cod:k,desc:desc||'',sV:0,V:0,I:0,S:0,R:0};
+    if(!m[k].desc&&desc)m[k].desc=desc;
+    return m[k];
+  }
+  if(conSaldo)sal.righe.forEach(function(r){if(r.fase==='verniciato'){var v=voce(r.codice_articolo,r.descrizione);if(v)v.sV+=Number(r.quantita)||0;}});
+  vern.forEach(function(r){
+    if(conSaldo&&isRiportoVern(r))return; // con il saldo i riporti sono gia' contati
+    var v=voce(r.codice_articolo,r.descrizione);if(!v)return;
+    var q=Number(r.quantita)||0;
+    if(isScartoVern(r))v.S+=Math.abs(q);else if(isRiparatoVern(r))v.R+=Math.abs(q);else v.V+=q;
+  });
+  imb.forEach(function(r){if(conSaldo&&isRiportoVern(r))return;var v=voce(r.codice_articolo,r.articolo);if(v)v.I+=Number(r.totale)||0;});
+  _scartiAzz=m;
+  var lista=Object.keys(m).map(function(k){var a=m[k];a.scarto=a.S-a.R;a.rim=a.sV+a.V-a.I-a.S+a.R;return a;})
+    .filter(function(a){return a.sV||a.V||a.I||a.S||a.R;})
+    .sort(function(a,b){return a.cod.localeCompare(b.cod);});
+  var tV=0,tI=0,tS=0,tRim=0;
+  var intest='<div style="font-size:12px;color:#666;margin-bottom:6px;">'+(conSaldo?'Dal saldo iniziale al '+fmtDataGMA(dFrom)+' (inizio giornata).':(dFrom?'Righe dal '+fmtDataGMA(dFrom)+' (nessun saldo iniziale).':'Tutte le righe di lavoro (nessun saldo iniziale).'))+'</div>';
+  l.innerHTML=intest+(lista.length?lista.map(function(a){
+    tV+=a.sV+a.V;tI+=a.I;tS+=a.scarto;tRim+=a.rim;
+    var id=idScartoAz(a.cod),c=a.cod.replace(/'/g,"\\'");
+    return '<div class="row-item" style="flex-direction:column;align-items:stretch;gap:4px;'+(a.rim<0?'border-left-color:#C00000;':'')+'">'
+      +'<div class="rdesc"><span class="badge badge-ok">'+escAbb(a.cod)+'</span> '+escAbb(a.desc)+'</div>'
+      +'<div class="rsub">Verniciato: <strong>'+(a.sV+a.V)+'</strong>'+(a.sV?' <span style="color:#888;">(saldo '+a.sV+')</span>':'')+' &nbsp;Imballo: <strong>'+a.I+'</strong> &nbsp;Scarto: <strong>'+a.scarto+'</strong>'+(a.R?' <span style="color:#888;">('+a.S+' − '+a.R+' riparati)</span>':'')
+        +' &nbsp;Rimanenza: <strong style="color:'+(a.rim<0?'#C00000':a.rim===0?'#217346':'#C55A11')+';">'+a.rim+'</strong></div>'
+      +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
+        +'<input type="number" id="'+id+'" min="1" step="1" placeholder="pz" style="width:70px;margin:0;padding:4px 8px;font-size:13px;">'
+        +'<button class="btn btn-red btn-sm" style="width:auto;padding:4px 10px;" onclick="registraScartoAzzurra(\''+c+'\',\'SCARTO\')">SCARTO</button>'
+        +'<button class="btn btn-green btn-sm" style="width:auto;padding:4px 10px;" onclick="registraScartoAzzurra(\''+c+'\',\'RIPARATO\')">RIPARATO</button>'
+      +'</div>'
+    +'</div>';
+  }).join(''):'<div class="empty">Nessun articolo.</div>');
+  if(tEl)tEl.innerHTML='<div class="'+(tRim===0?'ok-box':'warn-box')+'">Totale — Verniciato: '+tV+' &nbsp;Imballo: '+tI+' &nbsp;Scarto: '+tS+' &nbsp;Rimanenza: <strong>'+tRim+'</strong></div>';
+}
+
+async function registraScartoAzzurra(cod,tipo){
+  var a=_scartiAzz[cod];if(!a)return;
+  var el=document.getElementById(idScartoAz(cod));
+  var n=parseInt(el&&el.value,10);
+  if(!(n>0)){alert('Scrivi i pezzi (numero intero maggiore di 0).');return;}
+  var data=(document.getElementById('scarto-data')||{}).value||oggiISO();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){alert('Scegli la data.');return;}
+  if(tipo==='RIPARATO'&&n>a.scarto&&!confirm('Riparati '+n+' pz, ma gli scarti aperti di '+cod+' sono '+a.scarto+'. Registrare comunque?'))return;
+  if(tipo==='SCARTO'&&n>a.rim&&!confirm('Scarto di '+n+' pz, ma la rimanenza di '+cod+' è '+a.rim+'. Registrare comunque?'))return;
+  if(!confirm('Registrare '+tipo+' di '+n+' pz?\n\n'+cod+' — '+a.desc+'\nData: '+fmtDataGMA(data)))return;
+  var q=tipo==='SCARTO'?-n:n;
+  var r=await apiPost('verniciato',{codice_articolo:cod,descrizione:a.desc,quantita:q,sequenza:String(q),note:tipo,data_inserimento:data});
+  if(!r)return;
+  showMsg('msg-imballo2','✅ '+tipo+' '+n+' pz '+escAbb(cod)+' registrato.','ok');
+  caricaRiepilogoBer();
+}
+
 async function caricaRiepilogoBer(){
+  if(getCliente()==='AZZURRA')return caricaScartiAzzurra();
   var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
   var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
   var scartiDB=await apiGet('scarti_ber');
@@ -4717,7 +4795,7 @@ async function aggiornaConfronto(){
   vern=vern.concat(arch.filter(function(r){return r.tabella_origine==='verniciato';}));
   // I riporti Verniciato da Chiudi Mese sono pezzi gia' contati nel mese precedente (archivio):
   // in un conto dall'inizio vanno esclusi, altrimenti si sommerebbero due volte.
-  vern=vern.filter(function(r){return !isRiportoVern(r);});
+  vern=vern.filter(function(r){return !isRiportoVern(r)&&!isMovScarto(r);});
   imb=imb.concat(arch.filter(function(r){return r.tabella_origine==='imballo';}));
 
   var periodoElAz=document.getElementById('rc-periodo-info');
@@ -7718,6 +7796,7 @@ async function eseguiVerificaPdfNova(){
     } else if(fonte==='verniciato'){
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var vern=await apiGetTutto('verniciato');
+      if(vern)vern=vern.filter(function(r){return !isMovScarto(r);});
       if(!vern){status.innerHTML='<div class="msg msg-err">Errore caricamento Verniciato dell\'app.</div>';return;}
       vern.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
@@ -7733,6 +7812,7 @@ async function eseguiVerificaPdfNova(){
       var imb2=await apiGetTutto('imballo');
       if(!imb2){status.innerHTML='<div class="msg msg-err">Errore caricamento Imballo dell\'app.</div>';return;}
       var vern2=await apiGetTutto('verniciato');
+      if(vern2)vern2=vern2.filter(function(r){return !isMovScarto(r);});
       if(!vern2){status.innerHTML='<div class="msg msg-err">Errore caricamento Verniciato dell\'app.</div>';return;}
       imb2.filter(function(r){
         var d=(r.data_inserimento||r.created_at||'').slice(0,10);
@@ -9018,19 +9098,24 @@ function renderMagazzino(){
 // ── FASI MAGAZZINO (solo AZZURRA) ──────────────────────────────────────
 // Saldo iniziale per fase (tabella saldo_fasi, ultimo data_saldo del cliente) a inizio
 // giornata della data, + movimenti con data da quel giorno compreso:
-//   Grezzo                 = saldo + DDT Entrata (IA -> A0) − Verniciato
-//   Verniciato da imballare = saldo + Verniciato − Imballo
+//   Grezzo                  = saldo + DDT Entrata (IA -> A0) − Verniciato (senza SCARTO/RIPARATO)
+//   Verniciato da imballare = saldo + Verniciato − Imballo − Scarti + Riparati
 //   Imballato da spedire    = saldo + Imballo − WA Uscita
-//   Spedito, DDT da fare    = saldo + WA Uscita − DDT Uscita
-// Controllo Nova: carico aperto di oggi (Saldo carico del Confronto) vs somma delle quattro.
+//   Spedito, DDT da fare    = saldo + WA Uscita − DDT Uscita (senza bollettario scarti C610)
+//   Scarti da rendere       = saldo + Scarti − Riparati − DDT Uscita C610
+// Scarti/Riparati = righe Verniciato con nota "SCARTO" (quantita' negativa) / "RIPARATO".
+// Controllo Nova: carico aperto di oggi (Saldo carico del Confronto) vs somma delle cinque.
 // Movimenti = tabelle di lavoro + archivio con data dal giorno del saldo; righe "RIPORTO DA"
 // escluse (sono doppioni di pezzi gia' contati prima). Imballo da confermare: solo informazione.
+// cols: [etichetta, campo, segno]; residuo = saldo (fase s di saldo_fasi) + somma(segno*campo)
 var FASI_DEF={
-  grezzo:{nome:'Grezzo',s:'grezzo',piu:'E',meno:'V',lPiu:'+ DDT Entrata',lMeno:'− Verniciato',formula:'Grezzo = saldo + DDT Entrata − Verniciato'},
-  verniciato:{nome:'Verniciato da imballare',s:'verniciato',piu:'V',meno:'I',lPiu:'+ Verniciato',lMeno:'− Imballo',formula:'Verniciato da imballare = saldo + Verniciato − Imballo'},
-  imballato:{nome:'Imballato da spedire',s:'imballato',piu:'I',meno:'W',lPiu:'+ Imballo',lMeno:'− WA Uscita',formula:'Imballato da spedire = saldo + Imballo − WA Uscita'},
-  ddt:{nome:'Spedito, DDT da fare',s:'ddt',piu:'W',meno:'U',lPiu:'+ WA Uscita',lMeno:'− DDT Uscita',formula:'Spedito, DDT da fare = saldo + WA Uscita − DDT Uscita'}
+  grezzo:{nome:'Grezzo',s:'grezzo',cols:[['+ DDT Entrata','E',1],['− Verniciato','V',-1]],formula:'Grezzo = saldo + DDT Entrata − Verniciato'},
+  verniciato:{nome:'Verniciato da imballare',s:'verniciato',cols:[['+ Verniciato','V',1],['− Imballo','I',-1],['− Scarti','S',-1],['+ Riparati','R',1]],formula:'Verniciato da imballare = saldo + Verniciato − Imballo − Scarti + Riparati'},
+  imballato:{nome:'Imballato da spedire',s:'imballato',cols:[['+ Imballo','I',1],['− WA Uscita','W',-1]],formula:'Imballato da spedire = saldo + Imballo − WA Uscita'},
+  ddt:{nome:'Spedito, DDT da fare',s:'ddt_da_fare',cols:[['+ WA Uscita','W',1],['− DDT Uscita','U',-1]],formula:'Spedito, DDT da fare = saldo + WA Uscita − DDT Uscita (senza i DDT scarti C610)'},
+  scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = saldo + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
 };
+var ORDINE_FASI=['grezzo','verniciato','imballato','ddt','scarti'];
 var _fasi={fase:'grezzo',dati:null,n:0};
 
 // Lettura diretta per distinguere "tabella mancante" da "nessun saldo"
@@ -9099,7 +9184,7 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
   var dSaldo=saldo.data,m={},senzaCodice=0;
   function voce(cod,desc){
     var k=key(cod);if(!k||fuoriMag(k))return null;
-    if(!m[k])m[k]={cod:k,desc:'',s:{grezzo:0,verniciato:0,imballato:0,ddt:0},E:0,V:0,I:0,W:0,U:0,att:0,nova:null};
+    if(!m[k])m[k]={cod:k,desc:'',s:{grezzo:0,verniciato:0,imballato:0,ddt_da_fare:0,scarti:0},E:0,V:0,I:0,W:0,U:0,S:0,R:0,UC:0,att:0,nova:null};
     if(!m[k].desc&&desc)m[k].desc=desc;
     return m[k];
   }
@@ -9110,7 +9195,12 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
     righe.forEach(function(r){
       if(!dopo(r))return;
       if(!r.codice_articolo){senzaCodice++;return;}
-      var v=voce(r.codice_articolo,r[descF]);if(v)v[campo]+=Number(r[qta])||0;
+      var v=voce(r.codice_articolo,r[descF]);if(!v)return;
+      var q=Number(r[qta])||0;
+      // Verniciato: SCARTO (negativo) e RIPARATO non sono verniciatura
+      if(campo==='V'&&isScartoVern(r)){v.S+=Math.abs(q);return;}
+      if(campo==='V'&&isRiparatoVern(r)){v.R+=Math.abs(q);return;}
+      v[campo]+=q;
     });
   }
   somma(vern,'V','quantita','descrizione');
@@ -9122,7 +9212,7 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
   somma(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}),'W','quantita','descrizione');
   function ddtDopo(r){var d=dataDDTCarico(r);return !!d&&d>=dSaldo;}
   base.ent.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v.E+=Number(r.quantita_ddt)||0;}});
-  base.usc.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v.U+=Number(r.quantita_ddt)||0;}});
+  base.usc.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v[isDdtScarti(r)?'UC':'U']+=Number(r.quantita_ddt)||0;}});
   (dc||[]).forEach(function(r){if(r.codice_articolo){var v=voce(r.codice_articolo,r.descrizione);if(v)v.att+=Number(r.quantita)||0;}});
   // Carico aperto Nova di oggi (stesso calcolo del Saldo carico del Confronto)
   var car=calcolaCaricoAperto(base,oggiISO());
@@ -9130,13 +9220,12 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
   var lista=Object.keys(m).map(function(k){
     var a=m[k];
     a.desc=a.desc||artDesc[k]||descNova[k]||'';
-    a.r={
-      grezzo:a.s.grezzo+a.E-a.V,
-      verniciato:a.s.verniciato+a.V-a.I,
-      imballato:a.s.imballato+a.I-a.W,
-      ddt:a.s.ddt+a.W-a.U
-    };
-    a.somma=a.r.grezzo+a.r.verniciato+a.r.imballato+a.r.ddt;
+    a.r={};a.somma=0;
+    ORDINE_FASI.forEach(function(f){
+      var d=FASI_DEF[f],v=a.s[d.s]||0;
+      d.cols.forEach(function(c){v+=c[2]*(a[c[1]]||0);});
+      a.r[f]=v;a.somma+=v;
+    });
     if(car.disp&&a.nova===null)a.nova=0;
     a.diffNova=car.disp?a.nova-a.somma:null;
     return a;
@@ -9156,7 +9245,7 @@ function renderFasi(){
   function filtroTesto(a){return !q||(a.cod+' '+a.desc).toUpperCase().indexOf(q)>=0;}
   var avvisoSenza=d.senzaCodice?' <span style="color:#C55A11;">⚠ '+d.senzaCodice+' righe di movimento senza codice articolo non contate.</span>':'';
   if(_fasi.fase==='nova'){
-    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Differenza</th></tr>';
+    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Scarti</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Differenza</th></tr>';
     if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';return;}
     nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Differenza = Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
     var l=d.lista.filter(function(a){return filtroTesto(a)&&(!soloNZ||a.diffNova!==0);})
@@ -9166,36 +9255,37 @@ function renderFasi(){
       tS+=a.somma;tN+=a.nova;
       var bg=a.diffNova!==0?' style="background-color:#fde2e2;"':'';
       return '<tr'+bg+'><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
-        +[a.r.grezzo,a.r.verniciato,a.r.imballato,a.r.ddt].map(function(v){return '<td style="text-align:right;'+(v<0?'color:#C00000;font-weight:bold;':'')+'">'+v+'</td>';}).join('')
+        +ORDINE_FASI.map(function(f){return a.r[f];}).map(function(v){return '<td style="text-align:right;'+(v<0?'color:#C00000;font-weight:bold;':'')+'">'+v+'</td>';}).join('')
         +'<td style="text-align:right;font-weight:bold;">'+a.somma+'</td><td style="text-align:right;font-weight:bold;">'+a.nova+'</td>'
         +'<td style="text-align:right;font-weight:bold;color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td></tr>';
-    }).join(''):'<tr><td colspan="9" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
+    }).join(''):'<tr><td colspan="10" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
     tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Differenza: '+(tN-tS):'';
     return;
   }
-  var f=FASI_DEF[_fasi.fase];
-  th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Saldo al '+fmtDataGMA(d.data)+'</th><th>'+f.lPiu+'</th><th>'+f.lMeno+'</th><th>Residuo</th></tr>';
+  var f=FASI_DEF[_fasi.fase]||FASI_DEF.grezzo,fk=FASI_DEF[_fasi.fase]?_fasi.fase:'grezzo';
+  th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Saldo al '+fmtDataGMA(d.data)+'</th>'+f.cols.map(function(c){return '<th>'+c[0]+'</th>';}).join('')+'<th>Residuo</th></tr>';
   nota.innerHTML=f.formula+', con i movimenti dal '+fmtDataGMA(d.data)+' compreso. Negativi in rosso = anomalia (manca un movimento o il saldo).'
-    +(_fasi.fase==='verniciato'?' Gli imballi del magazzino da confermare non sono contati: sono indicati a parte.':'')+avvisoSenza;
+    +(fk==='verniciato'?' Gli imballi del magazzino da confermare non sono contati: sono indicati a parte.':'')+avvisoSenza;
   var lista=d.lista.filter(function(a){
     if(!filtroTesto(a))return false;
-    if(soloNZ&&a.r[_fasi.fase]===0&&a.s[f.s]===0&&a[f.piu]===0&&a[f.meno]===0)return false;
+    if(soloNZ&&a.r[fk]===0&&!a.s[f.s]&&f.cols.every(function(c){return !a[c[1]];}))return false;
     return true;
   }).sort(function(a,b){
-    var na=a.r[_fasi.fase]<0?0:1,nb=b.r[_fasi.fase]<0?0:1;
-    return na-nb||b.r[_fasi.fase]-a.r[_fasi.fase]||a.cod.localeCompare(b.cod);
+    var na=a.r[fk]<0?0:1,nb=b.r[fk]<0?0:1;
+    return na-nb||b.r[fk]-a.r[fk]||a.cod.localeCompare(b.cod);
   });
-  var tSal=0,tP=0,tM=0,tR=0,nNeg=0;
+  var tSal=0,tR=0,nNeg=0,tCol=f.cols.map(function(){return 0;});
   tb.innerHTML=lista.length?lista.map(function(a){
-    var r=a.r[_fasi.fase];
-    tSal+=a.s[f.s];tP+=a[f.piu];tM+=a[f.meno];tR+=r;if(r<0)nNeg++;
+    var r=a.r[fk];
+    tSal+=a.s[f.s]||0;tR+=r;if(r<0)nNeg++;
+    f.cols.forEach(function(c,i){tCol[i]+=a[c[1]]||0;});
     return '<tr'+(r<0?' style="background-color:#fde2e2;"':'')+'><td><strong>'+escAbb(a.cod)+'</strong></td>'
       +'<td>'+escAbb(a.desc)+(r<0?' <span class="badge badge-err">⚠ anomalia</span>':'')
-        +(_fasi.fase==='verniciato'&&a.att?' <span class="badge badge-warn" title="Imballi del magazzino da confermare">'+a.att+' in attesa di conferma</span>':'')+'</td>'
-      +'<td style="text-align:right;">'+a.s[f.s]+'</td><td style="text-align:right;">'+a[f.piu]+'</td><td style="text-align:right;">'+a[f.meno]+'</td>'
+        +(fk==='verniciato'&&a.att?' <span class="badge badge-warn" title="Imballi del magazzino da confermare">'+a.att+' in attesa di conferma</span>':'')+'</td>'
+      +'<td style="text-align:right;">'+(a.s[f.s]||0)+'</td>'+f.cols.map(function(c){return '<td style="text-align:right;">'+(a[c[1]]||0)+'</td>';}).join('')
       +'<td style="text-align:right;font-weight:bold;'+(r<0?'color:#C00000;':'')+'">'+r+'</td></tr>';
-  }).join(''):'<tr><td colspan="6" style="text-align:center;padding:14px;color:#999;">Nessun articolo.</td></tr>';
-  tot.innerHTML=lista.length?f.nome+' — articoli: '+lista.length+' · Saldo: '+tSal+' · '+f.lPiu+': '+tP+' · '+f.lMeno+': '+tM+' · Residuo: '+tR
+  }).join(''):'<tr><td colspan="'+(4+f.cols.length)+'" style="text-align:center;padding:14px;color:#999;">Nessun articolo.</td></tr>';
+  tot.innerHTML=lista.length?f.nome+' — articoli: '+lista.length+' · Saldo: '+tSal+' · '+f.cols.map(function(c,i){return c[0]+': '+tCol[i];}).join(' · ')+' · Residuo: '+tR
     +(nNeg?' · <span style="color:#C00000;">'+nNeg+' negativi</span>':''):'';
 }
 
@@ -9221,9 +9311,9 @@ async function scaricaModelloSaldo(){
   (abzCache||[]).forEach(function(r){var k=up(r.codice_a0)||up(r.codice_ia);if(k&&r.descrizione_ia&&!desc[k])desc[k]=r.descrizione_ia;});
   Object.keys(nova.saldoX).forEach(function(k){if(nova.saldoX[k]>0&&!fuoriMag(k))cod[k]=true;});
   vern.concat(imb).forEach(function(r){var k=up(r.codice_articolo);if(k&&!fuoriMag(k)){cod[k]=true;if(!desc[k])desc[k]=r.descrizione||r.articolo||'';}});
-  var righe=Object.keys(cod).sort().map(function(k){return {Codice:k,Descrizione:desc[k]||'',Verniciato:'',Imballato:''};});
-  var ws=XLSX.utils.json_to_sheet(righe,{header:['Codice','Descrizione','Verniciato','Imballato']});
-  ws['!cols']=[{wch:16},{wch:48},{wch:12},{wch:12}];
+  var righe=Object.keys(cod).sort().map(function(k){return {Codice:k,Descrizione:desc[k]||'',Verniciato:'',Imballato:'',Scarti:''};});
+  var ws=XLSX.utils.json_to_sheet(righe,{header:['Codice','Descrizione','Verniciato','Imballato','Scarti']});
+  ws['!cols']=[{wch:16},{wch:48},{wch:12},{wch:12},{wch:10}];
   var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Saldo');
   XLSX.writeFile(wb,'modello_saldo_fasi_AZZURRA.xlsx');
 }
@@ -9271,16 +9361,17 @@ async function leggiFileSaldo(input){
     if(h<0)throw new Error('Nessuna colonna "Codice" nelle prime righe del file.');
     var intest=aoa[h].map(function(c){return String(c).trim();});
     function col(re){for(var j=0;j<intest.length;j++)if(re.test(intest[j]))return j;return -1;}
-    var cC=col(/^cod/i),cD=col(/descr/i),cV=col(/vernic/i),cI=col(/imball/i),cG=col(/grezz/i);
+    var cC=col(/^cod/i),cD=col(/descr/i),cV=col(/vernic/i),cI=col(/imball/i),cG=col(/grezz/i),cS=col(/scart/i);
     if(cV<0||cI<0)throw new Error('Servono le colonne "Verniciato" e "Imballato".');
     var mappaIA={};(abzCache||[]).forEach(function(r){var ia=String(r.codice_ia||'').trim().toUpperCase(),a0=String(r.codice_a0||'').trim().toUpperCase();if(ia&&a0)mappaIA[ia]=a0;});
     var m={},ordine=[],doppi=0,convIA=0;
     aoa.slice(h+1).forEach(function(r){
       var c=String(r[cC]||'').trim().toUpperCase();if(!c)return;
       if(mappaIA[c]){c=mappaIA[c];convIA++;}
-      if(m[c])doppi++;else{m[c]={cod:c,desc:'',v:0,i:0,g:null};ordine.push(c);}
+      if(m[c])doppi++;else{m[c]={cod:c,desc:'',v:0,i:0,sc:0,g:null};ordine.push(c);}
       if(cD>=0&&!m[c].desc)m[c].desc=String(r[cD]||'').trim();
       m[c].v+=numSaldo(r[cV]);m[c].i+=numSaldo(r[cI]);
+      if(cS>=0)m[c].sc+=numSaldo(r[cS]);
       if(cG>=0&&String(r[cG]).trim()!=='')m[c].g=(m[c].g||0)+numSaldo(r[cG]);
     });
     _saldoImp.file={nome:file.name,righe:ordine.map(function(k){return m[k];}),doppi:doppi,convIA:convIA,haGrezzo:cG>=0};
@@ -9306,32 +9397,32 @@ function anteprimaSaldo(){
   avvisi.push('File '+escAbb(f.nome)+': '+f.righe.length+' codici'+(f.doppi?', '+f.doppi+' righe con codice ripetuto sommate':'')+(f.convIA?', '+f.convIA+' codici IA convertiti in A0':'')+'.');
   if(useNova&&f.haGrezzo)avvisi.push('La colonna Grezzo del file è ignorata: il Grezzo è calcolato da Nova.');
   var m={},ordine=[];
-  f.righe.forEach(function(r){m[r.cod]={cod:r.cod,desc:r.desc,v:r.v,i:r.i,gFile:r.g,nova:null,inFile:true};ordine.push(r.cod);});
+  f.righe.forEach(function(r){m[r.cod]={cod:r.cod,desc:r.desc,v:r.v,i:r.i,sc:r.sc||0,gFile:r.g,nova:null,inFile:true};ordine.push(r.cod);});
   if(useNova&&car&&car.disp)Object.keys(car.A).forEach(function(k){
     if(fuoriMag(k))return;
-    if(!m[k]){if(!car.A[k])return;m[k]={cod:k,desc:'',v:0,i:0,gFile:null,inFile:false};ordine.push(k);}
+    if(!m[k]){if(!car.A[k])return;m[k]={cod:k,desc:'',v:0,i:0,sc:0,gFile:null,inFile:false};ordine.push(k);}
     m[k].nova=car.A[k];
   });
   var descA={};(artCache||[]).forEach(function(a){var k=String(a.codice_articolo||'').trim().toUpperCase();if(k&&a.descrizione&&!descA[k])descA[k]=a.descrizione;});
   (abzCache||[]).forEach(function(r){var k=String(r.codice_a0||r.codice_ia||'').trim().toUpperCase();if(k&&r.descrizione_ia&&!descA[k])descA[k]=r.descrizione_ia;});
   var righe=ordine.map(function(k){
     var a=m[k];a.desc=a.desc||descA[k]||'';
-    if(useNova){a.nova=a.nova===null?0:a.nova;a.g=car&&car.disp?a.nova-a.v-a.i:null;}
+    if(useNova){a.nova=a.nova===null?0:a.nova;a.g=car&&car.disp?a.nova-a.v-a.i-a.sc:null;}
     else a.g=a.gFile===null?0:a.gFile;
     a.avv=[];
     if(a.g!==null&&a.g<0)a.avv.push('grezzo negativo');
-    if(useNova&&car&&car.disp&&!car.A.hasOwnProperty(k)&&(a.v||a.i))a.avv.push('non nel carico Nova');
+    if(useNova&&car&&car.disp&&!car.A.hasOwnProperty(k)&&(a.v||a.i||a.sc))a.avv.push('non nel carico Nova');
     return a;
   }).sort(function(a,b){return (b.avv.length-a.avv.length)||a.cod.localeCompare(b.cod);});
   _saldoImp.righe=righe;_saldoImp.data=data;_saldoImp.useNova=useNova;
   info.innerHTML=avvisi.join('<br>');
   tb.innerHTML=righe.map(function(a){
     return '<tr'+(a.avv.length?' style="background-color:#fde2e2;"':'')+'><td><strong>'+escAbb(a.cod)+'</strong></td><td>'+escAbb(a.desc)+'</td>'
-      +'<td style="text-align:right;">'+(a.nova===null?'—':a.nova)+'</td><td style="text-align:right;">'+a.v+'</td><td style="text-align:right;">'+a.i+'</td>'
+      +'<td style="text-align:right;">'+(a.nova===null?'—':a.nova)+'</td><td style="text-align:right;">'+a.v+'</td><td style="text-align:right;">'+a.i+'</td><td style="text-align:right;">'+a.sc+'</td>'
       +'<td style="text-align:right;font-weight:bold;">'+(a.g===null?'—':a.g)+'</td><td>'+a.avv.map(function(x){return '<span class="badge badge-err">'+x+'</span>';}).join(' ')+'</td></tr>';
   }).join('');
-  var sv=0,si=0,sg=0,nAvv=0;righe.forEach(function(a){sv+=a.v;si+=a.i;sg+=a.g||0;if(a.avv.length)nAvv++;});
-  tot.textContent=righe.length+' articoli · Verniciato '+sv+' · Imballato '+si+' · Grezzo '+sg+(nAvv?' · '+nAvv+' righe da controllare (in cima, in rosso)':'');
+  var sv=0,si=0,ss=0,sg=0,nAvv=0;righe.forEach(function(a){sv+=a.v;si+=a.i;ss+=a.sc;sg+=a.g||0;if(a.avv.length)nAvv++;});
+  tot.textContent=righe.length+' articoli · Verniciato '+sv+' · Imballato '+si+' · Scarti '+ss+' · Grezzo '+sg+(nAvv?' · '+nAvv+' righe da controllare (in cima, in rosso)':'');
   btn.disabled=!righe.length||(useNova&&!(car&&car.disp));
 }
 
@@ -9342,10 +9433,10 @@ async function salvaSaldoFasi(){
   var prima=await leggiSaldoFasi(cl);
   if(prima.errore){alert(prima.errore);return;}
   var esistenti=(await apiGetTutto('saldo_fasi','cliente=eq.'+cl+'&data_saldo=eq.'+data+'&order=id.asc'))||[];
-  var nota=_saldoImp.useNova?'Grezzo = carico Nova al '+fmtDataGMA(giornoPrimaISO(data))+' − verniciato − imballato':'';
+  var nota=_saldoImp.useNova?'Grezzo = carico Nova al '+fmtDataGMA(giornoPrimaISO(data))+' − verniciato − imballato − scarti':'';
   var ins=[];
   righe.forEach(function(a){
-    [['verniciato',a.v,'conteggio'],['imballato',a.i,'conteggio'],['grezzo',a.g||0,_saldoImp.useNova?'calcolato_nova':'file']].forEach(function(x){
+    [['verniciato',a.v,'conteggio'],['imballato',a.i,'conteggio'],['scarti',a.sc||0,'conteggio'],['grezzo',a.g||0,_saldoImp.useNova?'calcolato_nova':'file']].forEach(function(x){
       if(!x[1])return;
       ins.push({cliente:cl,data_saldo:data,codice_articolo:a.cod,descrizione:a.desc||null,fase:x[0],quantita:x[1],origine:x[2],note:x[0]==='grezzo'?(nota||null):null,inserito_da:op,created_at:adesso});
     });
@@ -9800,7 +9891,19 @@ function calcolaRiportiCM(vern,imb,wu){
 
 // Riga Verniciato creata da Chiudi Mese (vedi chiudiMese): nota "RIPORTO DA ...".
 function isRiportoVern(r){return /^RIPORTO DA /i.test((r&&r.note)||'');}
-function badgeRiporto(r){return isRiportoVern(r)?'<span class="badge" style="background:#EDE7F6;color:#4527A0;margin-right:4px;">RIPORTO</span>':'';}
+// AZZURRA: scarto di verniciatura = riga Verniciato negativa con nota "SCARTO"; pezzo
+// riparato = riga positiva con nota "RIPARATO". Non sono verniciatura: fuori dai confronti
+// con Nova e Imballo, dentro Rimanenza, "resta" delle ragazze e Fasi magazzino.
+function isScartoVern(r){return /^SCARTO\b/i.test((r&&r.note)||'');}
+function isRiparatoVern(r){return /^RIPARATO\b/i.test((r&&r.note)||'');}
+function isMovScarto(r){return isScartoVern(r)||isRiparatoVern(r);}
+// DDT Uscita del bollettario scarti AZZURRA (numero C610...)
+function isDdtScarti(r){return !!r&&/^C610/i.test(String(r.numero_ddt||'').trim())&&String(r.cliente||'AZZURRA').toUpperCase()==='AZZURRA';}
+function badgeRiporto(r){
+  if(isScartoVern(r))return '<span class="badge" style="background:#FCE4D6;color:#C00000;margin-right:4px;">SCARTO</span>';
+  if(isRiparatoVern(r))return '<span class="badge" style="background:#E2EFDA;color:#217346;margin-right:4px;">RIPARATO</span>';
+  return isRiportoVern(r)?'<span class="badge" style="background:#EDE7F6;color:#4527A0;margin-right:4px;">RIPORTO</span>':'';
+}
 
 async function confermaChiudiMese(){
   var s=chiusuraSel();if(!s){alert('Scegli il giorno fino a cui chiudere.');return;}
@@ -10015,7 +10118,7 @@ async function eseguiChiudiMese(s,div,idsRiporto){
     var a={tabella_origine:t,codice_articolo:nn(r.codice_articolo),data_inserimento:dataRigaLav(r)||null,cliente:cl,created_at:adesso};
     if(t==='imballo'){a.descrizione=nn(r.articolo);a.sequenza=nn(r.sequenza);a.totale=nn(r.totale);a.note=notaCM;}
     // I riporti tengono "RIPORTO DA ..." in nota: il Confronto cumulativo li esclude (doppioni).
-    else if(t==='verniciato'){a.descrizione=nn(r.descrizione);a.quantita=nn(r.quantita);a.note=(isRiportoVern(r)?r.note+' - ':'')+notaCM;}
+    else if(t==='verniciato'){a.descrizione=nn(r.descrizione);a.quantita=nn(r.quantita);a.note=(isRiportoVern(r)||isMovScarto(r)?r.note+' - ':'')+notaCM;}
     else{a.descrizione=nn(r.descrizione||r.testo_riga);a.quantita=nn(r.quantita);a.note=notaCM;}
     return a;
   }
@@ -10158,8 +10261,9 @@ async function apriUnisciPerData(tab){
     var cod=(r.codice_articolo||'').trim()||(r[cfg.desc]||'').trim()||'?';
     var data=(r.data_inserimento||r.created_at||'').slice(0,10);
     var rip=cfg.riporto&&isRiportoVern(r);
-    var k=cod+'||'+data+(rip?'||riporto':'');
-    if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:r[cfg.desc]||'',data:data,tot:0,riporto:rip};ordine.push(k);}
+    var tipoSc=cfg.riporto?(isScartoVern(r)?'SCARTO':(isRiparatoVern(r)?'RIPARATO':'')):'';
+    var k=cod+'||'+data+(rip?'||riporto':'')+(tipoSc?'||'+tipoSc:'');
+    if(!map[k]){map[k]={cod:r.codice_articolo||'',desc:(r[cfg.desc]||'')+(tipoSc?' ('+tipoSc+')':''),data:data,tot:0,riporto:rip};ordine.push(k);}
     map[k].tot+=Number(r[cfg.qty])||0;
   });
   // Ordino per data decrescente (piu' recente in cima); a parita' di data l'ordine tra
@@ -10407,7 +10511,7 @@ async function unisciDuplicatiVerniciato(){
   var map={};
   d.forEach(function(r){
     var data=(r.data_inserimento||r.created_at||'').slice(0,10);
-    var k=data+'__'+(r.codice_articolo||r.descrizione||'?')+(isRiportoVern(r)?'__riporto':'');
+    var k=data+'__'+(r.codice_articolo||r.descrizione||'?')+(isRiportoVern(r)?'__riporto':'')+(isScartoVern(r)?'__scarto':'')+(isRiparatoVern(r)?'__riparato':'');
     if(!map[k])map[k]=[];
     map[k].push(r);
   });
