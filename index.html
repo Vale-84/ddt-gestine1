@@ -9470,7 +9470,8 @@ function badgeNegFase(fk,r){
 }
 function toggleDettFasi(cod){_fasi.aperto=_fasi.aperto===cod?'':cod;renderFasi();}
 // Dettaglio dell'articolo: totali del mese (dal 1°) e residui uguali a quelli della vista
-function dettaglioFasiHtml(a,d,ncol){
+// Contenuto del dettaglio (stesso HTML a schermo e nella stampa del singolo articolo)
+function dettaglioFasiContenuto(a,d){
   var mm=a.mm||{E:0,V:0,I:0,W:0,U:0,UC:0,S:0,R:0};
   function riga(lab,v,extra,stile){return '<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eee;'+(stile||'')+'"><span>'+lab+'</span><span style="font-weight:bold;white-space:nowrap;">'+v+(extra||'')+'</span></div>';}
   var mancaE=!mm.E&&(mm.V||mm.I||mm.W||mm.U);
@@ -9492,8 +9493,14 @@ function dettaglioFasiHtml(a,d,ncol){
   });
   h+=riga('<strong>Tot. aperto</strong> <span style="font-size:11px;color:#888;">(somma delle fasi)</span>',a.somma,'',a.somma<0?'color:#C00000;':'');
   if(!partenza)h+='<div style="font-size:11px;color:#888;margin-top:6px;">Articolo senza partenza al '+fmtDataGMA(d.data)+' (partenza 0).</div>';
+  return h;
+}
+function dettaglioFasiHtml(a,d,ncol){
+  var cod=escAbb(a.cod).replace(/'/g,"\\'");
+  // STAMPA: stopPropagation, cosi' il tocco non chiude il dettaglio
+  var btn='<div style="text-align:right;margin-top:10px;"><button type="button" class="btn btn-sm btn-gray" style="width:auto;margin:0;" onclick="event.stopPropagation();stampaDettFasi(\''+cod+'\')">🖨 STAMPA</button></div>';
   return '<tr class="fasi-dett"><td colspan="'+ncol+'" style="position:static;white-space:normal;min-width:0;background:#F7FAFD;padding:0;border-bottom:2px solid #1F4E79;">'
-    +'<div style="position:sticky;left:0;box-sizing:border-box;width:100%;max-width:min(520px,calc(100vw - 40px));padding:10px 12px;">'+h+'</div></td></tr>';
+    +'<div style="position:sticky;left:0;box-sizing:border-box;width:100%;max-width:min(520px,calc(100vw - 40px));padding:10px 12px;">'+dettaglioFasiContenuto(a,d)+btn+'</div></td></tr>';
 }
 
 function renderFasi(){
@@ -9631,15 +9638,7 @@ function stampaFasi(){
       }).join(''):'<tr><td colspan="'+(1+COLS_FASI.length)+'" class="vuoto">'+(anomV?'Nessuna anomalia.':'Nessun articolo.')+'</td></tr>')
       +'</tbody></table>';
   }
-  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fasi magazzino</title><style>'
-    +'@page{size:A4 '+(nova?'landscape':'portrait')+';margin:10mm;}'
-    +'*{box-sizing:border-box;margin:0;padding:0;}'
-    +'body{font-family:Arial,sans-serif;color:#000;font-size:'+(nova?'9px':'11px')+';padding:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
-    +'.barra{position:sticky;top:0;background:#fff;padding:8px 0 12px;display:flex;gap:8px;}'
-    +'.barra button{padding:10px 18px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#1F4E79;color:#fff;cursor:pointer;}'
-    +'.barra button+button{background:#aaa;}'
-    +'h1{font-size:18px;margin-bottom:4px;}'
-    +'.testa{display:flex;flex-wrap:wrap;gap:2px 16px;font-size:12px;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px;}'
+  var css='body{font-size:'+(nova?'9px':'11px')+';}'
     +'.ttl{font-size:11px;font-weight:bold;color:#444;margin-bottom:3px;}'
     +'.tt{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}'
     +'.tt td{border:1px solid #999;padding:4px 6px;vertical-align:top;background:#F2F6FB;}'
@@ -9663,17 +9662,45 @@ function stampaFasi(){
     +'.note .badge{display:inline-block;border:1px solid #C00000;color:#C00000;border-radius:3px;padding:0 3px;margin:2px 3px 0 0;font-size:9px;font-weight:bold;}'
     +'.vuoto{text-align:center;color:#777;padding:10px;}'
     +'.avviso{border:2px solid #C00000;background:#FFC7CE;color:#900;font-weight:bold;padding:8px;font-size:13px;}'
-    +'.piede{margin-top:6px;font-size:12px;font-weight:bold;}'
+    +'.piede{margin-top:6px;font-size:12px;font-weight:bold;}';
+  apriStampaFasi(nova,css,testa+corpo+(S.totTxt?'<div class="piede">'+E(S.totTxt)+'</div>':''));
+}
+
+// Pagina di stampa comune di Fasi magazzino: A4 (orizzontale solo se richiesto), barra
+// Stampa/Chiudi che non esce sul foglio, righe non spezzate, intestazione tabella ripetuta.
+function apriStampaFasi(orizzontale,css,corpo){
+  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fasi magazzino</title><style>'
+    +'@page{size:A4 '+(orizzontale?'landscape':'portrait')+';margin:10mm;}'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Arial,sans-serif;color:#000;font-size:11px;padding:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'.barra{position:sticky;top:0;background:#fff;padding:8px 0 12px;display:flex;gap:8px;}'
+    +'.barra button{padding:10px 18px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#1F4E79;color:#fff;cursor:pointer;}'
+    +'.barra button+button{background:#aaa;}'
+    +'h1{font-size:18px;margin-bottom:4px;}'
+    +'.testa{display:flex;flex-wrap:wrap;gap:2px 16px;font-size:12px;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px;}'
     +'tr{break-inside:avoid;page-break-inside:avoid;}'
     +'thead{display:table-header-group;}'
+    +css
     +'@media print{.barra{display:none !important;}body{padding:0;}}'
     +'</style></head><body>'
     +'<div class="barra"><button onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
-    +testa+corpo+(S.totTxt?'<div class="piede">'+E(S.totTxt)+'</div>':'')
-    +'</body></html>';
+    +corpo+'</body></html>';
   var w=window.open('','_blank');
   if(!w){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
   w.document.open();w.document.write(html);w.document.close();
+}
+
+// STAMPA nel dettaglio riga: solo quell'articolo, stesso contenuto del dettaglio a schermo
+function stampaDettFasi(cod){
+  var d=_fasi.dati;if(!d){alert('Nessun dato da stampare.');return;}
+  var a=d.lista.filter(function(x){return x.cod===cod;})[0];
+  if(!a){alert('Articolo non trovato: aggiorna la pagina.');return;}
+  var ora=new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  var corpo='<h1>'+escAbb(getCliente())+' — Fasi magazzino – dettaglio articolo</h1>'
+    +'<div class="testa"><span>Stampato il <b>'+ora+'</b></span></div>'
+    +'<div class="dett">'+dettaglioFasiContenuto(a,d)+'</div>';
+  // Righe del dettaglio: non spezzate tra due pagine
+  apriStampaFasi(false,'.dett{max-width:150mm;font-size:12px;}.dett>div{break-inside:avoid;page-break-inside:avoid;}',corpo);
 }
 
 // Aggiornamento automatico: ogni 60 s e quando la pagina torna visibile, solo con la scheda aperta
