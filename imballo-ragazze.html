@@ -100,6 +100,8 @@ label { display: block; font-size: 14px; color: #555; font-weight: bold; margin:
   </div>
   <div id="msg"></div>
 
+  <div class="card" id="giorno" style="display:none;"></div>
+
   <div class="card">
     <h2>Inseriti da te, in attesa</h2>
     <div id="attesa"><div class="vuoto">Caricamento...</div></div>
@@ -144,6 +146,8 @@ var cliente='AZZURRA';
 var articoli=[];     // [{k, cod, desc, vern, imb, att, resta}]
 var inAttesa=[];     // righe in attesa del cliente (di tutti)
 var sel=null;        // articolo aperto nel modulo (null = "Altro articolo")
+var giornoVern='';   // ultimo giorno con righe Verniciato (<= oggi, riporti esclusi)
+var chiaviGiorno={}; // chiavi articolo con righe Verniciato in quel giorno
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function num(n){n=Number(n)||0;return String(Math.round(n*100)/100).replace('.',',');}
@@ -188,7 +192,8 @@ function setCliente(c){
   cliente=c;
   try{localStorage.setItem('ragazze_cliente',c);}catch(e){}
   ['AZZURRA','BERGAMASCO'].forEach(function(x){document.getElementById('seg-'+x).classList.toggle('on',x===c);});
-  articoli=[];inAttesa=[];
+  articoli=[];inAttesa=[];giornoVern='';chiaviGiorno={};
+  document.getElementById('giorno').style.display='none';
   document.getElementById('articoli').innerHTML='<div class="vuoto">Caricamento...</div>';
   document.getElementById('attesa').innerHTML='<div class="vuoto">Caricamento...</div>';
   carica();
@@ -206,7 +211,7 @@ async function carica(silenzioso){
     var sal=cl==='AZZURRA'?await leggiSaldoVerniciato():null;
     var filtro=sal?'&data_inserimento=gte.'+sal.data:'';
     var res=await Promise.all([
-      leggi('verniciato','id,codice_articolo,descrizione,quantita,note',filtro),
+      leggi('verniciato','id,codice_articolo,descrizione,quantita,note,data_inserimento',filtro),
       leggi('imballo','id,codice_articolo,articolo,totale,note',filtro),
       leggi(TAB,'id,codice_articolo,descrizione,data_inserimento,testo_seq,quantita,inserito_da,note,created_at')
     ]);
@@ -220,6 +225,13 @@ async function carica(silenzioso){
       return m[k];
     }
     function riporto(r){return sal&&/^RIPORTO DA /i.test(r.note||'');}
+    // Verniciato del giorno: data piu' recente non dopo oggi, righe "RIPORTO DA" sempre escluse
+    // (Chiudi mese le crea al primo del mese nuovo). Serve solo a scegliere cosa mostrare in cima.
+    var oggiS=oggi(),gg='',kg={};
+    var vernVere=res[0].filter(function(r){return !/^RIPORTO DA /i.test(r.note||'');});
+    vernVere.forEach(function(r){var d=String(r.data_inserimento||'').slice(0,10);if(d&&d<=oggiS&&d>gg)gg=d;});
+    if(gg)vernVere.forEach(function(r){if(String(r.data_inserimento||'').slice(0,10)===gg){var k=chiave(r.codice_articolo,r.descrizione);if(k)kg[k]=true;}});
+    giornoVern=gg;chiaviGiorno=kg;
     if(sal)sal.righe.forEach(function(r){var v=voce(r.codice_articolo,r.descrizione);if(v)v.vern+=Number(r.quantita)||0;});
     res[0]=res[0].filter(function(r){return !riporto(r);});
     res[1]=res[1].filter(function(r){return !riporto(r);});
@@ -241,23 +253,33 @@ async function carica(silenzioso){
     if(n!==_caricaN)return;
     _aggTesto=_ultimoOk?'⚠ Non aggiornato (ultimo alle '+oraHM(_ultimoOk)+')':'⚠ Non aggiornato';aggiornaChi();
     if(silenzioso&&articoli.length)return;
+    document.getElementById('giorno').style.display='none';
     document.getElementById('articoli').innerHTML='<div class="card vuoto">Impossibile caricare i dati.<br><br><button class="btn" onclick="carica()">Riprova</button></div>';
     document.getElementById('attesa').innerHTML='<div class="vuoto">—</div>';
   }
 }
 
+function tileArticolo(a){
+  var i=articoli.indexOf(a);
+  return '<button class="tile'+(a.resta>0?'':' finito')+'" onclick="apriArticolo('+i+')">'
+    +'<div class="nm">'+esc(a.desc||'(senza descrizione)')+'<small>Verniciato: '+num(a.vern)+(a.att?' · in attesa: '+num(a.att):'')+'</small></div>'
+    +'<div class="v"><small>resta</small><b>'+num(a.resta)+'</b></div>'
+  +'</button>';
+}
 function disegnaArticoli(){
   var f=document.getElementById('filtro').value.trim().toLowerCase();
+  // In cima: verniciato dell'ultimo giorno, solo cio' che resta da imballare; nascosto durante la ricerca
+  var g=document.getElementById('giorno');
+  var delGiorno=(!f&&giornoVern)?articoli.filter(function(a){return chiaviGiorno[a.k]&&a.resta>0;}):[];
+  if(delGiorno.length){
+    var p=giornoVern.split('-');
+    g.innerHTML='<h2>Verniciato del '+p[2]+'/'+p[1]+'</h2>'+delGiorno.map(tileArticolo).join('');
+    g.style.display='';
+  }else{g.style.display='none';g.innerHTML='';}
   var lista=articoli.filter(function(a){return !f||String(a.desc).toLowerCase().indexOf(f)>=0;});
   var el=document.getElementById('articoli');
   if(!lista.length){el.innerHTML='<div class="vuoto">'+(articoli.length?'Nessun articolo trovato.':'Nessun articolo nel Verniciato.')+'</div>';return;}
-  el.innerHTML=lista.map(function(a){
-    var i=articoli.indexOf(a);
-    return '<button class="tile'+(a.resta>0?'':' finito')+'" onclick="apriArticolo('+i+')">'
-      +'<div class="nm">'+esc(a.desc||'(senza descrizione)')+'<small>Verniciato: '+num(a.vern)+(a.att?' · in attesa: '+num(a.att):'')+'</small></div>'
-      +'<div class="v"><small>resta</small><b>'+num(a.resta)+'</b></div>'
-    +'</button>';
-  }).join('');
+  el.innerHTML=lista.map(tileArticolo).join('');
 }
 
 function disegnaAttesa(){
