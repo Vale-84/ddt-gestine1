@@ -106,6 +106,41 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 #page-abbinamenti-ber .rc-table td:first-child { min-width: 110px; }
 #page-abbinamenti-ber .rc-table td:nth-child(2) { min-width: 160px; }
 #page-abbinamenti-ber .rc-table td:nth-child(3) { min-width: 280px; }
+/* FASI MAGAZZINO: riquadri dei totali e tabella unica (una colonna per fase) */
+.fasi-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 12px; }
+.fasi-tile { background: #F2F6FB; border: 2px solid transparent; border-radius: 10px; padding: 8px 10px; cursor: pointer; text-align: left; font-family: inherit; min-width: 0; }
+.fasi-tile .ft-lab { font-size: 11px; color: #555; line-height: 1.25; }
+.fasi-tile .ft-num { font-size: 22px; font-weight: bold; color: #1F4E79; margin-top: 2px; }
+.fasi-tile .ft-nota { font-size: 10px; color: #777; line-height: 1.2; margin-top: 2px; }
+.fasi-tile.on { border-color: #1F4E79; background: #E6F1FB; }
+.fasi-tile.tot { background: #FFF6D6; }
+.fasi-tile.tot.on { border-color: #C55A11; }
+.fasi-grid { table-layout: fixed; }
+.fasi-grid th.fn { width: 104px; text-align: right; white-space: normal; cursor: pointer; vertical-align: bottom; }
+.fasi-grid th.ford { background: #2E6AA3; text-decoration: underline; }
+.fasi-grid td.fn { text-align: right; }
+.fasi-grid td.ftot { font-weight: bold; background: #FAFAF2; }
+.fasi-grid td.fzero { color: #ccc; font-weight: normal; }
+.fasi-grid td.fneg { color: #C00000; font-weight: bold; background: #fde2e2; }
+.fasi-grid td:first-child { min-width: 0; position: static; overflow-wrap: anywhere; }
+.fasi-grid th:first-child { position: sticky; left: auto; }
+.fasi-grid .fcod { display: block; font-size: 10px; color: #888; }
+.fasi-grid .corto { display: none; }
+@media screen and (max-width: 768px) {
+  #page-fasi .card { padding: 12px 10px; }
+  .fasi-tiles { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .fasi-tile { padding: 6px 7px; }
+  .fasi-tile .ft-lab { font-size: 10px; }
+  .fasi-tile .ft-num { font-size: 18px; }
+  .fasi-grid { font-size: 11px; }
+  .fasi-grid th, .fasi-grid td { padding: 5px 2px; }
+  .fasi-grid th:first-child, .fasi-grid td:first-child { padding-left: 4px; }
+  .fasi-grid th.fn { width: 36px; font-size: 10px; }
+  .fasi-grid th.fn.ftot { width: 42px; }
+  .fasi-grid .lungo { display: none; }
+  .fasi-grid .corto { display: inline; }
+  .fasi-grid .badge { font-size: 10px; }
+}
 .abb-b0 { display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px; border-bottom: 1px dashed #e3e3e3; }
 .abb-b0:last-child { border-bottom: none; }
 .abb-b0-info { flex: 1; min-width: 0; }
@@ -1342,23 +1377,19 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
           <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;" onclick="apriImportSaldo()">IMPORTA SALDO INIZIALE</button>
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;" id="fasi-seg">
-        <button class="btn btn-sm" style="width:auto;" data-fase="grezzo" onclick="setFase('grezzo')">GREZZO</button>
-        <button class="btn btn-sm" style="width:auto;" data-fase="verniciato" onclick="setFase('verniciato')">VERNICIATO DA IMBALLARE</button>
-        <button class="btn btn-sm" style="width:auto;" data-fase="imballato" onclick="setFase('imballato')">IMBALLATO DA SPEDIRE</button>
-        <button class="btn btn-sm" style="width:auto;" data-fase="ddt" onclick="setFase('ddt')">SPEDITO, DDT DA FARE</button>
-        <button class="btn btn-sm" style="width:auto;" data-fase="scarti" onclick="setFase('scarti')">SCARTI DA RENDERE</button>
-        <button class="btn btn-sm" style="width:auto;" data-fase="nova" onclick="setFase('nova')">CONTROLLO NOVA</button>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
-        <input class="cerca-input" id="fasi-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderFasi()" autocomplete="off" style="flex:1;min-width:200px;margin:0;">
-        <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:normal;white-space:nowrap;"><input type="checkbox" id="fasi-solo-nonzero" checked onchange="renderFasi()" style="width:auto;margin:0;"> Solo diversi da zero</label>
+      <!-- Riquadri: totale per fase + Tot. aperto; tocco = ordina la tabella per quella colonna -->
+      <div class="fasi-tiles" id="fasi-tiles"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+        <input class="cerca-input" id="fasi-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderFasi()" autocomplete="off" style="flex:1;min-width:180px;margin:0;">
+        <button class="btn btn-sm btn-gray" id="fasi-btn-anom" style="width:auto;margin:0;white-space:nowrap;display:none;" onclick="setVistaFasi('anomalie')"></button>
+        <button class="btn btn-sm btn-gray" id="fasi-btn-nova" style="width:auto;margin:0;white-space:nowrap;" onclick="setVistaFasi('nova')">CONTROLLO NOVA</button>
+        <label id="fasi-nz-box" style="display:none;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:normal;white-space:nowrap;"><input type="checkbox" id="fasi-solo-nonzero" checked onchange="renderFasi()" style="width:auto;margin:0;"> Solo differenze</label>
       </div>
     </div>
     <div class="card">
       <div id="fasi-nota" style="font-size:12px;color:#666;margin-bottom:8px;"></div>
       <div id="fasi-tot" style="font-size:13px;font-weight:bold;margin-bottom:8px;"></div>
-      <div class="rc-table-scroll"><table class="rc-table"><thead id="fasi-thead"></thead><tbody id="fasi-tbody"></tbody></table></div>
+      <div class="rc-table-scroll"><table class="rc-table" id="fasi-table"><thead id="fasi-thead"></thead><tbody id="fasi-tbody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -2320,7 +2351,7 @@ function showPage(name,el){
     var it=document.getElementById('imb-tot');if(it)it.textContent='0';
   }
   if(name==='verniciato'){caricaVerniciatoP();}
-  if(name==='fasi'){try{var ff=localStorage.getItem('fasi_fase');if(ff&&(FASI_DEF[ff]||ff==='nova'))_fasi.fase=ff;}catch(e){}renderFasi();caricaFasi();}
+  if(name==='fasi'){try{var fo=localStorage.getItem('fasi_ord');if(fo&&FASI_COL[fo])_fasi.ord=fo;}catch(e){}_fasi.vista='tabella';renderFasi();caricaFasi();}
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
@@ -9268,7 +9299,20 @@ var FASI_DEF={
   scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = partenza + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
 };
 var ORDINE_FASI=['grezzo','verniciato','imballato','ddt','scarti'];
-var _fasi={fase:'grezzo',dati:null,n:0,aperto:''};
+// Vista unica: colonne = le cinque fasi + Tot. aperto (somma delle cinque = a.somma).
+// [nome riquadro, intestazione lunga, intestazione corta (telefono)]
+var FASI_COL={
+  grezzo:['Grezzo da verniciare','Grezzo','GREZ'],
+  verniciato:['Verniciato da imballare','Verniciato','VERN'],
+  imballato:['Imballato da spedire','Imballato','IMB'],
+  ddt:['Spedito, DDT da fare','Spedito DDT da fare','DDT'],
+  scarti:['Scarti da rendere','Scarti','SCA'],
+  tot:['Tot. aperto','Tot. aperto','TOT']
+};
+var COLS_FASI=ORDINE_FASI.concat(['tot']);
+// vista: 'tabella' | 'anomalie' | 'nova'; ord: colonna di ordinamento della tabella
+var _fasi={vista:'tabella',ord:'tot',dati:null,n:0,aperto:''};
+function valFase(a,k){return k==='tot'?a.somma:a.r[k];}
 
 // Lettura diretta per distinguere "tabella mancante" da "nessun saldo"
 async function leggiSaldoFasi(cl){
@@ -9285,11 +9329,14 @@ async function leggiSaldoFasi(cl){
 }
 
 function inizioMeseFasi(){return oggiISO().slice(0,8)+'01';}
-function setFase(f){
-  _fasi.fase=f;
-  try{localStorage.setItem('fasi_fase',f);}catch(e){}
+// Tocco su un riquadro (o intestazione): torna alla tabella ordinata per quella colonna
+function setOrdFasi(k){
+  _fasi.ord=k;_fasi.vista='tabella';
+  try{localStorage.setItem('fasi_ord',k);}catch(e){}
   renderFasi();
 }
+// Pulsanti "anomalie" e "Controllo Nova": secondo tocco = torna alla tabella
+function setVistaFasi(v){_fasi.vista=_fasi.vista===v?'tabella':v;_fasi.aperto='';renderFasi();}
 
 async function caricaFasi(silenzioso){
   var az=getCliente()==='AZZURRA';
@@ -9413,7 +9460,7 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
 // Badge dei negativi, in parole semplici
 function badgeNegFase(fk,r){
   var n=Math.abs(r);
-  var t=fk==='grezzo'?'manca DDT Entrata: '+n+' pz':fk==='verniciato'?'manca verniciato: '+n+' pz':fk==='imballato'?'manca imballo: '+n+' pz':fk==='scarti'?'controllare scarti':'⚠ anomalia';
+  var t=fk==='grezzo'?'manca DDT Entrata: '+n+' pz':fk==='verniciato'?'manca verniciato: '+n+' pz':fk==='imballato'?'manca imballo: '+n+' pz':fk==='ddt'?'manca WA Uscita: '+n+' pz':fk==='scarti'?'controllare scarti':'⚠ anomalia';
   return ' <span class="badge badge-err" style="white-space:normal;">'+t+'</span>';
 }
 function toggleDettFasi(cod){_fasi.aperto=_fasi.aperto===cod?'':cod;renderFasi();}
@@ -9432,26 +9479,48 @@ function dettaglioFasiHtml(a,d,ncol){
     +riga('Scarti / Riparati',mm.S+' / '+mm.R);
   var sP=a.s||{},partenza=ORDINE_FASI.some(function(f){return sP[FASI_DEF[f].s];});
   h+='<div style="font-size:12px;color:#666;margin:10px 0 4px;">Risultato (come nella vista: partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+'):</div>';
-  [['Grezzo da verniciare','grezzo'],['Resta da imballare','verniciato'],['Imballato da spedire','imballato'],['Spedito senza DDT','ddt']].forEach(function(x){
-    var v=a.r[x[1]];
-    h+=riga(x[0],v,v<0?' <span style="color:#C00000;">(negativo)</span>':'',v<0?'color:#C00000;':'');
+  // Per ogni fase: residuo + conto (partenza e movimenti dal giorno del saldo, come in FASI_DEF)
+  ORDINE_FASI.forEach(function(f){
+    var fd=FASI_DEF[f],v=a.r[f];
+    var conto='partenza '+(sP[fd.s]||0)+fd.cols.map(function(c){return ' '+c[0]+' '+(a[c[1]]||0);}).join('');
+    h+=riga(FASI_COL[f][0]+'<br><span style="font-size:11px;color:#888;">'+conto+'</span>',v,v<0?' <span style="color:#C00000;">(negativo)</span>':'',v<0?'color:#C00000;':'');
   });
-  if(partenza)h+='<div style="font-size:11px;color:#888;margin-top:6px;">Partenza al '+fmtDataGMA(d.data)+': grezzo '+(sP.grezzo||0)+', verniciato '+(sP.verniciato||0)+', imballato '+(sP.imballato||0)+', DDT da fare '+(sP.ddt_da_fare||0)+', scarti '+(sP.scarti||0)+'.</div>';
+  h+=riga('<strong>Tot. aperto</strong> <span style="font-size:11px;color:#888;">(somma delle fasi)</span>',a.somma,'',a.somma<0?'color:#C00000;':'');
+  if(!partenza)h+='<div style="font-size:11px;color:#888;margin-top:6px;">Articolo senza partenza al '+fmtDataGMA(d.data)+' (partenza 0).</div>';
   return '<tr class="fasi-dett"><td colspan="'+ncol+'" style="position:static;white-space:normal;min-width:0;background:#F7FAFD;padding:0;border-bottom:2px solid #1F4E79;">'
     +'<div style="position:sticky;left:0;box-sizing:border-box;width:100%;max-width:min(520px,calc(100vw - 40px));padding:10px 12px;">'+h+'</div></td></tr>';
 }
 
 function renderFasi(){
-  document.querySelectorAll('#fasi-seg button').forEach(function(b){b.className='btn btn-sm '+(b.getAttribute('data-fase')===_fasi.fase?'btn-blue':'btn-gray');});
   var th=document.getElementById('fasi-thead'),tb=document.getElementById('fasi-tbody');
   var nota=document.getElementById('fasi-nota'),tot=document.getElementById('fasi-tot');
+  var tiles=document.getElementById('fasi-tiles'),tab=document.getElementById('fasi-table');
+  var bA=document.getElementById('fasi-btn-anom'),bN=document.getElementById('fasi-btn-nova');
   var d=_fasi.dati;
-  if(!d){th.innerHTML='';tb.innerHTML='';nota.textContent='';tot.textContent='';return;}
+  document.getElementById('fasi-nz-box').style.display=_fasi.vista==='nova'?'flex':'none';
+  bN.className='btn btn-sm '+(_fasi.vista==='nova'?'btn-blue':'btn-gray');
+  if(!d){th.innerHTML='';tb.innerHTML='';nota.textContent='';tot.textContent='';tiles.innerHTML='';bA.style.display='none';return;}
   var q=(document.getElementById('fasi-cerca').value||'').trim().toUpperCase();
   var soloNZ=document.getElementById('fasi-solo-nonzero').checked;
   function filtroTesto(a){return !q||(a.cod+' '+a.desc).toUpperCase().indexOf(q)>=0;}
   var avvisoSenza=d.senzaCodice?' <span style="color:#C55A11;">⚠ '+d.senzaCodice+' righe di movimento senza codice articolo non contate.</span>':'';
-  if(_fasi.fase==='nova'){
+  // Articoli mostrati: almeno una fase diversa da zero + filtro testo. Anomalie: almeno una fase negativa.
+  var vis=d.lista.filter(function(a){return filtroTesto(a)&&ORDINE_FASI.some(function(f){return a.r[f]!==0;});});
+  var anom=d.lista.filter(function(a){return ORDINE_FASI.some(function(f){return a.r[f]<0;});});
+  // Riquadri: totali degli articoli mostrati (seguono il filtro)
+  var somme={};COLS_FASI.forEach(function(k){somme[k]=0;});
+  vis.forEach(function(a){COLS_FASI.forEach(function(k){somme[k]+=valFase(a,k);});});
+  tiles.innerHTML=COLS_FASI.map(function(k){
+    return '<button type="button" class="fasi-tile'+(k==='tot'?' tot':'')+(_fasi.vista==='tabella'&&_fasi.ord===k?' on':'')+'" onclick="setOrdFasi(\''+k+'\')" title="Ordina la tabella per questa colonna">'
+      +'<div class="ft-lab">'+FASI_COL[k][0]+'</div><div class="ft-num"'+(somme[k]<0?' style="color:#C00000;"':'')+'>'+somme[k]+'</div>'
+      +(k==='tot'?'<div class="ft-nota">= carico aperto di oggi; confronto con Nova in Controllo Nova</div>':'')+'</button>';
+  }).join('');
+  bA.style.display='';
+  bA.textContent=anom.length?anom.length+(anom.length===1?' ANOMALIA':' ANOMALIE'):'NESSUNA ANOMALIA';
+  bA.disabled=!anom.length&&_fasi.vista!=='anomalie';
+  bA.className='btn btn-sm '+(_fasi.vista==='anomalie'?'btn-blue':anom.length?'btn-red':'btn-gray');
+  if(_fasi.vista==='nova'){
+    tab.className='rc-table';
     th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Scarti</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Nova − App</th><th>Cosa fare</th></tr>';
     if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';return;}
     nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Nova − App = carico Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
@@ -9482,32 +9551,30 @@ function renderFasi(){
     tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Nova − App: '+(tN-tS):'';
     return;
   }
-  var f=FASI_DEF[_fasi.fase]||FASI_DEF.grezzo,fk=FASI_DEF[_fasi.fase]?_fasi.fase:'grezzo';
-  th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Partenza '+fmtDataGMA(d.data)+'</th>'+f.cols.map(function(c){return '<th>'+c[0]+'</th>';}).join('')+'<th>Residuo</th></tr>';
-  nota.innerHTML=f.formula+', con i movimenti dal '+fmtDataGMA(d.data)+' compreso. Negativi in rosso = anomalia (manca un movimento o il saldo).'
-    +(fk==='verniciato'?' Gli imballi del magazzino da confermare non sono contati: sono indicati a parte.':'')+avvisoSenza;
-  var lista=d.lista.filter(function(a){
-    if(!filtroTesto(a))return false;
-    if(soloNZ&&a.r[fk]===0&&!a.s[f.s]&&f.cols.every(function(c){return !a[c[1]];}))return false;
-    return true;
-  }).sort(function(a,b){
-    var na=a.r[fk]<0?0:1,nb=b.r[fk]<0?0:1;
-    return na-nb||b.r[fk]-a.r[fk]||a.cod.localeCompare(b.cod);
-  });
-  var tSal=0,tR=0,nNeg=0,tCol=f.cols.map(function(){return 0;});
+  // Tabella unica (vista 'tabella') o elenco anomalie: stesse colonne, una per fase + Tot. aperto
+  tab.className='rc-table fasi-grid';
+  var anomV=_fasi.vista==='anomalie',ord=_fasi.ord;
+  th.innerHTML='<tr><th>Articolo</th>'+COLS_FASI.map(function(k){
+    return '<th class="fn'+(k==='tot'?' ftot':'')+(!anomV&&k===ord?' ford':'')+'" onclick="setOrdFasi(\''+k+'\')" title="'+FASI_COL[k][0]+' — tocca per ordinare"><span class="lungo">'+FASI_COL[k][1]+'</span><span class="corto">'+FASI_COL[k][2]+'</span></th>';
+  }).join('')+'</tr>';
+  function minFase(a){return Math.min.apply(null,ORDINE_FASI.map(function(f){return a.r[f];}));}
+  var lista=anomV
+    ?anom.filter(filtroTesto).sort(function(a,b){return minFase(a)-minFase(b)||a.cod.localeCompare(b.cod);})
+    :vis.slice().sort(function(a,b){return valFase(b,ord)-valFase(a,ord)||a.cod.localeCompare(b.cod);});
+  nota.innerHTML=anomV
+    ?'Articoli con almeno una fase negativa (in rosso): manca un movimento o il saldo iniziale non torna. Tocca una riga per il dettaglio; tocca di nuovo il pulsante o un riquadro per tornare alla tabella.'+avvisoSenza
+    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Solo articoli con almeno una fase diversa da zero, ordinati per «'+FASI_COL[ord][0]+'» (tocca un riquadro per cambiare). Tocca una riga per il dettaglio.'+avvisoSenza;
+  var nc=1+COLS_FASI.length;
   tb.innerHTML=lista.length?lista.map(function(a){
-    var r=a.r[fk];
-    tSal+=a.s[f.s]||0;tR+=r;if(r<0)nNeg++;
-    f.cols.forEach(function(c,i){tCol[i]+=a[c[1]]||0;});
-    return '<tr style="cursor:pointer;'+(r<0?'background-color:#fde2e2;':'')+'" onclick="toggleDettFasi(\''+escAbb(a.cod).replace(/'/g,"\\'")+'\')"><td><strong>'+escAbb(a.cod)+'</strong></td>'
-      +'<td>'+escAbb(a.desc)+(r<0?badgeNegFase(fk,r):'')
-        +(fk==='verniciato'&&a.att?' <span class="badge badge-warn" title="Imballi del magazzino da confermare">'+a.att+' in attesa di conferma</span>':'')+'</td>'
-      +'<td style="text-align:right;">'+(a.s[f.s]||0)+'</td>'+f.cols.map(function(c){return '<td style="text-align:right;">'+(a[c[1]]||0)+'</td>';}).join('')
-      +'<td style="text-align:right;font-weight:bold;'+(r<0?'color:#C00000;':'')+'">'+r+'</td></tr>'
-      +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,4+f.cols.length):'');
-  }).join(''):'<tr><td colspan="'+(4+f.cols.length)+'" style="text-align:center;padding:14px;color:#999;">Nessun articolo.</td></tr>';
-  tot.innerHTML=lista.length?f.nome+' — articoli: '+lista.length+' · Partenza: '+tSal+' · '+f.cols.map(function(c,i){return c[0]+': '+tCol[i];}).join(' · ')+' · Residuo: '+tR
-    +(nNeg?' · <span style="color:#C00000;">'+nNeg+' negativi</span>':''):'';
+    var note=anomV?'<div style="margin-top:3px;">'+ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join('')+'</div>':'';
+    var art=a.desc?escAbb(a.desc)+'<span class="fcod">'+escAbb(a.cod)+'</span>':'<strong>'+escAbb(a.cod)+'</strong>';
+    return '<tr style="cursor:pointer;" onclick="toggleDettFasi(\''+escAbb(a.cod).replace(/'/g,"\\'")+'\')"><td>'+art+note+'</td>'
+      +COLS_FASI.map(function(k){var v=valFase(a,k);return '<td class="fn'+(k==='tot'?' ftot':'')+(v<0?' fneg':v===0?' fzero':'')+'">'+v+'</td>';}).join('')
+      +'</tr>'+(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,nc):'');
+  }).join(''):'<tr><td colspan="'+nc+'" style="text-align:center;padding:14px;color:#999;">'+(anomV?'✅ Nessuna anomalia.':'Nessun articolo.')+'</td></tr>';
+  tot.innerHTML=anomV
+    ?(lista.length?'Anomalie: '+lista.length+(lista.length!==anom.length?' (di '+anom.length+', filtro attivo)':''):'')
+    :(lista.length?'Articoli: '+lista.length:'');
 }
 
 // Aggiornamento automatico: ogni 60 s e quando la pagina torna visibile, solo con la scheda aperta
