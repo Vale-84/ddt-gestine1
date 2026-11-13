@@ -1383,6 +1383,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
         <input class="cerca-input" id="fasi-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderFasi()" autocomplete="off" style="flex:1;min-width:180px;margin:0;">
         <button class="btn btn-sm btn-gray" id="fasi-btn-anom" style="width:auto;margin:0;white-space:nowrap;display:none;" onclick="setVistaFasi('anomalie')"></button>
         <button class="btn btn-sm btn-gray" id="fasi-btn-nova" style="width:auto;margin:0;white-space:nowrap;" onclick="setVistaFasi('nova')">CONTROLLO NOVA</button>
+        <button class="btn btn-sm btn-gray" id="fasi-btn-stampa" style="width:auto;margin:0;white-space:nowrap;display:none;" onclick="stampaFasi()">🖨 STAMPA</button>
         <label id="fasi-nz-box" style="display:none;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:normal;white-space:nowrap;"><input type="checkbox" id="fasi-solo-nonzero" checked onchange="renderFasi()" style="width:auto;margin:0;"> Solo differenze</label>
       </div>
     </div>
@@ -2351,7 +2352,7 @@ function showPage(name,el){
     var it=document.getElementById('imb-tot');if(it)it.textContent='0';
   }
   if(name==='verniciato'){caricaVerniciatoP();}
-  if(name==='fasi'){try{var fo=localStorage.getItem('fasi_ord');if(fo&&FASI_COL[fo])_fasi.ord=fo;}catch(e){}_fasi.vista='tabella';renderFasi();caricaFasi();}
+  if(name==='fasi'){_fasi.ord='';_fasi.vista='tabella';renderFasi();caricaFasi();}
   if(name==='ddt-entrata')caricaDDTE();
   if(name==='ddt-uscita')caricaDDTU();
   if(name==='magazzino')caricaMagazzino();
@@ -9310,8 +9311,11 @@ var FASI_COL={
   tot:['Tot. aperto','Tot. aperto','TOT']
 };
 var COLS_FASI=ORDINE_FASI.concat(['tot']);
-// vista: 'tabella' | 'anomalie' | 'nova'; ord: colonna di ordinamento della tabella
-var _fasi={vista:'tabella',ord:'tot',dati:null,n:0,aperto:''};
+// vista: 'tabella' | 'anomalie' | 'nova'; ord: colonna di ordinamento della tabella ('' = alfabetico)
+// stampa: ultima lista disegnata (vista, righe, totali), usata da STAMPA per stampare quello che e' a schermo
+var _fasi={vista:'tabella',ord:'',dati:null,n:0,aperto:'',stampa:null};
+// Ordine alfabetico per descrizione (senza descrizione: codice), a parita' per codice
+function cmpAlfaFasi(a,b){return String(a.desc||a.cod).localeCompare(String(b.desc||b.cod),'it',{sensitivity:'base'})||a.cod.localeCompare(b.cod);}
 function valFase(a,k){return k==='tot'?a.somma:a.r[k];}
 
 // Lettura diretta per distinguere "tabella mancante" da "nessun saldo"
@@ -9329,10 +9333,11 @@ async function leggiSaldoFasi(cl){
 }
 
 function inizioMeseFasi(){return oggiISO().slice(0,8)+'01';}
-// Tocco su un riquadro (o intestazione): torna alla tabella ordinata per quella colonna
+// Tocco su un riquadro (o intestazione): tabella ordinata per quella colonna dal piu' grande;
+// secondo tocco sulla stessa colonna (gia' in tabella) = torna all'ordine alfabetico
 function setOrdFasi(k){
-  _fasi.ord=k;_fasi.vista='tabella';
-  try{localStorage.setItem('fasi_ord',k);}catch(e){}
+  _fasi.ord=(_fasi.vista==='tabella'&&_fasi.ord===k)?'':k;
+  _fasi.vista='tabella';
   renderFasi();
 }
 // Pulsanti "anomalie" e "Controllo Nova": secondo tocco = torna alla tabella
@@ -9499,6 +9504,8 @@ function renderFasi(){
   var d=_fasi.dati;
   document.getElementById('fasi-nz-box').style.display=_fasi.vista==='nova'?'flex':'none';
   bN.className='btn btn-sm '+(_fasi.vista==='nova'?'btn-blue':'btn-gray');
+  document.getElementById('fasi-btn-stampa').style.display=d?'':'none';
+  _fasi.stampa=null;
   if(!d){th.innerHTML='';tb.innerHTML='';nota.textContent='';tot.textContent='';tiles.innerHTML='';bA.style.display='none';return;}
   var q=(document.getElementById('fasi-cerca').value||'').trim().toUpperCase();
   var soloNZ=document.getElementById('fasi-solo-nonzero').checked;
@@ -9522,7 +9529,8 @@ function renderFasi(){
   if(_fasi.vista==='nova'){
     tab.className='rc-table';
     th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>DDT da fare</th><th>Scarti</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Nova − App</th><th>Cosa fare</th></tr>';
-    if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';return;}
+    var base={vista:'nova',d:d,q:q,soloNZ:soloNZ,somme:somme};
+    if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';base.avviso=d.car.avviso;base.lista=[];_fasi.stampa=base;return;}
     nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Nova − App = carico Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
     var l=d.lista.filter(function(a){return filtroTesto(a)&&(!soloNZ||a.diffNova!==0);})
       .sort(function(a,b){return Math.abs(b.diffNova)-Math.abs(a.diffNova)||a.cod.localeCompare(b.cod);});
@@ -9549,6 +9557,7 @@ function renderFasi(){
         +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,11):'');
     }).join(''):'<tr><td colspan="11" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
     tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Nova − App: '+(tN-tS):'';
+    base.lista=l;base.cosa=l.map(cosaFare);base.totTxt=tot.textContent;_fasi.stampa=base;
     return;
   }
   // Tabella unica (vista 'tabella') o elenco anomalie: stesse colonne, una per fase + Tot. aperto
@@ -9557,13 +9566,16 @@ function renderFasi(){
   th.innerHTML='<tr><th>Articolo</th>'+COLS_FASI.map(function(k){
     return '<th class="fn'+(k==='tot'?' ftot':'')+(!anomV&&k===ord?' ford':'')+'" onclick="setOrdFasi(\''+k+'\')" title="'+FASI_COL[k][0]+' — tocca per ordinare"><span class="lungo">'+FASI_COL[k][1]+'</span><span class="corto">'+FASI_COL[k][2]+'</span></th>';
   }).join('')+'</tr>';
-  function minFase(a){return Math.min.apply(null,ORDINE_FASI.map(function(f){return a.r[f];}));}
+  // Anomalie: sempre alfabetico. Tabella: alfabetico, oppure la colonna scelta dal piu' grande.
   var lista=anomV
-    ?anom.filter(filtroTesto).sort(function(a,b){return minFase(a)-minFase(b)||a.cod.localeCompare(b.cod);})
-    :vis.slice().sort(function(a,b){return valFase(b,ord)-valFase(a,ord)||a.cod.localeCompare(b.cod);});
+    ?anom.filter(filtroTesto).sort(cmpAlfaFasi)
+    :vis.slice().sort(ord?function(a,b){return valFase(b,ord)-valFase(a,ord)||cmpAlfaFasi(a,b);}:cmpAlfaFasi);
   nota.innerHTML=anomV
-    ?'Articoli con almeno una fase negativa (in rosso): manca un movimento o il saldo iniziale non torna. Tocca una riga per il dettaglio; tocca di nuovo il pulsante o un riquadro per tornare alla tabella.'+avvisoSenza
-    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Solo articoli con almeno una fase diversa da zero, ordinati per «'+FASI_COL[ord][0]+'» (tocca un riquadro per cambiare). Tocca una riga per il dettaglio.'+avvisoSenza;
+    ?'Articoli con almeno una fase negativa (in rosso), in ordine alfabetico: manca un movimento o il saldo iniziale non torna. Tocca una riga per il dettaglio; tocca di nuovo il pulsante o un riquadro per tornare alla tabella.'+avvisoSenza
+    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Solo articoli con almeno una fase diversa da zero, '
+      +(ord?'ordinati per «'+FASI_COL[ord][0]+'» dal più grande (tocca di nuovo lo stesso riquadro per tornare all\'ordine alfabetico).'
+           :'in ordine alfabetico (tocca un riquadro per ordinare per quella fase dal più grande).')
+      +' Tocca una riga per il dettaglio.'+avvisoSenza;
   var nc=1+COLS_FASI.length;
   tb.innerHTML=lista.length?lista.map(function(a){
     var note=anomV?'<div style="margin-top:3px;">'+ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join('')+'</div>':'';
@@ -9575,6 +9587,93 @@ function renderFasi(){
   tot.innerHTML=anomV
     ?(lista.length?'Anomalie: '+lista.length+(lista.length!==anom.length?' (di '+anom.length+', filtro attivo)':''):'')
     :(lista.length?'Articoli: '+lista.length:'');
+  _fasi.stampa={vista:_fasi.vista,d:d,q:q,ord:anomV?'':ord,somme:somme,lista:lista,totTxt:tot.textContent};
+}
+
+// STAMPA: quello che e' a schermo (tabella, anomalie o Controllo Nova), stesso filtro e ordine.
+// Stesso sistema di Errori fattura: finestra con barra Stampa/Chiudi, A4, intestazione ripetuta.
+function stampaFasi(){
+  var S=_fasi.stampa;if(!S){alert('Nessun dato da stampare.');return;}
+  var d=S.d,nova=S.vista==='nova',E=escAbb;
+  var ora=new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  var nomeVista=nova?'Controllo Nova':S.vista==='anomalie'?'Elenco anomalie':'Tabella';
+  var ordTxt=nova?'per differenza Nova − App':S.vista==='anomalie'||!S.ord?'alfabetico':'per «'+FASI_COL[S.ord][0]+'» dal più grande';
+  function n(v,extra){return '<td class="n'+(v<0?' neg':v===0?' zero':'')+(extra||'')+'">'+v+'</td>';}
+  var testa='<h1>'+E(getCliente())+' — Fasi magazzino</h1>'
+    +'<div class="testa"><span>Stampato il <b>'+ora+'</b></span><span>Partenza al <b>'+fmtDataGMA(d.data)+'</b></span>'
+    +'<span>Vista: <b>'+nomeVista+'</b></span><span>Ordine: <b>'+ordTxt+'</b></span>'
+    +(S.q?'<span>Filtro: <b>'+E(S.q)+'</b></span>':'')+(nova&&S.soloNZ?'<span><b>Solo differenze</b></span>':'')+'</div>'
+    +'<div class="ttl">Totali di tutta la tabella</div>'
+    +'<table class="tt"><tr>'+COLS_FASI.map(function(k){return '<td'+(k==='tot'?' class="ttot"':'')+'><span>'+FASI_COL[k][0]+'</span><b'+(S.somme[k]<0?' class="neg"':'')+'>'+S.somme[k]+'</b></td>';}).join('')+'</tr></table>';
+  var corpo;
+  if(nova&&S.avviso){
+    corpo='<div class="avviso">⚠ '+E(S.avviso)+'</div>';
+  }else if(nova){
+    corpo='<table class="dati"><thead><tr><th class="cod">Codice</th><th>Descrizione</th>'
+      +ORDINE_FASI.map(function(f){return '<th class="n">'+FASI_COL[f][0]+'</th>';}).join('')
+      +'<th class="n">Somma fasi</th><th class="n">Carico Nova oggi</th><th class="n">Nova − App</th><th class="cosa">Cosa fare</th></tr></thead><tbody>'
+      +(S.lista.length?S.lista.map(function(a,i){
+        return '<tr'+(a.diffNova!==0?' class="diff"':'')+'><td class="cod"><b>'+E(a.cod)+'</b></td><td>'+E(a.desc)+'</td>'
+          +ORDINE_FASI.map(function(f){return n(a.r[f]);}).join('')
+          +'<td class="n b">'+a.somma+'</td><td class="n b">'+a.nova+'</td>'
+          +'<td class="n b" style="color:'+(a.diffNova===0?'#217346':'#C00000')+';">'+(a.diffNova>0?'+':'')+a.diffNova+'</td>'
+          +'<td class="cosa">'+(S.cosa[i]||'')+'</td></tr>';
+      }).join(''):'<tr><td colspan="11" class="vuoto">'+(S.soloNZ?'Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>')
+      +'</tbody></table>';
+  }else{
+    var anomV=S.vista==='anomalie';
+    corpo='<table class="dati"><thead><tr><th>Articolo</th>'
+      +COLS_FASI.map(function(k){return '<th class="n'+(k==='tot'?' ftot':'')+(k===S.ord?' ford':'')+'">'+FASI_COL[k][0]+'</th>';}).join('')+'</tr></thead><tbody>'
+      +(S.lista.length?S.lista.map(function(a){
+        var art=a.desc?E(a.desc)+'<span class="fcod">'+E(a.cod)+'</span>':'<b>'+E(a.cod)+'</b>';
+        var note=anomV?'<div class="note">'+ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join('')+'</div>':'';
+        return '<tr><td>'+art+note+'</td>'+COLS_FASI.map(function(k){return n(valFase(a,k),k==='tot'?' ftot':'');}).join('')+'</tr>';
+      }).join(''):'<tr><td colspan="'+(1+COLS_FASI.length)+'" class="vuoto">'+(anomV?'Nessuna anomalia.':'Nessun articolo.')+'</td></tr>')
+      +'</tbody></table>';
+  }
+  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fasi magazzino</title><style>'
+    +'@page{size:A4 '+(nova?'landscape':'portrait')+';margin:10mm;}'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Arial,sans-serif;color:#000;font-size:'+(nova?'9px':'11px')+';padding:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'.barra{position:sticky;top:0;background:#fff;padding:8px 0 12px;display:flex;gap:8px;}'
+    +'.barra button{padding:10px 18px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#1F4E79;color:#fff;cursor:pointer;}'
+    +'.barra button+button{background:#aaa;}'
+    +'h1{font-size:18px;margin-bottom:4px;}'
+    +'.testa{display:flex;flex-wrap:wrap;gap:2px 16px;font-size:12px;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px;}'
+    +'.ttl{font-size:11px;font-weight:bold;color:#444;margin-bottom:3px;}'
+    +'.tt{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}'
+    +'.tt td{border:1px solid #999;padding:4px 6px;vertical-align:top;background:#F2F6FB;}'
+    +'.tt td.ttot{background:#FFF6D6;}'
+    +'.tt span{display:block;font-size:10px;color:#444;}'
+    +'.tt b{display:block;font-size:16px;}'
+    +'.dati{width:100%;border-collapse:collapse;}'
+    +'.dati th,.dati td{border:1px solid #999;padding:3px 5px;vertical-align:top;text-align:left;}'
+    +'.dati th{background:#e8e8e8;font-size:'+(nova?'9px':'10px')+';}'
+    +'.dati .n{text-align:right;white-space:nowrap;}'
+    +'.dati th.n{white-space:normal;width:'+(nova?'17mm':'21mm')+';}'
+    +'.dati .cod{width:26mm;}'
+    +'.dati .cosa{width:55mm;}'
+    +'.dati th.ford{text-decoration:underline;}'
+    +'.dati td.ftot,.dati th.ftot{background:#FAFAF2;font-weight:bold;}'
+    +'.dati .b{font-weight:bold;}'
+    +'.neg{color:#C00000;font-weight:bold;}'
+    +'.zero{color:#aaa;}'
+    +'tr.diff td{background:#fde2e2;}'
+    +'.fcod{display:block;font-size:9px;color:#666;}'
+    +'.note .badge{display:inline-block;border:1px solid #C00000;color:#C00000;border-radius:3px;padding:0 3px;margin:2px 3px 0 0;font-size:9px;font-weight:bold;}'
+    +'.vuoto{text-align:center;color:#777;padding:10px;}'
+    +'.avviso{border:2px solid #C00000;background:#FFC7CE;color:#900;font-weight:bold;padding:8px;font-size:13px;}'
+    +'.piede{margin-top:6px;font-size:12px;font-weight:bold;}'
+    +'tr{break-inside:avoid;page-break-inside:avoid;}'
+    +'thead{display:table-header-group;}'
+    +'@media print{.barra{display:none !important;}body{padding:0;}}'
+    +'</style></head><body>'
+    +'<div class="barra"><button onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
+    +testa+corpo+(S.totTxt?'<div class="piede">'+E(S.totTxt)+'</div>':'')
+    +'</body></html>';
+  var w=window.open('','_blank');
+  if(!w){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
+  w.document.open();w.document.write(html);w.document.close();
 }
 
 // Aggiornamento automatico: ogni 60 s e quando la pagina torna visibile, solo con la scheda aperta
