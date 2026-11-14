@@ -1853,7 +1853,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
           <tbody id="vpn-tbody"></tbody>
         </table>
       </div>
-      <button class="btn btn-blue btn-sm" style="margin-top:10px;" onclick="esportaDifferenzeVerificaPdfNova()">⬇ Esporta differenze in CSV</button>
+      <button class="btn btn-blue btn-sm" id="vpn-btn-diff" style="margin-top:10px;" onclick="esportaDifferenzeVerificaPdfNova()">⬇ Esporta differenze in CSV</button>
       <button class="btn btn-gray btn-sm" style="margin-top:10px;" onclick="esportaTuttoVerificaPdfNova()">⬇ Esporta tutto in CSV</button>
     </div>
   </div>
@@ -8157,42 +8157,23 @@ function renderVerificaPdfNovaRisultati(dati){
       }).join('');
     }
   }
+  // Modalita' CSV: il pulsante esporta cosa manca in Nova (vedi esportaCsvVerificaPdfNova)
+  var bD=document.getElementById('vpn-btn-diff');
+  if(bD)bD.textContent=dati.perData?'⬇ Esporta da inserire in Nova':'⬇ Esporta differenze in CSV';
   document.getElementById('vpn-risultati').style.display='block';
 }
 
 function esportaCsvVerificaPdfNova(soloDifferenze){
   if(!_vpnUltimoConfronto||!_vpnUltimoConfronto.righe.length){alert('Nessun confronto disponibile da esportare.');return;}
   var modoImbVern=!!_vpnUltimoConfronto.modoImbVern;
+  if(soloDifferenze&&_vpnUltimoConfronto.perData&&!modoImbVern){esportaDaInserireNova();return;}
   var righe=soloDifferenze
     ? _vpnUltimoConfronto.righe.filter(function(r){return r.anomalia||r.diff!==0;})
     : _vpnUltimoConfronto.righe;
   if(!righe.length){alert(soloDifferenze?'Nessuna differenza da esportare: tutto combacia.':'Nessuna riga da esportare.');return;}
   var bom='﻿';
   var intestazione,righeCsv;
-  var pd=_vpnUltimoConfronto.perData;
-  if(soloDifferenze&&pd&&!modoImbVern){
-    // Modalita' CSV: una riga per codice + data, solo per i codici con differenza nel totale,
-    // e per quei codici tutte le date in cui il giorno non torna. Ordine per data, poi codice
-    // (date mancanti in fondo).
-    var out=[];
-    righe.forEach(function(r){
-      var p=pd.pdf[r.cod]||{},c=pd.conf[r.cod]||{},date={};
-      Object.keys(p).concat(Object.keys(c)).forEach(function(x){date[x]=true;});
-      Object.keys(date).forEach(function(x){
-        var qp=p[x]||0,qc=c[x]||0;
-        if(qp!==qc)out.push({cod:r.cod,desc:r.desc,data:x,qp:qp,qc:qc,diff:qp-qc,mancaPdf:!x&&!!p[x],mancaCsv:!x&&!!c[x]});
-      });
-    });
-    out.sort(function(a,b){
-      if(!a.data!==!b.data)return a.data?-1:1;
-      return a.data.localeCompare(b.data)||(a.cod||'').localeCompare(b.cod||'');
-    });
-    intestazione='Codice;Descrizione;Data;Tot. PDF Nova;Tot. confronto;Differenza\r\n';
-    righeCsv=out.map(function(x){
-      var dt=x.data?fmtData(x.data):[x.mancaCsv?'data mancante nel CSV':'',x.mancaPdf?'data DDT non letta nel PDF':''].filter(Boolean).join(' / ');
-      return [x.cod,String(x.desc||'').replace(/;/g,','),dt,x.qp,x.qc,x.diff].join(';');
-    }).join('\r\n');
-  } else if(modoImbVern){
+  if(modoImbVern){
     intestazione='Codice;Descrizione;Tot. PDF Nova;Verniciato;Imballo;Differenza\r\n';
     righeCsv=righe.map(function(r){
       var diffCol=r.anomalia?'ANOMALIA: Verniciato e Imballo entrambi valorizzati':r.diff;
@@ -8213,6 +8194,40 @@ function esportaCsvVerificaPdfNova(soloDifferenze){
   URL.revokeObjectURL(url);
 }
 
+// Modalita' CSV (CSV dell'app vs PDF di Nova): cosa MANCA in Nova e in che giorno.
+// Una riga per codice + data in cui il CSV ha piu' pezzi del PDF (DDT scarti C610 gia' esclusi);
+// Pezzi da inserire = CSV − PDF di quel giorno. Le righe dove Nova ha di piu' non entrano.
+// Ordine per data, poi codice; righe del CSV senza data in fondo ("data mancante nel CSV").
+function righeDaInserireNova(dati){
+  var pd=dati.perData,desc={},out=[];
+  dati.righe.forEach(function(r){desc[r.cod]=r.desc||'';});
+  Object.keys(pd.conf).forEach(function(cod){
+    var c=pd.conf[cod],p=pd.pdf[cod]||{};
+    Object.keys(c).forEach(function(x){
+      var manca=c[x]-(p[x]||0);
+      if(manca>0)out.push({data:x,cod:cod,desc:desc[cod]||'',pz:manca});
+    });
+  });
+  out.sort(function(a,b){
+    if(!a.data!==!b.data)return a.data?-1:1;
+    return a.data.localeCompare(b.data)||a.cod.localeCompare(b.cod);
+  });
+  return out;
+}
+function esportaDaInserireNova(){
+  var out=righeDaInserireNova(_vpnUltimoConfronto);
+  if(!out.length){alert('Niente da inserire in Nova: per ogni giorno il PDF ha almeno i pezzi del CSV.');return;}
+  var csv='﻿'+'Data;Codice;Descrizione;Pezzi da inserire\r\n'
+    +out.map(function(x){
+      return [x.data?fmtData(x.data):'data mancante nel CSV',x.cod,String(x.desc).replace(/;/g,','),x.pz].join(';');
+    }).join('\r\n')+'\r\n';
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='verifica_pdf_nova_da_inserire_'+oggiISO()+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 function esportaDifferenzeVerificaPdfNova(){esportaCsvVerificaPdfNova(true);}
 function esportaTuttoVerificaPdfNova(){esportaCsvVerificaPdfNova(false);}
 
