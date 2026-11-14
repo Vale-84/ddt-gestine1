@@ -107,7 +107,7 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 #page-abbinamenti-ber .rc-table td:nth-child(2) { min-width: 160px; }
 #page-abbinamenti-ber .rc-table td:nth-child(3) { min-width: 280px; }
 /* FASI MAGAZZINO: riquadri dei totali e tabella unica (una colonna per fase) */
-.fasi-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 12px; }
+.fasi-tiles { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 12px; }
 .fasi-tile { background: #F2F6FB; border: 2px solid transparent; border-radius: 10px; padding: 8px 10px; cursor: pointer; text-align: left; font-family: inherit; min-width: 0; }
 .fasi-tile .ft-lab { font-size: 11px; color: #555; line-height: 1.25; }
 .fasi-tile .ft-num { font-size: 22px; font-weight: bold; color: #1F4E79; margin-top: 2px; }
@@ -122,13 +122,15 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .fasi-grid td.ftot { font-weight: bold; background: #FAFAF2; }
 .fasi-grid td.fzero { color: #ccc; font-weight: normal; }
 .fasi-grid td.fneg { color: #C00000; font-weight: bold; background: #fde2e2; }
+.fasi-grid td.fdpos { color: #C00000; font-weight: bold; background: #fde2e2; }
+.fasi-grid td.fdneg { color: #C55A11; font-weight: bold; background: #FFF2CC; }
 .fasi-grid td:first-child { min-width: 0; position: static; overflow-wrap: anywhere; }
 .fasi-grid th:first-child { position: sticky; left: auto; }
 .fasi-grid .fcod { display: block; font-size: 10px; color: #888; }
 .fasi-grid .corto { display: none; }
 @media screen and (max-width: 768px) {
   #page-fasi .card { padding: 12px 10px; }
-  .fasi-tiles { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .fasi-tiles { grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .fasi-tile { padding: 6px 7px; }
   .fasi-tile .ft-lab { font-size: 10px; }
   .fasi-tile .ft-num { font-size: 18px; }
@@ -1377,7 +1379,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
           <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;" onclick="apriImportSaldo()">IMPORTA SALDO INIZIALE</button>
         </div>
       </div>
-      <!-- Riquadri: totale per fase + Tot. aperto; tocco = ordina la tabella per quella colonna -->
+      <!-- Riquadri: totale per fase + In casa + Carico DDT + n. Differenze; tocco = ordina la tabella per quella colonna -->
       <div class="fasi-tiles" id="fasi-tiles"></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
         <input class="cerca-input" id="fasi-cerca" placeholder="Filtra per codice o descrizione..." oninput="renderFasi()" autocomplete="off" style="flex:1;min-width:180px;margin:0;">
@@ -9300,23 +9302,50 @@ var FASI_DEF={
   scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = partenza + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
 };
 var ORDINE_FASI=['grezzo','verniciato','imballato','ddt','scarti'];
-// Vista unica: colonne = le cinque fasi + Tot. aperto (somma delle cinque = a.somma).
-// [nome riquadro, intestazione lunga, intestazione corta (telefono)]
+// Vista unica: colonne = le cinque fasi + In casa (somma delle cinque = a.somma)
+// + Carico DDT (carico aperto di oggi = a.nova, lo stesso "Carico Nova oggi" del Controllo Nova)
+// + Differenza (In casa − Carico DDT). Carico non disponibile: valore null, mostrato "—".
+// [nome completo (stampa, nota), intestazione lunga, intestazione corta (telefono), nome riquadro se diverso]
 var FASI_COL={
   grezzo:['Grezzo da verniciare','Grezzo','GREZ'],
   verniciato:['Verniciato da imballare','Verniciato','VERN'],
   imballato:['Imballato da spedire','Imballato','IMB'],
   ddt:['Spedito, DDT da fare','Spedito DDT da fare','DDT'],
   scarti:['Scarti da rendere','Scarti','SCA'],
-  tot:['Tot. aperto','Tot. aperto','TOT']
+  tot:['In casa','In casa','CASA'],
+  car:['Carico DDT','Carico DDT','CAR'],
+  diff:['Differenza','Differenza','DIFF','Differenze']
 };
-var COLS_FASI=ORDINE_FASI.concat(['tot']);
+var COLS_FASI=ORDINE_FASI.concat(['tot','car','diff']);
+function nomeRiqFasi(k){return FASI_COL[k][3]||FASI_COL[k][0];}
 // vista: 'tabella' | 'anomalie' | 'nova'; ord: colonna di ordinamento della tabella ('' = alfabetico)
 // stampa: ultima lista disegnata (vista, righe, totali), usata da STAMPA per stampare quello che e' a schermo
 var _fasi={vista:'tabella',ord:'',dati:null,n:0,aperto:'',stampa:null};
 // Ordine alfabetico per descrizione (senza descrizione: codice), a parita' per codice
 function cmpAlfaFasi(a,b){return String(a.desc||a.cod).localeCompare(String(b.desc||b.cod),'it',{sensitivity:'base'})||a.cod.localeCompare(b.cod);}
-function valFase(a,k){return k==='tot'?a.somma:a.r[k];}
+function valFase(a,k){
+  if(k==='tot')return a.somma;
+  if(k==='car')return a.nova==null?null:a.nova;
+  if(k==='diff')return a.nova==null?null:a.somma-a.nova;
+  return a.r[k];
+}
+// Valore per ordinare (dal piu' grande): Differenza in valore assoluto, "—" in fondo
+function valOrdFasi(a,k){var v=valFase(a,k);return v==null?-Infinity:k==='diff'?Math.abs(v):v;}
+function fmtValFasi(v){return v==null?'—':v;}
+// Classe della cella: Differenza positiva rossa, negativa arancio; altre colonne negative rosse; 0 e "—" grigi
+function clsValFasi(k,v,c){
+  if(v==null||v===0)return c.zero;
+  if(k==='diff')return v>0?c.dpos:c.dneg;
+  return v<0?c.neg:'';
+}
+function ordTxtFasi(ord){return ord==='diff'?'per «Differenza» in valore assoluto, dalla più grande':'per «'+FASI_COL[ord][0]+'» dal più grande';}
+// Scritta della differenza (sotto il nome dell'articolo)
+function badgeDiffFasi(a){
+  var v=valFase(a,'diff');
+  if(!v)return '';
+  return v>0?' <span class="badge badge-err" style="white-space:normal;color:#C00000;">mancano DDT Entrata per '+v+' pz</span>'
+    :' <span class="badge badge-warn arancio" style="white-space:normal;color:#C55A11;">pezzi in meno del carico: '+Math.abs(v)+'</span>';
+}
 
 // Lettura diretta per distinguere "tabella mancante" da "nessun saldo"
 async function leggiSaldoFasi(cl){
@@ -9459,7 +9488,7 @@ function calcolaFasi(saldo,base,vern,imb,wau,dc,arch){
     return a;
   });
   var o=new Date();
-  return {lista:lista,data:dSaldo,dMese:dMese,nSaldo:nSaldo,senzaCodice:senzaCodice,car:car,novaX:base.nova?base.nova.x:'',ora:String(o.getHours()).padStart(2,'0')+':'+String(o.getMinutes()).padStart(2,'0')};
+  return {lista:lista,data:dSaldo,dMese:dMese,nSaldo:nSaldo,senzaCodice:senzaCodice,car:car,novaX:base.nova?base.nova.x:'',novaSaldoX:base.nova&&base.nova.saldoX||{},ora:String(o.getHours()).padStart(2,'0')+':'+String(o.getMinutes()).padStart(2,'0')};
 }
 
 // Badge dei negativi, in parole semplici
@@ -9491,7 +9520,18 @@ function dettaglioFasiContenuto(a,d){
     var conto='partenza '+(sP[fd.s]||0)+fd.cols.map(function(c){return ' '+c[0]+' '+(a[c[1]]||0);}).join('');
     h+=riga(FASI_COL[f][0]+'<br><span style="font-size:11px;color:#888;">'+conto+'</span>',v,v<0?' <span style="color:#C00000;">(negativo)</span>':'',v<0?'color:#C00000;':'');
   });
-  h+=riga('<strong>Tot. aperto</strong> <span style="font-size:11px;color:#888;">(somma delle fasi)</span>',a.somma,'',a.somma<0?'color:#C00000;':'');
+  h+=riga('<strong>In casa</strong> <span style="font-size:11px;color:#888;">(somma di tutte le fasi, grezzo compreso)</span>',a.somma,'',a.somma<0?'color:#C00000;':'');
+  // Carico DDT (= carico aperto di oggi, come Saldo carico del Confronto) e Differenza
+  if(a.nova==null){
+    h+=riga('<strong>Carico DDT</strong>','—')+riga('<strong>Differenza</strong>','—');
+    if(d.car&&d.car.avviso)h+='<div style="font-size:11px;color:#C00000;margin-top:4px;">⚠ '+escAbb(d.car.avviso)+'</div>';
+  }else{
+    var s0=(d.novaSaldoX||{})[a.cod]||0,dv=a.somma-a.nova;
+    h+=riga('<strong>Carico DDT</strong><br><span style="font-size:11px;color:#888;">inevasi Nova al '+fmtDataGMA(d.novaX)+' '+s0+' + DDT Entrata − DDT Uscita dopo il '+fmtDataGMA(d.novaX)+' '+(a.nova-s0)+'</span>',a.nova,'',a.nova<0?'color:#C00000;':'');
+    h+=riga('<strong>Differenza</strong><br><span style="font-size:11px;color:#888;">In casa '+a.somma+' − Carico DDT '+a.nova+'</span>',dv,
+      dv>0?' <span style="color:#C00000;">— mancano DDT Entrata per '+dv+' pz</span>':dv<0?' <span style="color:#C55A11;">— pezzi in meno del carico: '+Math.abs(dv)+'</span>':'',
+      dv>0?'color:#C00000;':dv<0?'color:#C55A11;':'');
+  }
   if(!partenza)h+='<div style="font-size:11px;color:#888;margin-top:6px;">Articolo senza partenza al '+fmtDataGMA(d.data)+' (partenza 0).</div>';
   return h;
 }
@@ -9518,17 +9558,23 @@ function renderFasi(){
   var soloNZ=document.getElementById('fasi-solo-nonzero').checked;
   function filtroTesto(a){return !q||(a.cod+' '+a.desc).toUpperCase().indexOf(q)>=0;}
   var avvisoSenza=d.senzaCodice?' <span style="color:#C55A11;">⚠ '+d.senzaCodice+' righe di movimento senza codice articolo non contate.</span>':'';
-  // Articoli mostrati: almeno una fase diversa da zero + filtro testo. Anomalie: almeno una fase negativa.
-  var vis=d.lista.filter(function(a){return filtroTesto(a)&&ORDINE_FASI.some(function(f){return a.r[f]!==0;});});
+  // Articoli mostrati: almeno una fase diversa da zero, oppure In casa 0 con Carico DDT diverso da 0,
+  // + filtro testo. Anomalie: almeno una fase negativa.
+  var vis=d.lista.filter(function(a){return filtroTesto(a)&&(ORDINE_FASI.some(function(f){return a.r[f]!==0;})||!!valFase(a,'car'));});
   var anom=d.lista.filter(function(a){return ORDINE_FASI.some(function(f){return a.r[f]<0;});});
-  // Riquadri: totali degli articoli mostrati (seguono il filtro)
+  // Riquadri: totali degli articoli mostrati (seguono il filtro). Differenze = NUMERO di articoli
+  // con differenza diversa da 0 (non la somma dei pezzi). Carico non disponibile: "—".
   var somme={};COLS_FASI.forEach(function(k){somme[k]=0;});
-  vis.forEach(function(a){COLS_FASI.forEach(function(k){somme[k]+=valFase(a,k);});});
+  vis.forEach(function(a){ORDINE_FASI.concat(['tot','car']).forEach(function(k){somme[k]+=valFase(a,k)||0;});if(valFase(a,'diff'))somme.diff++;});
+  if(!d.car.disp){somme.car=null;somme.diff=null;}
+  var notaRiq={tot:'somma di tutte le fasi, grezzo compreso',car:'DDT Entrata − DDT Uscita (Saldo carico)',diff:'articoli con In casa ≠ Carico DDT'};
   tiles.innerHTML=COLS_FASI.map(function(k){
+    var v=somme[k],rosso=k==='diff'?v>0:v<0;
     return '<button type="button" class="fasi-tile'+(k==='tot'?' tot':'')+(_fasi.vista==='tabella'&&_fasi.ord===k?' on':'')+'" onclick="setOrdFasi(\''+k+'\')" title="Ordina la tabella per questa colonna">'
-      +'<div class="ft-lab">'+FASI_COL[k][0]+'</div><div class="ft-num"'+(somme[k]<0?' style="color:#C00000;"':'')+'>'+somme[k]+'</div>'
-      +(k==='tot'?'<div class="ft-nota">= carico aperto di oggi; confronto con Nova in Controllo Nova</div>':'')+'</button>';
+      +'<div class="ft-lab">'+nomeRiqFasi(k)+'</div><div class="ft-num"'+(rosso?' style="color:#C00000;"':'')+'>'+fmtValFasi(v)+'</div>'
+      +(notaRiq[k]?'<div class="ft-nota">'+notaRiq[k]+'</div>':'')+'</button>';
   }).join('');
+  var avvisoCar=d.car.disp?'':'<div style="color:#C00000;font-weight:bold;margin-bottom:4px;">⚠ Carico DDT non disponibile: '+escAbb(d.car.avviso)+'</div>';
   bA.style.display='';
   bA.textContent=anom.length?anom.length+(anom.length===1?' ANOMALIA':' ANOMALIE'):'NESSUNA ANOMALIA';
   bA.disabled=!anom.length&&_fasi.vista!=='anomalie';
@@ -9567,7 +9613,7 @@ function renderFasi(){
     base.lista=l;base.cosa=l.map(cosaFare);base.totTxt=tot.textContent;_fasi.stampa=base;
     return;
   }
-  // Tabella unica (vista 'tabella') o elenco anomalie: stesse colonne, una per fase + Tot. aperto
+  // Tabella unica (vista 'tabella') o elenco anomalie: stesse colonne, una per fase + In casa + Carico DDT + Differenza
   tab.className='rc-table fasi-grid';
   var anomV=_fasi.vista==='anomalie',ord=_fasi.ord;
   th.innerHTML='<tr><th>Articolo</th>'+COLS_FASI.map(function(k){
@@ -9576,25 +9622,28 @@ function renderFasi(){
   // Anomalie: sempre alfabetico. Tabella: alfabetico, oppure la colonna scelta dal piu' grande.
   var lista=anomV
     ?anom.filter(filtroTesto).sort(cmpAlfaFasi)
-    :vis.slice().sort(ord?function(a,b){return valFase(b,ord)-valFase(a,ord)||cmpAlfaFasi(a,b);}:cmpAlfaFasi);
-  nota.innerHTML=anomV
+    :vis.slice().sort(ord?function(a,b){return valOrdFasi(b,ord)-valOrdFasi(a,ord)||cmpAlfaFasi(a,b);}:cmpAlfaFasi);
+  nota.innerHTML=avvisoCar+(anomV
     ?'Articoli con almeno una fase negativa (in rosso), in ordine alfabetico: manca un movimento o il saldo iniziale non torna. Tocca una riga per il dettaglio; tocca di nuovo il pulsante o un riquadro per tornare alla tabella.'+avvisoSenza
-    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Solo articoli con almeno una fase diversa da zero, '
-      +(ord?'ordinati per «'+FASI_COL[ord][0]+'» dal più grande (tocca di nuovo lo stesso riquadro per tornare all\'ordine alfabetico).'
-           :'in ordine alfabetico (tocca un riquadro per ordinare per quella fase dal più grande).')
-      +' Tocca una riga per il dettaglio.'+avvisoSenza;
+    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Articoli con almeno una fase diversa da zero o con Carico DDT diverso da zero, '
+      +(ord?'ordinati '+ordTxtFasi(ord)+' (tocca di nuovo lo stesso riquadro per tornare all\'ordine alfabetico).'
+           :'in ordine alfabetico (tocca un riquadro per ordinare per quella colonna).')
+      +' Carico DDT = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dopo quella data; Differenza = In casa − Carico DDT.'
+      +' Tocca una riga per il dettaglio.'+avvisoSenza);
   var nc=1+COLS_FASI.length;
   tb.innerHTML=lista.length?lista.map(function(a){
-    var note=anomV?'<div style="margin-top:3px;">'+ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join('')+'</div>':'';
+    var neg=anomV?ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join(''):'';
+    var bd=neg+badgeDiffFasi(a);
+    var note=bd?'<div style="margin-top:3px;">'+bd+'</div>':'';
     var art=a.desc?escAbb(a.desc)+'<span class="fcod">'+escAbb(a.cod)+'</span>':'<strong>'+escAbb(a.cod)+'</strong>';
     return '<tr style="cursor:pointer;" onclick="toggleDettFasi(\''+escAbb(a.cod).replace(/'/g,"\\'")+'\')"><td>'+art+note+'</td>'
-      +COLS_FASI.map(function(k){var v=valFase(a,k);return '<td class="fn'+(k==='tot'?' ftot':'')+(v<0?' fneg':v===0?' fzero':'')+'">'+v+'</td>';}).join('')
+      +COLS_FASI.map(function(k){var v=valFase(a,k);return '<td class="fn'+(k==='tot'?' ftot':'')+clsValFasi(k,v,{neg:' fneg',zero:' fzero',dpos:' fdpos',dneg:' fdneg'})+'">'+fmtValFasi(v)+'</td>';}).join('')
       +'</tr>'+(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,nc):'');
   }).join(''):'<tr><td colspan="'+nc+'" style="text-align:center;padding:14px;color:#999;">'+(anomV?'✅ Nessuna anomalia.':'Nessun articolo.')+'</td></tr>';
   tot.innerHTML=anomV
     ?(lista.length?'Anomalie: '+lista.length+(lista.length!==anom.length?' (di '+anom.length+', filtro attivo)':''):'')
     :(lista.length?'Articoli: '+lista.length:'');
-  _fasi.stampa={vista:_fasi.vista,d:d,q:q,ord:anomV?'':ord,somme:somme,lista:lista,totTxt:tot.textContent};
+  _fasi.stampa={vista:_fasi.vista,d:d,q:q,ord:anomV?'':ord,somme:somme,lista:lista,totTxt:tot.textContent,avvisoCar:d.car.disp?'':d.car.avviso};
 }
 
 // STAMPA: quello che e' a schermo (tabella, anomalie o Controllo Nova), stesso filtro e ordine.
@@ -9604,14 +9653,14 @@ function stampaFasi(){
   var d=S.d,nova=S.vista==='nova',E=escAbb;
   var ora=new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   var nomeVista=nova?'Controllo Nova':S.vista==='anomalie'?'Elenco anomalie':'Tabella';
-  var ordTxt=nova?'per differenza Nova − App':S.vista==='anomalie'||!S.ord?'alfabetico':'per «'+FASI_COL[S.ord][0]+'» dal più grande';
+  var ordTxt=nova?'per differenza Nova − App':S.vista==='anomalie'||!S.ord?'alfabetico':ordTxtFasi(S.ord);
   function n(v,extra){return '<td class="n'+(v<0?' neg':v===0?' zero':'')+(extra||'')+'">'+v+'</td>';}
   var testa='<h1>'+E(getCliente())+' — Fasi magazzino</h1>'
     +'<div class="testa"><span>Stampato il <b>'+ora+'</b></span><span>Partenza al <b>'+fmtDataGMA(d.data)+'</b></span>'
     +'<span>Vista: <b>'+nomeVista+'</b></span><span>Ordine: <b>'+ordTxt+'</b></span>'
     +(S.q?'<span>Filtro: <b>'+E(S.q)+'</b></span>':'')+(nova&&S.soloNZ?'<span><b>Solo differenze</b></span>':'')+'</div>'
     +'<div class="ttl">Totali di tutta la tabella</div>'
-    +'<table class="tt"><tr>'+COLS_FASI.map(function(k){return '<td'+(k==='tot'?' class="ttot"':'')+'><span>'+FASI_COL[k][0]+'</span><b'+(S.somme[k]<0?' class="neg"':'')+'>'+S.somme[k]+'</b></td>';}).join('')+'</tr></table>';
+    +'<table class="tt"><tr>'+COLS_FASI.map(function(k){var v=S.somme[k],rosso=k==='diff'?v>0:v<0;return '<td'+(k==='tot'?' class="ttot"':'')+'><span>'+nomeRiqFasi(k)+'</span><b'+(rosso?' class="neg"':'')+'>'+fmtValFasi(v)+'</b></td>';}).join('')+'</tr></table>';
   var corpo;
   if(nova&&S.avviso){
     corpo='<div class="avviso">⚠ '+E(S.avviso)+'</div>';
@@ -9629,27 +9678,30 @@ function stampaFasi(){
       +'</tbody></table>';
   }else{
     var anomV=S.vista==='anomalie';
-    corpo='<table class="dati"><thead><tr><th>Articolo</th>'
+    corpo=(S.avvisoCar?'<div class="avviso" style="margin-bottom:8px;">⚠ Carico DDT non disponibile: '+E(S.avvisoCar)+'</div>':'')
+      +'<table class="dati"><thead><tr><th>Articolo</th>'
       +COLS_FASI.map(function(k){return '<th class="n'+(k==='tot'?' ftot':'')+(k===S.ord?' ford':'')+'">'+FASI_COL[k][0]+'</th>';}).join('')+'</tr></thead><tbody>'
       +(S.lista.length?S.lista.map(function(a){
         var art=a.desc?E(a.desc)+'<span class="fcod">'+E(a.cod)+'</span>':'<b>'+E(a.cod)+'</b>';
-        var note=anomV?'<div class="note">'+ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join('')+'</div>':'';
-        return '<tr><td>'+art+note+'</td>'+COLS_FASI.map(function(k){return n(valFase(a,k),k==='tot'?' ftot':'');}).join('')+'</tr>';
+        var bd=(anomV?ORDINE_FASI.filter(function(f){return a.r[f]<0;}).map(function(f){return badgeNegFase(f,a.r[f]);}).join(''):'')+badgeDiffFasi(a);
+        var note=bd?'<div class="note">'+bd+'</div>':'';
+        return '<tr><td>'+art+note+'</td>'+COLS_FASI.map(function(k){var v=valFase(a,k);
+          return '<td class="n'+clsValFasi(k,v,{neg:' neg',zero:' zero',dpos:' dpos',dneg:' dneg'})+(k==='tot'?' ftot':'')+'">'+fmtValFasi(v)+'</td>';}).join('')+'</tr>';
       }).join(''):'<tr><td colspan="'+(1+COLS_FASI.length)+'" class="vuoto">'+(anomV?'Nessuna anomalia.':'Nessun articolo.')+'</td></tr>')
       +'</tbody></table>';
   }
-  var css='body{font-size:'+(nova?'9px':'11px')+';}'
+  var css='body{font-size:'+(nova?'9px':'10px')+';}'
     +'.ttl{font-size:11px;font-weight:bold;color:#444;margin-bottom:3px;}'
     +'.tt{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}'
-    +'.tt td{border:1px solid #999;padding:4px 6px;vertical-align:top;background:#F2F6FB;}'
+    +'.tt td{border:1px solid #999;padding:3px 4px;vertical-align:top;background:#F2F6FB;}'
     +'.tt td.ttot{background:#FFF6D6;}'
-    +'.tt span{display:block;font-size:10px;color:#444;}'
-    +'.tt b{display:block;font-size:16px;}'
+    +'.tt span{display:block;font-size:9px;color:#444;}'
+    +'.tt b{display:block;font-size:14px;}'
     +'.dati{width:100%;border-collapse:collapse;}'
     +'.dati th,.dati td{border:1px solid #999;padding:3px 5px;vertical-align:top;text-align:left;}'
     +'.dati th{background:#e8e8e8;font-size:'+(nova?'9px':'10px')+';}'
     +'.dati .n{text-align:right;white-space:nowrap;}'
-    +'.dati th.n{white-space:normal;width:'+(nova?'17mm':'21mm')+';}'
+    +'.dati th.n{white-space:normal;width:17mm;}'
     +'.dati .cod{width:26mm;}'
     +'.dati .cosa{width:55mm;}'
     +'.dati th.ford{text-decoration:underline;}'
@@ -9657,9 +9709,12 @@ function stampaFasi(){
     +'.dati .b{font-weight:bold;}'
     +'.neg{color:#C00000;font-weight:bold;}'
     +'.zero{color:#aaa;}'
+    +'.dpos{color:#C00000;font-weight:bold;background:#fde2e2;}'
+    +'.dneg{color:#C55A11;font-weight:bold;background:#FFF2CC;}'
     +'tr.diff td{background:#fde2e2;}'
     +'.fcod{display:block;font-size:9px;color:#666;}'
     +'.note .badge{display:inline-block;border:1px solid #C00000;color:#C00000;border-radius:3px;padding:0 3px;margin:2px 3px 0 0;font-size:9px;font-weight:bold;}'
+    +'.note .badge.arancio{border-color:#C55A11;color:#C55A11;}'
     +'.vuoto{text-align:center;color:#777;padding:10px;}'
     +'.avviso{border:2px solid #C00000;background:#FFC7CE;color:#900;font-weight:bold;padding:8px;font-size:13px;}'
     +'.piede{margin-top:6px;font-size:12px;font-weight:bold;}';
