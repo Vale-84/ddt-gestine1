@@ -8677,6 +8677,25 @@ function esportaCsvVerificaPdfNovaEntrata(soloDifferenze){
 }
 
 // ── IMBALLO ───────────────────────────────────────────────────────────
+// Anti-doppione prima di salvare una riga Imballo a mano: se per lo stesso codice, data e
+// cliente ci sono gia' righe arrivate dal bypass WA (nota BYPASS_NOTA o ALLINEA_NOTA) chiede
+// conferma. true = salva, false = non salvare. Nessuna riga o errore di lettura: true.
+async function confermaDoppioneBypassImballo(cod,dataSel,tot){
+  var d=null;
+  try{d=await apiGet('imballo','data_inserimento=eq.'+dataSel+'&order=id.asc&limit=1000');}catch(e){d=null;}
+  if(!d||!d.length)return true;
+  var k=String(cod||'').trim().toUpperCase();
+  var bypass=d.filter(function(r){
+    var n=String(r.note||'');
+    return String(r.codice_articolo||'').trim().toUpperCase()===k&&(n.indexOf(BYPASS_NOTA)>=0||n.indexOf(ALLINEA_NOTA)>=0);
+  });
+  if(!bypass.length)return true;
+  var totBypass=bypass.reduce(function(s,r){return s+(Number(r.totale)||0);},0);
+  return confirm('ATTENZIONE: per '+String(cod||'').trim()+' il '+fmtDataGMA(dataSel)+' in Imballo ci sono già '+totBypass+' pz arrivati dal bypass WA. '
+    +'Stai aggiungendo altri '+tot+' pz a mano: se sono gli stessi pezzi verranno contati due volte.\n\n'
+    +'OK per salvare comunque, Annulla per non salvare.');
+}
+
 async function salvaImballo(){
   var cod=document.getElementById('imb-cod').value;
   var dsc=document.getElementById('imb-dsc').value;
@@ -8686,6 +8705,7 @@ async function salvaImballo(){
   if(!seq){showMsg('msg-imballo','Inserisci la sequenza!','err');return;}
   var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   var dataSel=(document.getElementById('imb-date')&&document.getElementById('imb-date').value)?document.getElementById('imb-date').value:oggiISO();
+  if(!(await confermaDoppioneBypassImballo(cod,dataSel,tot)))return;
   var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
   if(r){
     showMsg('msg-imballo','Salvato! Totale: '+tot+' pz','ok');
@@ -8809,6 +8829,7 @@ async function salvaImballo2(){
   if(!seq){alert('Inserisci la sequenza!');return;}
   var tot=seq.split('+').map(function(n){return parseFloat(n)||0;}).reduce(function(a,b){return a+b;},0);
   var dataSel=(document.getElementById('imb2-date')&&document.getElementById('imb2-date').value)?document.getElementById('imb2-date').value:oggiISO();
+  if(!(await confermaDoppioneBypassImballo(cod,dataSel,tot)))return;
   var r=await apiPost('imballo',{articolo:dsc,codice_articolo:cod,sequenza:seq,totale:tot,note:note,data_inserimento:dataSel});
   if(r){
     document.getElementById('imb2-cerca').value='';document.getElementById('imb2-cod').value='';
