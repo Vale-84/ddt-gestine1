@@ -7851,6 +7851,9 @@ function parseCsvNovaExport(text){
     }
   }
   if(hi<0)throw new Error('Colonne CODART/QUANT1 non trovate nel CSV');
+  // Data della riga (per l'export differenze per data): DATA_DOC, se manca DATAREG, se manca DATA.
+  // '' = nessuna data leggibile nella riga.
+  var colData=['DATA_DOC','DATAREG','DATA'].filter(function(n){return H[n]!=null;});
   var out=[];
   for(var r=hi+1;r<righe.length;r++){
     if(!righe[r]||!righe[r].trim())continue;
@@ -7858,7 +7861,9 @@ function parseCsvNovaExport(text){
     var cod=codiceValido(H['CODART']!=null?row[H['CODART']]:'')||'SENZA_CODICE';
     var dsc=String(H['DESART']!=null?row[H['DESART']]||'':'').trim();
     var qty=parseQty(H['QUANT1']!=null?row[H['QUANT1']]:'');
-    if(qty>0)out.push({cod:cod,desc:dsc,qty:qty});
+    var data='';
+    for(var c=0;c<colData.length&&!data;c++)data=convData(row[H[colData[c]]])||'';
+    if(qty>0)out.push({cod:cod,desc:dsc,qty:qty,data:data});
   }
   return out;
 }
@@ -7885,13 +7890,25 @@ async function eseguiVerificaPdfNova(){
       return t||'SENZA_CODICE';
     }
 
+    // Solo modalita' CSV: DDT scarti C610 esclusi (tabella, riepilogo ed export), come nel
+    // resto dell'app (isDdtScarti). Le altre modalita' restano come prima.
+    var modoCsv=(fonte==='csv'),nC610=0;
+    var ddtsConf=parse.ddts,nonRisolteConf=parse.nonRisolte;
+    if(modoCsv){
+      ddtsConf=parse.ddts.filter(function(d){if(/^C610/i.test(d.nddt)){nC610++;return false;}return true;});
+      nonRisolteConf=parse.nonRisolte.filter(function(x){return !/^C610/i.test(x.nddt);});
+    }
+    // Per data (solo modalita' CSV): pdfData[cod][data], confData[cod][data]; '' = data mancante
+    var pdfData={},confData={};
+    function sommaData(m,k,data,q){(m[k]=m[k]||{});m[k][data]=(m[k][data]||0)+q;}
     var mPdf={};
-    parse.ddts.forEach(function(d){
+    ddtsConf.forEach(function(d){
       d.righe.forEach(function(r){
         var k=chiaveCod(r.cod);
         if(!mPdf[k])mPdf[k]={cod:k,desc:r.desc,tot:0};
         mPdf[k].tot+=r.qty;
         if(!mPdf[k].desc&&r.desc)mPdf[k].desc=r.desc;
+        if(modoCsv)sommaData(pdfData,k,d.data||'',r.qty);
       });
     });
     var date=parse.ddts.map(function(d){return d.data;}).filter(Boolean).sort();
@@ -7926,8 +7943,10 @@ async function eseguiVerificaPdfNova(){
         if(!mConfronto[k])mConfronto[k]={cod:k,desc:r.desc,tot:0};
         mConfronto[k].tot+=r.qty;
         if(!mConfronto[k].desc&&r.desc)mConfronto[k].desc=r.desc;
+        sommaData(confData,k,r.data||'',r.qty);
       });
-      fonteLabel='Confronto con: CSV caricato ('+righeCsv.length+' righe)';
+      fonteLabel='Confronto con: CSV caricato ('+righeCsv.length+' righe)'
+        +(nC610?' · DDT scarti C610 esclusi dal PDF: '+nC610:'');
     } else if(fonte==='imballo'){
       if(!dataMin||!dataMax){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
       var imb=await apiGetTutto('imballo');
@@ -8038,9 +8057,10 @@ async function eseguiVerificaPdfNova(){
       return (a.cod||'').localeCompare(b.cod||'');
     });
 
-    _vpnUltimoConfronto={fonteLabel:fonteLabel,righe:righeRis,nonRisolte:parse.nonRisolte,modoImbVern:modoImbVern};
+    _vpnUltimoConfronto={fonteLabel:fonteLabel,righe:righeRis,nonRisolte:nonRisolteConf,modoImbVern:modoImbVern,
+      perData:modoCsv?{pdf:pdfData,conf:confData}:null};
     renderVerificaPdfNovaRisultati(_vpnUltimoConfronto);
-    status.innerHTML='<div class="msg msg-ok">Confronto completato: '+righeRis.length+' codici.'+(parse.nonRisolte.length?(' ⚠️ '+parse.nonRisolte.length+' righe PDF non risolte automaticamente, vedi sotto.'):'')+'</div>';
+    status.innerHTML='<div class="msg msg-ok">Confronto completato: '+righeRis.length+' codici.'+(nonRisolteConf.length?(' ⚠️ '+nonRisolteConf.length+' righe PDF non risolte automaticamente, vedi sotto.'):'')+'</div>';
   }catch(e){
     status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';
   }
@@ -8149,7 +8169,30 @@ function esportaCsvVerificaPdfNova(soloDifferenze){
   if(!righe.length){alert(soloDifferenze?'Nessuna differenza da esportare: tutto combacia.':'Nessuna riga da esportare.');return;}
   var bom='﻿';
   var intestazione,righeCsv;
-  if(modoImbVern){
+  var pd=_vpnUltimoConfronto.perData;
+  if(soloDifferenze&&pd&&!modoImbVern){
+    // Modalita' CSV: una riga per codice + data, solo per i codici con differenza nel totale,
+    // e per quei codici tutte le date in cui il giorno non torna. Ordine per data, poi codice
+    // (date mancanti in fondo).
+    var out=[];
+    righe.forEach(function(r){
+      var p=pd.pdf[r.cod]||{},c=pd.conf[r.cod]||{},date={};
+      Object.keys(p).concat(Object.keys(c)).forEach(function(x){date[x]=true;});
+      Object.keys(date).forEach(function(x){
+        var qp=p[x]||0,qc=c[x]||0;
+        if(qp!==qc)out.push({cod:r.cod,desc:r.desc,data:x,qp:qp,qc:qc,diff:qp-qc,mancaPdf:!x&&!!p[x],mancaCsv:!x&&!!c[x]});
+      });
+    });
+    out.sort(function(a,b){
+      if(!a.data!==!b.data)return a.data?-1:1;
+      return a.data.localeCompare(b.data)||(a.cod||'').localeCompare(b.cod||'');
+    });
+    intestazione='Codice;Descrizione;Data;Tot. PDF Nova;Tot. confronto;Differenza\r\n';
+    righeCsv=out.map(function(x){
+      var dt=x.data?fmtData(x.data):[x.mancaCsv?'data mancante nel CSV':'',x.mancaPdf?'data DDT non letta nel PDF':''].filter(Boolean).join(' / ');
+      return [x.cod,String(x.desc||'').replace(/;/g,','),dt,x.qp,x.qc,x.diff].join(';');
+    }).join('\r\n');
+  } else if(modoImbVern){
     intestazione='Codice;Descrizione;Tot. PDF Nova;Verniciato;Imballo;Differenza\r\n';
     righeCsv=righe.map(function(r){
       var diffCol=r.anomalia?'ANOMALIA: Verniciato e Imballo entrambi valorizzati':r.diff;
