@@ -1652,11 +1652,6 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <button class="btn btn-blue" onclick="salvaCfgDataChiusura()">SALVA DATA</button>
   </div>
   <div class="card" style="border:2px solid #1F6B75;"><h2 style="color:#1F6B75;">Chiudi mese</h2><p style="font-size:13px;color:#666;margin-bottom:12px;">Archivia e toglie le righe di WA, Imballo e Verniciato fino al giorno che scegli; quelle successive restano. I DDT restano per il Confronto.</p><button class="btn btn-teal" onclick="chiudiMese()">CHIUDI MESE</button><div id="cfg-chiuso-box" style="display:none;margin-top:10px;padding:10px;border:1px dashed #C55A11;border-radius:8px;"><label style="margin:0 0 4px;">AZZURRA · mese chiuso fino al giorno (compreso)</label><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="date" id="cfg-chiuso-fino" style="width:auto;margin:0;"><button class="btn btn-orange btn-sm" style="width:auto;" onclick="salvaChiusoFinoCfg()">SALVA</button><button class="btn btn-gray btn-sm" style="width:auto;" onclick="salvaChiusoFinoCfg(true)">TOGLI BLOCCO</button></div><p style="font-size:12px;color:#666;margin:6px 0 0;">Righe di WA, Imballo e Verniciato con data fino a questo giorno: bloccate per tutti, l'admin le può cambiare con conferma.</p></div><button class="btn btn-orange" id="btn-correggi-riporti" style="display:none;margin-top:8px;" onclick="apriCorreggiRiporti()" title="Solo admin: limita i riporti Verniciato già creati al carico aperto del giorno di chiusura">CORREGGI RIPORTI A CARICO APERTO</button></div>
-  <div class="card" style="border: 2px solid #ffaaaa;">
-    <h2 style="color:#C00000;">Azzera tutto</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">Cancella tutti i dati inseriti (entrate, uscite, imballo, DDT). Usare a fine giornata o per ricominciare da zero.</p>
-    <button class="btn btn-red" title="Elimina" onclick="azzeraTutto()">AZZERA TUTTI I DATI</button>
-  </div>
   <div class="card">
     <h2>Stato connessione</h2>
     <div id="stato-conn">Non configurato</div><br>
@@ -2250,7 +2245,7 @@ async function apiUpsert(t,arr,onConflictCol){
   }catch(e){alert('Errore: '+e.message);return null;}
 }
 
-async function testConn(){var d=await apiGet('whatsapp_righe');if(d!==null){showMsg('msg-cfg','OK! '+d.length+' righe.','ok');document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Connesso</span>';}}
+async function testConn(){var d=await apiGet('whatsapp_righe','select=id&limit=1');if(d!==null){showMsg('msg-cfg','OK! Connessione riuscita.','ok');document.getElementById('stato-conn').innerHTML='<span class="badge badge-ok">Connesso</span>';}}
 
 async function caricaArticoli(){var d=await apiGetTutto('articoli','order=descrizione.asc,id.asc');if(d)artCache=d;}
 
@@ -2547,7 +2542,7 @@ async function aggiungiWAEntrata(){
 }
 
 async function caricaEntrate(){
-  var d=await apiGet('whatsapp_righe',pDal());if(!d)return;
+  var d=await apiGetTutto('whatsapp_righe',pDal(ORDINE_COME_APIGET));if(!d)return;
   if(document.getElementById('st-e'))document.getElementById('st-e').textContent=d.length;
   var l=document.getElementById('e-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
@@ -3086,7 +3081,7 @@ async function aggiungiWAUscita(){
 }
 
 async function caricaUscite(){
-  var d=await apiGet('whatsapp_uscita',pDal());if(!d)return;
+  var d=await apiGetTutto('whatsapp_uscita',pDal(ORDINE_COME_APIGET));if(!d)return;
   if(document.getElementById('st-u'))document.getElementById('st-u').textContent=d.length;
   var l=document.getElementById('u-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessuna uscita ancora</div>';return;}
@@ -3519,8 +3514,8 @@ async function aggiungiBypassAImballo(cod, desc){
   if(_bypassInCorso)return;
   _bypassInCorso=true;
   try{
-    var wau=await apiGet('whatsapp_uscita',pDal());
-    var imb=await apiGet('imballo',pDal());
+    var wau=await apiGetTutto('whatsapp_uscita',pDal(ORDINE_COME_APIGET));
+    var imb=await apiGetTutto('imballo',pDal(ORDINE_COME_APIGET));
     if(!wau||!imb){alert('Errore caricamento WA Uscita o Imballo.');return;}
     var key=String(cod).trim().toLowerCase();
     var fino=_finoGiorno;
@@ -3695,7 +3690,7 @@ async function salvaVerniciato(){
 
 async function caricaVerniciato(){
   if(!document.getElementById('vern-lista'))return;
-  var d=await apiGet('verniciato',pDal());if(!d)return;
+  var d=await apiGetTutto('verniciato',pDal(ORDINE_COME_APIGET));if(!d)return;
   var l=document.getElementById('vern-lista');
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
   var map={};
@@ -3808,7 +3803,7 @@ async function salvaVerniciatoP(){
 }
 
 async function caricaVerniciatoP(){
-  var d=await apiGet('verniciato',pDal());if(!d)return;
+  var d=await apiGetTutto('verniciato',pDal(ORDINE_COME_APIGET));if(!d)return;
   var l=document.getElementById('vernp-lista');if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo ancora</div>';return;}
   d.sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
@@ -3886,7 +3881,7 @@ async function salvaVerniciato2(){
 }
 
 async function caricaVerniciato2(){
-  var d=await apiGet('verniciato',pDal());if(!d)return;
+  var d=await apiGetTutto('verniciato',pDal(ORDINE_COME_APIGET));if(!d)return;
   var l=document.getElementById('imb2-vern-lista');if(!l)return;
   if(!d.length){l.innerHTML='<div class="empty">Nessun articolo</div>';return;}
   d.sort(function(a,b){return (b.data_inserimento||b.created_at||'').localeCompare(a.data_inserimento||a.created_at||'');});
@@ -3935,7 +3930,7 @@ async function svuotaVerniciato2(){
   if(getCliente()==='AZZURRA'){alert('AZZURRA non si svuota piu\x27: le righe restano e si chiude il mese da Config (Chiudi mese).');return;}
   if(!confirm('Svuotare il verniciato?'))return;
   localStorage.removeItem('vern2_spunte');
-  var d=await apiGet('verniciato');
+  var d=await apiGetTutto('verniciato');
   if(d&&d.length){
     for(var i=0;i<d.length;i++){
       var r=d[i];
@@ -8586,7 +8581,7 @@ async function eseguiVerificaPdfNovaEntrata(){
 
     // Stesso filtro chiusura_azzurra gia' usato negli altri confronti (Confronto/Riepilogo)
     var dataChiusuraAz=localStorage.getItem('chiusura_'+getCliente())||'';
-    var we=await apiGet('whatsapp_righe');
+    var we=await apiGetTutto('whatsapp_righe',ORDINE_COME_APIGET);
     if(!we){status.innerHTML='<div class="msg msg-err">Errore caricamento WA Entrata dell\'app.</div>';return;}
     var weFiltrate=dataChiusuraAz
       ? we.filter(function(r){var d=(r.data_inserimento||r.created_at||'').slice(0,10);return !d||d>=dataChiusuraAz;})
@@ -8721,7 +8716,7 @@ async function svuotaImballo(){
   if(getCliente()==='AZZURRA'){alert('AZZURRA non si svuota piu\x27: le righe restano e si chiude il mese da Config (Chiudi mese).');return;}
   if(!confirm('Cancellare tutti gli imballi?'))return;
   var oggi=oggiISO();
-  var d=await apiGet('imballo');
+  var d=await apiGetTutto('imballo');
   if(d&&d.length){
     for(var i=0;i<d.length;i++){
       var r=d[i];
@@ -8738,7 +8733,7 @@ async function svuotaImballo(){
 }
 
 async function caricaImballo(){
-  var d=await apiGet('imballo',pDal('order=data_inserimento.desc.nullslast,created_at.desc.nullslast,id.desc&limit=5000'));if(!d)return;
+  var d=await apiGetTutto('imballo',pDal('order=data_inserimento.desc.nullslast,created_at.desc.nullslast,id.desc'));if(!d)return;
   if(document.getElementById('st-imb'))document.getElementById('st-imb').textContent=d.length;
   var l=document.getElementById('imb-lista');
   var l2=document.getElementById('imb2-lista');
@@ -10796,25 +10791,9 @@ async function eseguiChiudiMese(s,div,idsRiporto){
   return true;
 }
 
-async function azzeraTutto(){
-  if(!confirm('(!) Sei sicura di voler cancellare TUTTI i dati?\nQuesta operazione non può essere annullata!'))return;
-  if(!confirm('Ultima conferma: cancellare tutto?'))return;
-  var tables=['whatsapp_righe','whatsapp_uscita','imballo','ddt_entrata','ddt_uscita'];
-  var cfg=getConfig();if(!cfg.url){alert('Configura Supabase prima!');return;}
-  var ok=true;
-  for(var i=0;i<tables.length;i++){
-    try{await fetch(cfg.url+'/rest/v1/'+tables[i]+'?id=gte.0',{method:'DELETE',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key}});}
-    catch(e){ok=false;}
-  }
-  if(ok){
-    showMsg('msg-cfg','✅ Tutti i dati cancellati!','ok');
-    ['st-e','st-u','st-de','st-du','st-imb'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='0';});
-  }else{showMsg('msg-cfg','Errore durante la cancellazione.','err');}
-}
-
 // ── ESPORTA IMBALLO EXCEL ─────────────────────────────────────────────
 async function esportaImballoExcel(){
-  var wa=await apiGet('imballo',pDal());
+  var wa=await apiGetTutto('imballo',pDal(ORDINE_COME_APIGET));
   if(!wa||!wa.length){alert('Nessuna riga Imballo da esportare!');return;}
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
@@ -10993,7 +10972,7 @@ function generaCsvUnisciImballo(){
 
 // ── ESPORTA VERNICIATO EXCEL ──────────────────────────────────────────
 async function esportaVerniciatoExcel(){
-  var d=await apiGet('verniciato',pDal());
+  var d=await apiGetTutto('verniciato',pDal(ORDINE_COME_APIGET));
   if(!d||!d.length){alert('Nessun verniciato da esportare!');return;}
   var anno=new Date().getFullYear();
   var dataOggi=new Date().toLocaleDateString('it-IT').replace(/\//g,'/');
@@ -11043,7 +11022,7 @@ async function esportaVerniciatoExcel(){
 // ── UNISCI DUPLICATI ─────────────────────────────────────────────────
 async function unisciDuplicatiEntrata(){
   if(!confirm('Unire gli articoli duplicati della stessa data?'))return;
-  var d=await apiGet('whatsapp_righe','order=created_at.asc&limit=500');
+  var d=await apiGetTutto('whatsapp_righe',pDal('order=created_at.asc,id.asc'));
   if(!d||!d.length)return;
   var map={};
   d.forEach(function(r){
@@ -11070,7 +11049,7 @@ async function unisciDuplicatiEntrata(){
 
 async function unisciDuplicatiUscita(){
   if(!confirm('Unire le uscite duplicate della stessa data?'))return;
-  var d=await apiGet('whatsapp_uscita','order=created_at.asc&limit=500');
+  var d=await apiGetTutto('whatsapp_uscita',pDal('order=created_at.asc,id.asc'));
   if(!d||!d.length)return;
   var map={};
   d.forEach(function(r){
@@ -11097,7 +11076,7 @@ async function unisciDuplicatiUscita(){
 
 async function unisciDuplicatiImballo(){
   if(!confirm('Unire gli imballi duplicati della stessa data?'))return;
-  var d=await apiGet('imballo',pDal('order=created_at.asc&limit=5000'));
+  var d=await apiGetTutto('imballo',pDal('order=created_at.asc,id.asc'));
   if(!d||!d.length)return;
   var map={};
   d.forEach(function(r){
@@ -11144,7 +11123,7 @@ async function unisciDuplicatiImballo(){
 
 async function unisciDuplicatiVerniciato(){
   if(!confirm('Unire i verniciati duplicati della stessa data?'))return;
-  var d=await apiGet('verniciato',pDal('order=created_at.asc&limit=5000'));
+  var d=await apiGetTutto('verniciato',pDal('order=created_at.asc,id.asc'));
   if(!d||!d.length)return;
   var map={};
   d.forEach(function(r){
@@ -11188,7 +11167,7 @@ async function unisciDuplicatiVerniciato(){
 }
 
 async function associaCodiciUscita(){
-  var d=await apiGet('whatsapp_uscita','order=created_at.asc&limit=500');
+  var d=await apiGetTutto('whatsapp_uscita',pDal('order=created_at.asc,id.asc'));
   if(!d||!d.length){showMsg('msg-uscita','Nessuna uscita.','ok');return;}
   var n=d.filter(function(r){return !r.codice_articolo;});
   var ok=0;
