@@ -736,6 +736,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <input type="text" id="vernp-note" placeholder="">
     <button class="btn btn-orange" onclick="salvaVerniciatoP()">SALVA VERNICIATO</button>
     <button class="btn btn-blue btn-sm" id="btn-modulo-vern" style="display:none;margin-bottom:0;" onclick="stampaModuloVerniciato()">🖨 STAMPA FOGLIO IMBALLO</button>
+    <button class="btn btn-blue btn-sm" id="btn-lista-vern-ber" style="display:none;margin-bottom:0;" onclick="stampaListaVernBer()">🖨 STAMPA LISTA PER BERGAMASCO</button>
   </div>
   <div class="card">
     <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
@@ -13986,6 +13987,8 @@ function aggiornaBtnModuloVern(){
   if(b)b.style.display=getCliente()==='AZZURRA'?'':'none';
   var u=document.getElementById('btn-unisci-data-vern');
   if(u)u.style.display=getCliente()==='BERGAMASCO'?'':'none';
+  var lb=document.getElementById('btn-lista-vern-ber');
+  if(lb)lb.style.display=getCliente()==='BERGAMASCO'?'':'none';
 }
 document.getElementById('cliente-sel').addEventListener('change',aggiornaBtnModuloVern);
 window.addEventListener('load',function(){setTimeout(aggiornaBtnModuloVern,0);});
@@ -14118,6 +14121,135 @@ function moduloImballoPagina(D){
   }
   inData.addEventListener('input',disegna);
   inData.addEventListener('change',disegna);
+  disegna();
+}
+
+// ── LISTA VERNICIATO DA MANDARE A BERGAMASCO (solo lettura) ──
+// Una riga per articolo con il totale pezzi tra DAL e AL (riporti e scarti esclusi),
+// piu' l'elenco dei giorni del periodo per vedere subito se ne manca uno.
+async function stampaListaVernBer(){
+  if(getCliente()!=='BERGAMASCO')return;
+  var w=window.open('','_blank');
+  if(!w){alert('Impossibile aprire la finestra di stampa. Controlla il blocco popup.');return;}
+  w.document.write('<p style="font-family:Arial;padding:20px;">Preparazione lista...</p>');
+  var res=await Promise.all([
+    caricaTuttoModuloVern('verniciato','codice_articolo,descrizione,quantita,data_inserimento,note','id.asc'),
+    caricaTuttoModuloVern('articoli','codice_articolo,descrizione','id.asc'),
+    apiGetTutto('abbinamenti_ber','codice_ber=not.like.*-V&order=id.asc')
+  ]);
+  if(!res[0]||!res[1]||!res[2]){w.document.body.innerHTML='<p style="font-family:Arial;padding:20px;">Errore nel caricamento dei dati.</p>';return;}
+  var descArt={};
+  res[1].forEach(function(a){if(a.codice_articolo)descArt[String(a.codice_articolo).toUpperCase().trim()]=a.descrizione;});
+  // Codice B0 -> codici BER abbinati (senza doppioni)
+  var ber={};
+  res[2].forEach(function(a){
+    var b0=String(a.codice_b0||'').toUpperCase().trim(),cb=String(a.codice_ber||'').toUpperCase().trim();
+    if(!b0||!cb)return;
+    ber[b0]=ber[b0]||[];
+    if(ber[b0].indexOf(cb)<0)ber[b0].push(cb);
+  });
+  var D={
+    desc:descArt,ber:ber,oggi:dataOggiModuloVern(),
+    righe:res[0].filter(function(r){return !isRiportoVern(r)&&!isMovScarto(r);}).map(function(r){
+      return{c:String(r.codice_articolo||'').toUpperCase().trim(),d:r.descrizione,q:r.quantita,data:String(r.data_inserimento||'').slice(0,10)};
+    }).filter(function(r){return r.c&&r.data;})
+  };
+  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Verniciato per BERGAMASCO</title><style>'
+    +'@page{size:A4 portrait;margin:10mm;}'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Arial,sans-serif;color:#000;background:#fff;padding:10mm;}'
+    +'.barra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:15px;font-weight:bold;}'
+    +'.barra input{font-size:16px;padding:8px 10px;border:2px solid #1F4E79;border-radius:8px;}'
+    +'.barra button{padding:10px 18px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#1F4E79;color:#fff;cursor:pointer;}'
+    +'.barra button:disabled{opacity:.4;cursor:default;}'
+    +'.barra button+button{background:#aaa;}'
+    +'.avviso{border:2px solid #000;border-radius:10px;padding:16px;font-size:16pt;font-weight:bold;max-width:190mm;}'
+    +'.foglio{max-width:190mm;}'
+    +'h1{font-size:20pt;line-height:1.2;border-bottom:2px solid #000;padding-bottom:2mm;}'
+    +'.periodo{font-size:15pt;font-weight:bold;margin:2mm 0 4mm;}'
+    +'.giorni{border:2px solid #000;padding:2mm 3mm;margin-bottom:5mm;break-inside:avoid;page-break-inside:avoid;}'
+    +'.giorni h2{font-size:12pt;margin-bottom:1.5mm;}'
+    +'.giorni ul{list-style:none;columns:2;column-gap:8mm;}'
+    +'.giorni li{font-size:12pt;padding:.6mm 0;}'
+    +'.giorni li.zero{color:#888;}'
+    +'table{width:100%;border-collapse:collapse;}'
+    +'th{background:#d9d9d9;border:1px solid #000;font-size:11pt;padding:1.5mm 2mm;text-align:left;}'
+    +'td{border:1px solid #000;font-size:13pt;padding:2mm;vertical-align:middle;}'
+    +'tr{break-inside:avoid;page-break-inside:avoid;}'
+    +'thead{display:table-header-group;}'
+    +'.n{width:10mm;text-align:center;}'
+    +'.cod{white-space:nowrap;font-size:12pt;}'
+    +'.tot{text-align:center;font-size:17pt;font-weight:bold;width:24mm;}'
+    +'.sp{width:14mm;}'
+    +'.sp span{display:block;width:8mm;height:8mm;border:2px solid #000;margin:auto;}'
+    +'.totale{font-size:18pt;font-weight:bold;margin-top:5mm;text-align:right;}'
+    +'@media print{.barra{display:none !important;}body{padding:0;}}'
+    +'</style></head><body>'
+    +'<div class="barra"><label>DAL: <input type="date" id="dal" value="'+D.oggi+'"></label>'
+    +'<label>AL: <input type="date" id="al" value="'+D.oggi+'"></label>'
+    +'<button id="btn-stampa" onclick="window.print()">🖨 Stampa</button><button onclick="window.close()">Chiudi</button></div>'
+    +'<div class="foglio">'
+    +'<h1>VERNICIATO ARTCOLOR PER BERGAMASCO &amp; VOSCA</h1>'
+    +'<div class="periodo" id="periodo"></div>'
+    +'<div class="giorni" id="giorni"></div>'
+    +'<div class="avviso" id="avviso" style="display:none;"></div>'
+    +'<div id="tabella"></div>'
+    +'</div>'
+    +'<scr'+'ipt>('+listaVernBerPagina.toString()+')('+JSON.stringify(D).replace(/</g,'\\u003c')+');</scr'+'ipt>'
+    +'</body></html>';
+  w.document.open();w.document.write(html);w.document.close();
+  try{w.focus();}catch(e){}
+}
+
+// Gira DENTRO la finestra di stampa (deve bastare a se stessa): filtra DAL-AL, somma per articolo e disegna
+function listaVernBerPagina(D){
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function gg(iso){var p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  function num(n){n=Math.round((Number(n)||0)*100)/100;return String(n).replace('.',',');}
+  var GIORNI=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+  function isoDi(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  var inDal=document.getElementById('dal'),inAl=document.getElementById('al');
+  function disegna(){
+    var dal=inDal.value,al=inAl.value;
+    var per=document.getElementById('periodo'),gio=document.getElementById('giorni'),avv=document.getElementById('avviso'),tab=document.getElementById('tabella'),btn=document.getElementById('btn-stampa');
+    if(!dal||!al||dal>al){
+      per.textContent='';gio.style.display='none';tab.innerHTML='';
+      avv.textContent=(!dal||!al)?'Scegli le date DAL e AL.':'La data DAL è dopo la data AL.';
+      avv.style.display='';btn.disabled=true;return;
+    }
+    per.textContent='Dal '+gg(dal)+' al '+gg(al);
+    var perGiorno={},art={};
+    D.righe.forEach(function(r){
+      if(r.data<dal||r.data>al)return;
+      var q=Number(r.q)||0;
+      perGiorno[r.data]=(perGiorno[r.data]||0)+q;
+      if(!art[r.c])art[r.c]={c:r.c,d:D.desc[r.c]||r.d||r.c,q:0};
+      art[r.c].q+=q;
+    });
+    // Elenco di tutti i giorni del periodo, anche quelli a zero
+    var p=dal.split('-'),d=new Date(+p[0],+p[1]-1,+p[2]),li='';
+    while(isoDi(d)<=al){
+      var iso=isoDi(d),q=perGiorno[iso]||0;
+      li+='<li'+(q?'':' class="zero"')+'>'+GIORNI[d.getDay()]+' '+gg(iso)+': <b>'+(q?num(q)+' pz':'0 – nessun verniciato')+'</b></li>';
+      d.setDate(d.getDate()+1);
+    }
+    gio.innerHTML='<h2>GIORNI COMPRESI</h2><ul>'+li+'</ul>';gio.style.display='';
+    var lista=Object.keys(art).map(function(c){return art[c];}).filter(function(a){return a.q!==0;});
+    if(!lista.length){
+      tab.innerHTML='';avv.textContent='Nessun verniciato BERGAMASCO in questo periodo';
+      avv.style.display='';btn.disabled=true;return;
+    }
+    avv.style.display='none';btn.disabled=false;
+    lista.sort(function(a,b){return String(a.d).localeCompare(String(b.d),'it')||a.c.localeCompare(b.c);});
+    var tot=0;
+    var righe=lista.map(function(a,i){
+      tot+=a.q;
+      return '<tr><td class="n">'+(i+1)+'</td><td class="cod">'+esc((D.ber[a.c]||[]).join(' / '))+'</td><td class="cod">'+esc(a.c)+'</td><td>'+esc(a.d)+'</td><td class="tot">'+num(a.q)+'</td><td class="sp"><span></span></td></tr>';
+    }).join('');
+    tab.innerHTML='<table><thead><tr><th class="n">N°</th><th>Codice BER</th><th>Codice B0</th><th>Descrizione</th><th style="text-align:center;">TOTALE PEZZI</th><th style="text-align:center;">✓</th></tr></thead><tbody>'+righe+'</tbody></table>'
+      +'<div class="totale">TOTALE: '+lista.length+' articol'+(lista.length===1?'o':'i')+' – '+num(tot)+' pezzi</div>';
+  }
+  [inDal,inAl].forEach(function(el){el.addEventListener('input',disegna);el.addEventListener('change',disegna);});
   disegna();
 }
 
