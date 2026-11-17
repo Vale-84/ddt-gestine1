@@ -503,7 +503,9 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
             </label>
             <button class="btn btn-red btn-sm" id="foto-e-btn-elimina-sel" style="flex:1;" disabled onclick="eliminaFotoSelezionate('e')">🗑 Elimina selezionati</button>
           </div>
+          <div id="foto-e-ultima" style="font-size:13px;color:#555;margin-bottom:6px;"></div>
           <div id="foto-e-lista"><div class="empty">Nessuna foto in sospeso</div></div>
+          <div id="foto-e-fatte" style="margin-top:8px;"></div>
         </div>
         <div class="card" style="margin-bottom:10px;">
           <h2 style="color:#217346;">Articoli entrati <span id="foto-badge-e" style="display:none;background:#FFD966;color:#7B4F00;font-size:12px;font-weight:bold;padding:2px 8px;border-radius:20px;margin-left:6px;"></span></h2>
@@ -568,7 +570,9 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
             </label>
             <button class="btn btn-red btn-sm" id="foto-u-btn-elimina-sel" style="flex:1;" disabled onclick="eliminaFotoSelezionate('u')">🗑 Elimina selezionati</button>
           </div>
+          <div id="foto-u-ultima" style="font-size:13px;color:#555;margin-bottom:6px;"></div>
           <div id="foto-u-lista"><div class="empty">Nessuna foto in sospeso</div></div>
+          <div id="foto-u-fatte" style="margin-top:8px;"></div>
         </div>
         <div id="u-confronto" style="display:none" class="card" style="margin-bottom:10px;">
           <h2>Confronto imballo</h2>
@@ -1786,6 +1790,15 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   </div>
 </div>
 
+<!-- OVERLAY VISIONE FOTO GIA' CONVERTITA (sola lettura) -->
+<div class="modal" id="foto-vista-overlay" onclick="chiudiFotoFattaVista()" style="background:rgba(0,0,0,0.85);">
+  <button onclick="event.stopPropagation();chiudiFotoFattaVista()" style="position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.95);color:#222;border:none;font-size:22px;font-weight:bold;cursor:pointer;z-index:210;line-height:1;">✕</button>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:10px;">
+    <div id="foto-vista-info" style="color:white;font-size:14px;text-align:center;"></div>
+    <img id="foto-vista-img" src="" style="max-width:94vw;max-height:80vh;border-radius:8px;display:none;">
+  </div>
+</div>
+
 <!-- OVERLAY CONFERMA DOPPIONE FOTO -->
 <div class="modal" id="foto-dup-overlay" style="background:rgba(0,0,0,0.85);">
   <div class="modal-box" style="max-width:520px;text-align:center;">
@@ -2454,6 +2467,55 @@ function _seqBase(dup){
   var b=dup.testo_seq||(dup.quantita!=null?String(dup.quantita):'');
   return b?b+'+':'';
 }
+
+// ── CONTROLLO DOPPIONI RIGHE WA (Entrata/Uscita) ───────────────────────
+// Possibile doppione = stesso cliente, stesso codice, stessa data e
+// stessa quantita', oppure sequenza nuova gia' contenuta nella sequenza
+// della riga esistente (es. esistente 91+54, arriva 91). Chiede conferma.
+function _pezziSeq(s){
+  return String(s==null?'':s).split('+').map(function(x){return parseFloat(String(x).trim().replace(',','.'));}).filter(function(n){return !isNaN(n);});
+}
+function _seqContenuta(nuova,esistente){
+  var resto=esistente.slice();
+  for(var i=0;i<nuova.length;i++){
+    var k=resto.indexOf(nuova[i]);
+    if(k<0)return false;
+    resto.splice(k,1);
+  }
+  return nuova.length>0;
+}
+// Righe della tabella WA (cliente attivo, iniettato da apiGet) con quella data
+async function leggiRigheWAData(table,dataSel){
+  var dopo=new Date(dataSel+'T12:00:00Z');dopo.setUTCDate(dopo.getUTCDate()+1);
+  var dopoIso=dopo.toISOString().slice(0,10);
+  var d=await apiGet(table,'select=id,codice_articolo,quantita,testo_seq,data_inserimento,created_at&or=(data_inserimento.eq.'+dataSel+',and(data_inserimento.is.null,created_at.gte.'+dataSel+',created_at.lt.'+dopoIso+'))&limit=5000');
+  return d||[];
+}
+function trovaRigaWADoppia(righe,cod,dataSel,qty,seq){
+  if(!cod)return null;
+  var sn=_pezziSeq(seq!=null&&seq!==''?seq:qty);
+  return (righe||[]).find(function(r){
+    if(r.codice_articolo!==cod||dataRigaLav(r)!==dataSel)return false;
+    if(qty!=null&&r.quantita!=null&&Number(r.quantita)===Number(qty))return true;
+    return _seqContenuta(sn,_pezziSeq(r.testo_seq!=null&&r.testo_seq!==''?r.testo_seq:r.quantita));
+  })||null;
+}
+// true = salva comunque. Se nessun doppione, true senza chiedere.
+function confermaRigaWADoppia(righe,cod,dataSel,qty,seq){
+  var dup=trovaRigaWADoppia(righe,cod,dataSel,qty,seq);
+  if(!dup)return true;
+  return confirm('Riga già presente, aggiungere lo stesso?\n\n'
+    +'Già presente: '+cod+' — '+(dup.testo_seq||dup.quantita)+' pz del '+fmtData(dataSel)+'\n'
+    +'Nuova: '+cod+' — '+(seq||qty)+' pz');
+}
+// Tiene allineata la copia locale dopo un inserimento o un'unione
+function aggiornaRigheWALocali(righe,res,patchId,patch){
+  if(patchId!=null){
+    var x=righe.find(function(r){return String(r.id)===String(patchId);});
+    if(x)Object.assign(x,patch);
+  }
+  if(res)(Array.isArray(res)?res:[res]).forEach(function(r){if(r)righe.push(r);});
+}
 function _seqParti(seq){
   return String(seq||'').split('+').map(function(x){return x.trim();}).filter(function(x){return x!=='';});
 }
@@ -2495,6 +2557,7 @@ async function salvaEntrataMerce(){
   // Controlla se stesso articolo stessa data selezionata → unisci
   var esistenti=await apiGet('whatsapp_righe','order=created_at.desc&limit=200');
   var dataSel=(document.getElementById('e-date')&&document.getElementById('e-date').value)?document.getElementById('e-date').value:oggiISO();
+  if(!confermaRigaWADoppia(await leggiRigheWAData('whatsapp_righe',dataSel),cod,dataSel,qty,seq))return;
   if(esistenti){
     var dup=esistenti.find(function(r){
       var dataR=(r.data_inserimento||r.created_at||'').slice(0,10);
@@ -2518,11 +2581,13 @@ async function aggiungiWAEntrata(){
   var dataSel=(document.getElementById('e-wa-date')&&document.getElementById('e-wa-date').value)?document.getElementById('e-wa-date').value:oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var esistenti=await apiGet('whatsapp_righe','order=created_at.desc&limit=200');
-  var n=0;
+  var righeData=await leggiRigheWAData('whatsapp_righe',dataSel);
+  var n=0,saltate=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
     var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
     var art=trovaArt(desc);
+    if(art&&qty&&!confermaRigaWADoppia(righeData,art.codice_articolo,dataSel,qty,String(qty))){saltate++;continue;}
     // Prova unione se stesso codice stessa data selezionata
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
@@ -2532,14 +2597,17 @@ async function aggiungiWAEntrata(){
       if(dup){
         var nuovaQty=(dup.quantita||0)+qty;
         var nuovoTestoOriginale=(dup.testo_originale||dup.testo_riga||'')+' + '+r;
-        await apiPatch('whatsapp_righe','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:_seqBase(dup)+String(qty),testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
+        var patchE={quantita:nuovaQty,testo_seq:_seqBase(dup)+String(qty),testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale};
+        await apiPatch('whatsapp_righe','id=eq.'+dup.id,patchE);
+        Object.assign(dup,patchE);aggiornaRigheWALocali(righeData,null,dup.id,patchE);
         n++;continue;
       }
     }
     var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,testo_seq:qty?String(qty):null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel,modalita:'whatsapp'});
-    if(res)n++;
+    if(res){n++;aggiornaRigheWALocali(righeData,res);}
   }
-  if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
+  if(n>0){showMsg('msg-entrata',n+' righe aggiunte!'+(saltate?' ('+saltate+' doppioni saltati)':''),'ok');document.getElementById('e-wa-text').value='';caricaEntrate();}
+  else if(saltate)showMsg('msg-entrata','Nessuna riga aggiunta ('+saltate+' doppioni saltati)','err');
 }
 
 async function caricaEntrate(){
@@ -2743,6 +2811,7 @@ async function caricaFotoLista(prefix){
   var l=document.getElementById('foto-'+prefix+'-lista');
   var badge=document.getElementById('foto-badge-'+prefix);
   var params='cliente=eq.'+encodeURIComponent(getCliente())+'&tipo=eq.'+tipo+'&fatto=eq.false&order=created_at.desc';
+  caricaFotoFatte(prefix);
   var d=await apiGet('foto_promemoria',params);
   if(!d){if(l)l.innerHTML='<div class="empty">Errore connessione</div>';return;}
   if(badge){
@@ -2831,6 +2900,96 @@ async function salvaDataFoto(id,prefix,nuovaData){
   await apiPatch('foto_promemoria','id=eq.'+id,{data_foto:nuovaData});
   caricaFotoLista(prefix);
 }
+
+// ── FOTO GIA' CONVERTITE (fatto=true) ──────────────────────────────────
+// "Ultima foto convertita" + elenco chiuso degli ultimi 30 giorni. Per non
+// appesantire il telefono l'elenco legge solo id/data/note: la foto si scarica
+// solo quando la si tocca (apriFotoFattaVista).
+var _fotoFatteAperte={e:false,u:false};
+var _fotoFatteCache={e:[],u:[]};
+function _dataFotoIso(r){return String((r&&(r.data_foto||r.created_at))||'').slice(0,10);}
+function _ggmm(iso){var p=String(iso||'').split('-');return p.length===3?p[2]+'/'+p[1]:'';}
+
+async function caricaFotoFatte(prefix){
+  var tipo=prefix==='e'?'entrata':'uscita';
+  var base='cliente=eq.'+encodeURIComponent(getCliente())+'&tipo=eq.'+tipo+'&fatto=eq.true';
+  var lim=new Date();lim.setDate(lim.getDate()-30);
+  var limIso=lim.getFullYear()+'-'+('0'+(lim.getMonth()+1)).slice(-2)+'-'+('0'+lim.getDate()).slice(-2);
+  var res=await Promise.all([
+    apiGet('foto_promemoria','select=data_foto,created_at&'+base+'&order=data_foto.desc.nullslast,created_at.desc&limit=1'),
+    apiGet('foto_promemoria','select=id,data_foto,created_at,note&'+base+'&or=(data_foto.gte.'+limIso+',and(data_foto.is.null,created_at.gte.'+limIso+'))&limit=1000')
+  ]);
+  var ult=document.getElementById('foto-'+prefix+'-ultima');
+  if(ult){
+    var u=res[0]&&res[0][0];
+    ult.innerHTML=u?'✅ Ultima foto convertita: <b>'+_ggmm(_dataFotoIso(u))+'</b>':'';
+  }
+  var lista=(res[1]||[]).slice().sort(function(a,b){
+    var da=_dataFotoIso(a),db=_dataFotoIso(b);
+    if(da!==db)return da<db?1:-1;
+    return String(b.created_at||'')<String(a.created_at||'')?-1:1;
+  });
+  _fotoFatteCache[prefix]=lista;
+  renderFotoFatte(prefix);
+}
+
+function renderFotoFatte(prefix){
+  var box=document.getElementById('foto-'+prefix+'-fatte');
+  if(!box)return;
+  var lista=_fotoFatteCache[prefix]||[];
+  var aperto=_fotoFatteAperte[prefix];
+  var html='<div onclick="toggleFotoFatte(\''+prefix+'\')" style="cursor:pointer;font-weight:bold;color:#555;padding:8px 0;border-top:1px solid #eee;">'
+    +(aperto?'▾':'▸')+' Già convertite ('+lista.length+') <span style="font-weight:normal;font-size:12px;color:#999;">ultimi 30 giorni</span></div>';
+  if(aperto){
+    if(!lista.length)html+='<div class="empty">Nessuna foto convertita negli ultimi 30 giorni</div>';
+    else html+=lista.map(function(r){
+      return '<div class="row-item" style="align-items:center;cursor:pointer;" onclick="apriFotoFattaVista('+r.id+')">'
+        +'<div class="row-info">'
+          +'<div class="rdesc">📅 '+_ggmm(_dataFotoIso(r))+' — '+(r.note?escAbb(r.note):'<span style="color:#999;">(nessuna nota)</span>')+'</div>'
+          +'<span class="rsub">Tocca per vedere la foto</span>'
+        +'</div>'
+        +'<button class="btn btn-sm" style="width:auto;white-space:nowrap;padding:6px 10px;background:white;color:#1F6B75;border:1px solid #1F6B75;" onclick="event.stopPropagation();rimettiFotoDaFare('+r.id+',\''+prefix+'\')">↩ Rimetti da fare</button>'
+      +'</div>';
+    }).join('');
+  }
+  box.innerHTML=html;
+}
+
+function toggleFotoFatte(prefix){
+  _fotoFatteAperte[prefix]=!_fotoFatteAperte[prefix];
+  renderFotoFatte(prefix);
+}
+
+async function rimettiFotoDaFare(id,prefix){
+  if(!confirm('Rimettere questa foto tra quelle da fare?'))return;
+  await apiPatch('foto_promemoria','id=eq.'+id,{fatto:false});
+  caricaFotoLista(prefix);
+}
+
+async function apriFotoFattaVista(id){
+  var img=document.getElementById('foto-vista-img');
+  var info=document.getElementById('foto-vista-info');
+  img.style.display='none';img.src='';
+  info.textContent='Caricamento foto…';
+  document.getElementById('foto-vista-overlay').style.display='flex';
+  history.pushState({fotoVista:true},'');
+  var d=await apiGet('foto_promemoria','select=foto_base64,data_foto,created_at,note&id=eq.'+id+'&cliente=eq.'+encodeURIComponent(getCliente()));
+  if(document.getElementById('foto-vista-overlay').style.display!=='flex')return;
+  var r=d&&d[0];
+  if(!r||!r.foto_base64){info.textContent='Foto non trovata o errore di connessione';return;}
+  info.textContent='📅 '+fmtData(r.data_foto||r.created_at)+(r.note?' — '+r.note:'');
+  img.src=r.foto_base64;img.style.display='block';
+}
+
+function chiudiFotoFattaVista(daPopstate){
+  var ov=document.getElementById('foto-vista-overlay');
+  if(ov.style.display!=='flex')return;
+  ov.style.display='none';
+  document.getElementById('foto-vista-img').src='';
+  if(!daPopstate)history.back();
+}
+
+window.addEventListener('popstate',function(){chiudiFotoFattaVista(true);});
 
 // ── OVERLAY FOTO: inserimento righe strutturate (Cerca articolo + Sequenza pezzi) ──
 // Sostituisce il vecchio testo libero + riconoscimento automatico: le righe si
@@ -2951,11 +3110,19 @@ async function salvaRigheFotoOverlay(){
     var prefix=(r&&r.tipo==='entrata')?'e':'u';
     var table=prefix==='e'?'whatsapp_righe':'whatsapp_uscita';
     var dataIns=((r&&(r.data_foto||r.created_at))||'').slice(0,10)||oggiISO();
+    var righeData=await leggiRigheWAData(table,dataIns);
+    var salvate=0;
     for(var i=0;i<_fovRighe.length;i++){
       var rg=_fovRighe[i];
-      await apiPost(table,{testo_riga:rg.qty+' '+rg.desc,testo_seq:rg.seq,quantita:rg.qty,descrizione:rg.desc,codice_articolo:rg.cod,descrizione_articolo:rg.desc,note:'Da foto promemoria',data_inserimento:dataIns,modalita:'manuale'});
+      if(!confermaRigaWADoppia(righeData,rg.cod,dataIns,rg.qty,rg.seq))continue;
+      var resF=await apiPost(table,{testo_riga:rg.qty+' '+rg.desc,testo_seq:rg.seq,quantita:rg.qty,descrizione:rg.desc,codice_articolo:rg.cod,descrizione_articolo:rg.desc,note:'Da foto promemoria',data_inserimento:dataIns,modalita:'manuale'});
+      if(resF){salvate++;aggiornaRigheWALocali(righeData,resF);}
     }
-    await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
+    // Nessuna riga scritta (tutte doppioni annullati): la foto si segna fatta solo se confermato
+    if(salvate||confirm('Nessuna riga aggiunta. Segnare comunque la foto come fatta?')){
+      await apiPatch('foto_promemoria','id=eq.'+id,{fatto:true});
+    }
+    _fovRighe=[];
     chiudiFotoSchermoIntero();
     caricaFotoLista(prefix);
     if(prefix==='e')caricaEntrate(); else caricaUscite();
@@ -3035,6 +3202,7 @@ async function salvaUscitaMerce(){
   // Controlla unione
   var esistenti=await apiGet('whatsapp_uscita','order=created_at.desc&limit=200');
   var dataSel=(document.getElementById('u-date')&&document.getElementById('u-date').value)?document.getElementById('u-date').value:oggiISO();
+  if(!confermaRigaWADoppia(await leggiRigheWAData('whatsapp_uscita',dataSel),cod,dataSel,tot,seq))return;
   if(esistenti){
     var dup=esistenti.find(function(r){
       var dataR=(r.data_inserimento||r.created_at||'').slice(0,10);
@@ -3057,11 +3225,13 @@ async function aggiungiWAUscita(){
   var dataSel=(document.getElementById('u-wa-date')&&document.getElementById('u-wa-date').value)?document.getElementById('u-wa-date').value:oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(function(r){return r&&r[0]!=='[';});
   var esistenti=await apiGet('whatsapp_uscita','order=created_at.desc&limit=200');
-  var n=0;
+  var righeData=await leggiRigheWAData('whatsapp_uscita',dataSel);
+  var n=0,saltate=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i],m=r.match(/^(\d+)\s+(.+)$/);
     var qty=m?parseInt(m[1]):null,desc=m?m[2]:r;
     var art=trovaArt(desc);
+    if(art&&qty&&!confermaRigaWADoppia(righeData,art.codice_articolo,dataSel,qty,String(qty))){saltate++;continue;}
     if(art&&esistenti&&qty){
       var dup=esistenti.find(function(x){
         var dataX=(x.data_inserimento||x.created_at||'').slice(0,10);
@@ -3071,14 +3241,17 @@ async function aggiungiWAUscita(){
         var nuovaQty=(dup.quantita||0)+qty;
         var nuovaSeq=_seqBase(dup)+String(qty);
         var nuovoTestoOriginale=(dup.testo_originale||dup.testo_riga||'')+' + '+r;
-        await apiPatch('whatsapp_uscita','id=eq.'+dup.id,{quantita:nuovaQty,testo_seq:nuovaSeq,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale});
+        var patchU={quantita:nuovaQty,testo_seq:nuovaSeq,testo_riga:nuovaQty+' '+(art.descrizione||desc),testo_originale:nuovoTestoOriginale};
+        await apiPatch('whatsapp_uscita','id=eq.'+dup.id,patchU);
+        Object.assign(dup,patchU);aggiornaRigheWALocali(righeData,null,dup.id,patchU);
         n++;continue;
       }
     }
     var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,testo_seq:qty?String(qty):null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,data_inserimento:dataSel,modalita:'whatsapp'});
-    if(res)n++;
+    if(res){n++;aggiornaRigheWALocali(righeData,res);}
   }
-  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-wa-text').value='';caricaUscite();mostraConfronto();}
+  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!'+(saltate?' ('+saltate+' doppioni saltati)':''),'ok');document.getElementById('u-wa-text').value='';caricaUscite();mostraConfronto();}
+  else if(saltate)showMsg('msg-uscita','Nessuna riga aggiunta ('+saltate+' doppioni saltati)','err');
 }
 
 async function caricaUscite(){
@@ -4773,7 +4946,8 @@ async function aggiungiTestoLiberoEntrata(){
   if(!testo){showMsg('msg-entrata','Scrivi qualcosa!','err');return;}
   var dataSel=document.getElementById('e-lib-date').value||oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(Boolean);
-  var n=0;
+  var righeData=await leggiRigheWAData('whatsapp_righe',dataSel);
+  var n=0,saltate=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i];
     var m=r.match(/^(\d+(?:\+\d+)*)\s+(.+)$/);
@@ -4781,10 +4955,12 @@ async function aggiungiTestoLiberoEntrata(){
     var qty=seqStr?seqStr.split('+').reduce(function(a,v){return a+(parseInt(v)||0);},0):null;
     var desc=m?m[2]:r;
     var art=trovaArt(desc);
+    if(art&&qty&&!confermaRigaWADoppia(righeData,art.codice_articolo,dataSel,qty,seqStr)){saltate++;continue;}
     var res=await apiPost('whatsapp_righe',{testo_riga:r,testo_originale:r,testo_seq:seqStr||null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
-    if(res)n++;
+    if(res){n++;aggiornaRigheWALocali(righeData,res);}
   }
-  if(n>0){showMsg('msg-entrata',n+' righe aggiunte!','ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
+  if(n>0){showMsg('msg-entrata',n+' righe aggiunte!'+(saltate?' ('+saltate+' doppioni saltati)':''),'ok');document.getElementById('e-lib-text').value='';caricaEntrate();}
+  else if(saltate)showMsg('msg-entrata','Nessuna riga aggiunta ('+saltate+' doppioni saltati)','err');
 }
 
 // ── TESTO LIBERO USCITA ───────────────────────────────────────────────
@@ -4793,7 +4969,8 @@ async function aggiungiTestoLiberoUscita(){
   if(!testo){showMsg('msg-uscita','Scrivi qualcosa!','err');return;}
   var dataSel=document.getElementById('u-lib-date').value||oggiISO();
   var righe=testo.split('\n').map(function(r){return r.trim();}).filter(Boolean);
-  var n=0;
+  var righeData=await leggiRigheWAData('whatsapp_uscita',dataSel);
+  var n=0,saltate=0;
   for(var i=0;i<righe.length;i++){
     var r=righe[i];
     var m=r.match(/^(\d+(?:\+\d+)*)\s+(.+)$/);
@@ -4801,10 +4978,12 @@ async function aggiungiTestoLiberoUscita(){
     var qty=seqStr?seqStr.split('+').reduce(function(a,v){return a+(parseInt(v)||0);},0):null;
     var desc=m?m[2]:r;
     var art=trovaArt(desc);
+    if(art&&qty&&!confermaRigaWADoppia(righeData,art.codice_articolo,dataSel,qty,seqStr)){saltate++;continue;}
     var res=await apiPost('whatsapp_uscita',{testo_riga:r,testo_originale:r,testo_seq:seqStr||null,quantita:qty,descrizione:desc,codice_articolo:art?art.codice_articolo:null,descrizione_articolo:art?art.descrizione:null,da_testo_libero:true,data_inserimento:dataSel,modalita:'testo_libero'});
-    if(res)n++;
+    if(res){n++;aggiornaRigheWALocali(righeData,res);}
   }
-  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!','ok');document.getElementById('u-lib-text').value='';caricaUscite();}
+  if(n>0){showMsg('msg-uscita',n+' righe aggiunte!'+(saltate?' ('+saltate+' doppioni saltati)':''),'ok');document.getElementById('u-lib-text').value='';caricaUscite();}
+  else if(saltate)showMsg('msg-uscita','Nessuna riga aggiunta ('+saltate+' doppioni saltati)','err');
 }
 // ── RIEPILOGO COMPLETO (ex CONFRONTO) ───────────────────────────────────
 var rcDatiCompleti=null;
