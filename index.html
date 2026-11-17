@@ -385,6 +385,14 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   /* Popup: al massimo 95% dello schermo (il ⛶ tutto schermo resta al 98%) */
   .modal-box:not(.modal-full) { max-width: 95vw !important; }
 
+  /* Riepilogo WA: Entrate sopra, Uscite sotto; quantità/data/icone sotto la descrizione */
+  #rwa-stampa { max-width: 100%; overflow-x: hidden; }
+  .rwa-grid { grid-template-columns: 1fr !important; }
+  .rwa-riga1, .rwa-head { flex-wrap: wrap; row-gap: 2px; }
+  .rwa-riga1 > .rwa-desc, .rwa-head > .rwa-desc { flex: 1 1 100% !important; min-width: 0; overflow-wrap: anywhere; }
+  .rwa-qta1 { font-size: 14px !important; min-width: 0 !important; max-width: 100%; margin-left: auto; text-align: right; overflow-wrap: anywhere; }
+  .rwa-tot { margin-left: auto; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+
   /* Ultima sicurezza: clip su body non rompe l'intestazione sticky */
   html { overflow-x: hidden; }
   body { overflow-x: clip; }
@@ -919,7 +927,7 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
   </div>
   <div id="rwa-stampa">
     <div id="rwa-info-stampa" style="font-size:12px;color:#666;margin-bottom:8px;"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="rwa-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="card" style="margin-bottom:0">
         <h2 style="color:#217346;">Entrate WA</h2>
         <div id="rwa-entrate"><div class="empty">Nessuna entrata</div></div>
@@ -4909,19 +4917,19 @@ async function caricaRwa(){
     }).map(function(a){
       var dateKeys=Object.keys(a.dateMap).sort();
       var icons=iconeGruppo(a.modSet);
-      var header='<div style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>';
+      var header='<div class="rwa-desc" style="font-size:12px;flex:1;">'+(a.cod?'<span class="badge badge-ok" style="font-size:10px;">'+a.cod+'</span><br>':'')+a.desc+'</div>';
       if(dateKeys.length<=1){
         var dLabel=(dateKeys[0]&&fmtData(dateKeys[0]))||'';
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+        return '<div class="rwa-riga1" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
           +header
-          +'<div style="font-size:16px;font-weight:bold;color:'+color+';min-width:40px;text-align:right;">'+a.tot+(dLabel?' - '+dLabel:'')+' <span style="font-size:12px;">'+icons+'</span></div>'
+          +'<div class="rwa-qta1" style="font-size:16px;font-weight:bold;color:'+color+';min-width:40px;text-align:right;">'+a.tot+(dLabel?' - '+dLabel:'')+' <span style="font-size:12px;">'+icons+'</span></div>'
         +'</div>';
       }
       var righeDate=dateKeys.map(function(dk){
         return '<div style="display:flex;justify-content:space-between;font-size:12px;color:#555;padding:1px 0;"><span>'+(fmtData(dk)||'?')+'</span><span style="font-weight:bold;color:'+color+';">'+a.dateMap[dk]+'</span></div>';
       }).join('');
       return '<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+header+'<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:14px;font-weight:bold;color:'+color+';white-space:nowrap;">Totale: '+a.tot+' pz</span><span style="font-size:12px;">'+icons+'</span></div></div>'
+        +'<div class="rwa-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+header+'<div class="rwa-tot" style="display:flex;align-items:center;gap:6px;"><span style="font-size:14px;font-weight:bold;color:'+color+';white-space:nowrap;">Totale: '+a.tot+' pz</span><span style="font-size:12px;">'+icons+'</span></div></div>'
         +righeDate
       +'</div>';
     }).join('');
