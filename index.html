@@ -2371,6 +2371,21 @@ function impostaFinoGiorno(v){
 function htmlDataModificabile(table,r){
   return '<span style="cursor:pointer;text-decoration:underline dotted;" title="Clicca per modificare la data" onclick="event.stopPropagation();mostraEditDataRiga(this,\''+table+'\','+r.id+',\''+dataRigaLav(r)+'\')">'+fmtData(r.data_inserimento||r.created_at)+'</span>';
 }
+// Ora di inserimento della riga (da created_at, ora italiana), solo visualizzazione:
+// "· ins. 14:32", oppure "· ins. 21/11 09:15" se la data della riga e' un altro giorno.
+function htmlOraInserimento(r){
+  if(!r||!r.created_at)return '';
+  var d=new Date(r.created_at);if(isNaN(d))return '';
+  var p={};
+  try{
+    new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})
+      .formatToParts(d).forEach(function(x){p[x.type]=x.value;});
+  }catch(e){return '';}
+  var giornoIns=p.year+'-'+p.month+'-'+p.day;
+  var giornoRiga=String(r.data_inserimento||giornoIns).slice(0,10);
+  var testo='ins. '+(giornoRiga!==giornoIns?p.day+'/'+p.month+' ':'')+p.hour+':'+p.minute;
+  return ' <span style="font-size:10px;color:#888;white-space:nowrap;" title="Ora di inserimento della riga">· '+testo+'</span>';
+}
 function mostraEditDataRiga(el,table,id,valoreAttuale){
   var input=document.createElement('input');
   input.type='date';
@@ -2591,7 +2606,7 @@ async function caricaEntrate(){
     return '<div class="row-item'+(isLibE?' libero':'')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="e" value="'+r.id+'" onchange="aggiornaStatoElimina(\'e\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibE?'#E8A000':'#1F4E79')+'" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+htmlDataModificabile('whatsapp_righe',r)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_righe')+'<div class="rsub">'+htmlDataModificabile('whatsapp_righe',r)+htmlOraInserimento(r)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +libBadgeE
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_righe\')">✎</button>'
       +'<button class="del-btn" title="Elimina" onclick="eliminaRiga(\'whatsapp_righe\','+r.id+',caricaEntrate)">✕</button></div>';
@@ -3238,7 +3253,7 @@ async function caricaUscite(){
     return '<div class="row-item'+(isLibU?' libero':' teal')+'">'
       +'<input type="checkbox" class="riga-check" data-prefix="u" value="'+r.id+'" onchange="aggiornaStatoElimina(\'u\')" style="width:auto;margin:0 8px 0 0;flex-shrink:0;">'
       +'<div class="row-qty" style="color:'+(isLibU?'#E8A000':'#1F6B75')+';" title="'+(r.modalita||'whatsapp')+'">'+(r.quantita||'?')+' <span style="font-size:12px;">'+iconaModalita(r.modalita)+'</span></div>'
-      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+htmlDataModificabile('whatsapp_uscita',r)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
+      +'<div class="row-info">'+orig+codice+htmlSeq(r,'whatsapp_uscita')+'<div class="rsub">'+htmlDataModificabile('whatsapp_uscita',r)+htmlOraInserimento(r)+badgeOperatore(r)+'</div>'+(r.testo_originale&&r.testo_originale!==r.testo_riga?'<div class="wa-orig">WA: '+r.testo_originale+'</div>':'')+'</div>'
       +'<button class="edit-btn" title="Modifica" onclick="apriModale('+r.id+',\''+String(r.descrizione||r.testo_riga).replace(/'/g,"\\'")+'\',\'whatsapp_uscita\')">✎</button>'
       +libBadgeU
       +imbBtnU
