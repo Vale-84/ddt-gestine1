@@ -9547,8 +9547,8 @@ function renderMagazzino(){
 // Saldo iniziale per fase (tabella saldo_fasi, ultimo data_saldo del cliente) a inizio
 // giornata della data, + movimenti con data da quel giorno compreso:
 //   Grezzo                  = saldo + DDT Entrata (IA -> A0) − Verniciato (senza SCARTO/RIPARATO)
-//   Verniciato da imballare = saldo + Verniciato − Imballo − Scarti + Riparati
-//   Imballato da spedire    = saldo + Imballo − DDT Uscita (senza bollettario scarti C610)
+//   Verniciato ancora da imballare = saldo + Verniciato − Imballo − Scarti + Riparati
+//   Imballato ancora da spedire    = saldo + Imballo − DDT Uscita (senza bollettario scarti C610)
 //   Scarti da rendere       = saldo + Scarti − Riparati − DDT Uscita C610
 // WA Uscita non si usa in Fasi (non affidabile come uscita: serve solo a correggere l'Imballo).
 // Scarti/Riparati = righe Verniciato con nota "SCARTO" (quantita' negativa) / "RIPARATO".
@@ -9558,22 +9558,22 @@ function renderMagazzino(){
 // cols: [etichetta, campo, segno]; residuo = saldo (fase s di saldo_fasi) + somma(segno*campo)
 var FASI_DEF={
   grezzo:{nome:'Grezzo',s:'grezzo',cols:[['+ DDT Entrata','E',1],['− Verniciato','V',-1]],formula:'Grezzo = partenza + DDT Entrata − Verniciato'},
-  verniciato:{nome:'Verniciato da imballare',s:'verniciato',cols:[['+ Verniciato','V',1],['− Imballo','I',-1],['− Scarti','S',-1],['+ Riparati','R',1]],formula:'Verniciato da imballare = partenza + Verniciato − Imballo − Scarti + Riparati'},
-  imballato:{nome:'Imballato da spedire',s:'imballato',cols:[['+ Imballo','I',1],['− DDT Uscita','U',-1]],formula:'Imballato da spedire = partenza + Imballo − DDT Uscita (senza i DDT scarti C610)'},
+  verniciato:{nome:'Verniciato ancora da imballare',s:'verniciato',cols:[['+ Verniciato','V',1],['− Imballo','I',-1],['− Scarti','S',-1],['+ Riparati','R',1]],formula:'Verniciato ancora da imballare = partenza + Verniciato − Imballo − Scarti + Riparati'},
+  imballato:{nome:'Imballato ancora da spedire',s:'imballato',cols:[['+ Imballo','I',1],['− DDT Uscita','U',-1]],formula:'Imballato ancora da spedire = partenza + Imballo − DDT Uscita (senza i DDT scarti C610)'},
   scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = partenza + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
 };
 var ORDINE_FASI=['grezzo','verniciato','imballato','scarti'];
 // Vista unica: colonne = le quattro fasi + In casa (somma delle quattro = a.somma)
-// + Carico DDT (carico aperto di oggi = a.nova, lo stesso "Carico Nova oggi" del Controllo Nova)
-// + Differenza (In casa − Carico DDT). Carico non disponibile: valore null, mostrato "—".
+// + Nova aperti (carico aperto di oggi = a.nova, lo stesso "Nova aperti" del Controllo Nova)
+// + Differenza (In casa − Nova aperti). Carico non disponibile: valore null, mostrato "—".
 // [nome completo (stampa, nota), intestazione lunga, intestazione corta (telefono), nome riquadro se diverso]
 var FASI_COL={
-  grezzo:['Grezzo da verniciare','Grezzo','GREZ'],
-  verniciato:['Verniciato da imballare','Verniciato','VERN'],
-  imballato:['Imballato da spedire','Imballato','IMB'],
+  grezzo:['Grezzo ancora da verniciare','Grezzo','GREZ'],
+  verniciato:['Verniciato ancora da imballare','Verniciato','VERN'],
+  imballato:['Imballato ancora da spedire','Imballato','IMB'],
   scarti:['Scarti da rendere','Scarti','SCA'],
   tot:['In casa','In casa','CASA'],
-  car:['Carico DDT','Carico DDT','CAR'],
+  car:['Nova aperti','Nova aperti','NOVA'],
   diff:['Differenza','Differenza','DIFF','Differenze']
 };
 var COLS_FASI=ORDINE_FASI.concat(['tot','car','diff']);
@@ -9603,7 +9603,7 @@ function ordTxtFasi(ord){return ord==='diff'?'per «Differenza» in valore assol
 function badgeDiffFasi(a){
   var v=valFase(a,'diff');
   if(!v)return '';
-  return v>0?' <span class="badge badge-err" style="white-space:normal;color:#C00000;">Differenza con Nova: '+v+' pz</span>'
+  return v>0?' <span class="badge badge-err" style="white-space:normal;color:#C00000;">Differenza con Nova aperti: '+v+' pz</span>'
     :' <span class="badge badge-warn arancio" style="white-space:normal;color:#C55A11;">pezzi in meno del carico: '+Math.abs(v)+'</span>';
 }
 
@@ -9764,8 +9764,8 @@ function dettaglioFasiContenuto(a,d){
   var h='<div style="font-size:13px;font-weight:bold;margin-bottom:4px;">'+escAbb(a.cod)+(a.desc?' — '+escAbb(a.desc):'')+'</div>'
     +'<div style="font-size:12px;color:#666;margin-bottom:6px;">Nel mese, dal '+fmtDataGMA(d.dMese)+' (tabelle di lavoro + archivio, riporti esclusi):</div>'
     +riga('DDT Entrata del mese',mm.E,mancaE?' <span style="color:#C00000;">— manca DDT Entrata</span>':'',mancaE?'color:#C00000;':'')
-    +riga('Verniciato',mm.V)
-    +riga('Imballato',mm.I,a.att?' <span style="font-weight:normal;color:#C55A11;">(+ '+a.att+' in attesa di conferma)</span>':'')
+    +riga('Verniciato nel mese (totale)',mm.V)
+    +riga('Imballato nel mese (totale)',mm.I,a.att?' <span style="font-weight:normal;color:#C55A11;">(+ '+a.att+' in attesa di conferma)</span>':'')
     +riga('DDT Uscita',mm.U,mm.UC?' <span style="font-weight:normal;color:#666;">(+ '+mm.UC+' DDT scarti C610)</span>':'')
     +riga('Scarti / Riparati',mm.S+' / '+mm.R);
   var sP=a.s||{},partenza=ORDINE_FASI.some(function(f){return sP[FASI_DEF[f].s];});
@@ -9777,15 +9777,15 @@ function dettaglioFasiContenuto(a,d){
     h+=riga(FASI_COL[f][0]+'<br><span style="font-size:11px;color:#888;">'+conto+'</span>',v,v<0?' <span style="color:#C00000;">(negativo)</span>':'',v<0?'color:#C00000;':'');
   });
   h+=riga('<strong>In casa</strong> <span style="font-size:11px;color:#888;">(somma di tutte le fasi, grezzo compreso)</span>',a.somma,'',a.somma<0?'color:#C00000;':'');
-  // Carico DDT (= carico aperto di oggi, come Saldo carico del Confronto) e Differenza
+  // Nova aperti (= carico aperto di oggi, come Saldo carico del Confronto) e Differenza
   if(a.nova==null){
-    h+=riga('<strong>Carico DDT</strong>','—')+riga('<strong>Differenza</strong>','—');
+    h+=riga('<strong>Nova aperti</strong>','—')+riga('<strong>Differenza</strong>','—');
     if(d.car&&d.car.avviso)h+='<div style="font-size:11px;color:#C00000;margin-top:4px;">⚠ '+escAbb(d.car.avviso)+'</div>';
   }else{
     var s0=(d.novaSaldoX||{})[a.cod]||0,dv=a.somma-a.nova;
-    h+=riga('<strong>Carico DDT</strong><br><span style="font-size:11px;color:#888;">inevasi Nova al '+fmtDataGMA(d.novaX)+' '+s0+' + DDT Entrata − DDT Uscita dopo il '+fmtDataGMA(d.novaX)+' '+(a.nova-s0)+'</span>',a.nova,'',a.nova<0?'color:#C00000;':'');
-    h+=riga('<strong>Differenza</strong><br><span style="font-size:11px;color:#888;">In casa '+a.somma+' − Carico DDT '+a.nova+'</span>',dv,
-      dv>0?' <span style="color:#C00000;">— Differenza con Nova: '+dv+' pz</span>':dv<0?' <span style="color:#C55A11;">— pezzi in meno del carico: '+Math.abs(dv)+'</span>':'',
+    h+=riga('<strong>Nova aperti</strong><br><span style="font-size:11px;color:#888;">inevasi Nova al '+fmtDataGMA(d.novaX)+' '+s0+' + DDT Entrata − DDT Uscita dopo il '+fmtDataGMA(d.novaX)+' '+(a.nova-s0)+'</span>',a.nova,'',a.nova<0?'color:#C00000;':'');
+    h+=riga('<strong>Differenza</strong><br><span style="font-size:11px;color:#888;">In casa '+a.somma+' − Nova aperti '+a.nova+'</span>',dv,
+      dv>0?' <span style="color:#C00000;">— Differenza con Nova aperti: '+dv+' pz</span>':dv<0?' <span style="color:#C55A11;">— pezzi in meno del carico: '+Math.abs(dv)+'</span>':'',
       dv>0?'color:#C00000;':dv<0?'color:#C55A11;':'');
   }
   if(!partenza)h+='<div style="font-size:11px;color:#888;margin-top:6px;">Articolo senza partenza al '+fmtDataGMA(d.data)+' (partenza 0).</div>';
@@ -9814,7 +9814,7 @@ function renderFasi(){
   var soloNZ=document.getElementById('fasi-solo-nonzero').checked;
   function filtroTesto(a){return !q||(a.cod+' '+a.desc).toUpperCase().indexOf(q)>=0;}
   var avvisoSenza=d.senzaCodice?' <span style="color:#C55A11;">⚠ '+d.senzaCodice+' righe di movimento senza codice articolo non contate.</span>':'';
-  // Articoli mostrati: almeno una fase diversa da zero, oppure In casa 0 con Carico DDT diverso da 0,
+  // Articoli mostrati: almeno una fase diversa da zero, oppure In casa 0 con Nova aperti diverso da 0,
   // + filtro testo. Anomalie: almeno una fase negativa.
   var vis=d.lista.filter(function(a){return filtroTesto(a)&&(ORDINE_FASI.some(function(f){return a.r[f]!==0;})||!!valFase(a,'car'));});
   var anom=d.lista.filter(function(a){return ORDINE_FASI.some(function(f){return a.r[f]<0;});});
@@ -9823,24 +9823,24 @@ function renderFasi(){
   var somme={};COLS_FASI.forEach(function(k){somme[k]=0;});
   vis.forEach(function(a){ORDINE_FASI.concat(['tot','car']).forEach(function(k){somme[k]+=valFase(a,k)||0;});if(valFase(a,'diff'))somme.diff++;});
   if(!d.car.disp){somme.car=null;somme.diff=null;}
-  var notaRiq={tot:'somma di tutte le fasi, grezzo compreso',car:'DDT Entrata − DDT Uscita (Saldo carico)',diff:'articoli con In casa ≠ Carico DDT'};
+  var notaRiq={tot:'somma di tutte le fasi, grezzo compreso',car:'DDT Entrata − DDT Uscita (Saldo carico)',diff:'articoli con In casa ≠ Nova aperti'};
   tiles.innerHTML=COLS_FASI.map(function(k){
     var v=somme[k],rosso=k==='diff'?v>0:v<0;
     return '<button type="button" class="fasi-tile'+(k==='tot'?' tot':'')+(_fasi.vista==='tabella'&&_fasi.ord===k?' on':'')+'" onclick="setOrdFasi(\''+k+'\')" title="Ordina la tabella per questa colonna">'
       +'<div class="ft-lab">'+nomeRiqFasi(k)+'</div><div class="ft-num"'+(rosso?' style="color:#C00000;"':'')+'>'+fmtValFasi(v)+'</div>'
       +(notaRiq[k]?'<div class="ft-nota">'+notaRiq[k]+'</div>':'')+'</button>';
   }).join('');
-  var avvisoCar=d.car.disp?'':'<div style="color:#C00000;font-weight:bold;margin-bottom:4px;">⚠ Carico DDT non disponibile: '+escAbb(d.car.avviso)+'</div>';
+  var avvisoCar=d.car.disp?'':'<div style="color:#C00000;font-weight:bold;margin-bottom:4px;">⚠ Nova aperti non disponibile: '+escAbb(d.car.avviso)+'</div>';
   bA.style.display='';
   bA.textContent=anom.length?anom.length+(anom.length===1?' ANOMALIA':' ANOMALIE'):'NESSUNA ANOMALIA';
   bA.disabled=!anom.length&&_fasi.vista!=='anomalie';
   bA.className='btn btn-sm '+(_fasi.vista==='anomalie'?'btn-blue':anom.length?'btn-red':'btn-gray');
   if(_fasi.vista==='nova'){
     tab.className='rc-table';
-    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>Scarti</th><th>Somma fasi</th><th>Carico Nova oggi</th><th>Nova − App</th><th>Cosa fare</th></tr>';
+    th.innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>Grezzo</th><th>Verniciato</th><th>Imballato</th><th>Scarti</th><th>Somma fasi</th><th>Nova aperti</th><th>Nova aperti − App</th><th>Cosa fare</th></tr>';
     var base={vista:'nova',d:d,q:q,soloNZ:soloNZ,somme:somme};
     if(!d.car.disp){nota.innerHTML='<span style="color:#C00000;font-weight:bold;">⚠ '+escAbb(d.car.avviso)+'</span>';tb.innerHTML='';tot.textContent='';base.avviso=d.car.avviso;base.lista=[];_fasi.stampa=base;return;}
-    nota.innerHTML='Carico aperto Nova di oggi = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Nova − App = carico Nova − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
+    nota.innerHTML='Nova aperti = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dell\'app dopo quella data (come il Saldo carico del Confronto). Nova aperti − App = Nova aperti − somma delle fasi: se non è 0 manca un movimento o il saldo iniziale non torna.'+(soloNZ?' Mostrate solo le differenze.':'')+avvisoSenza;
     var l=d.lista.filter(function(a){return filtroTesto(a)&&(!soloNZ||a.diffNova!==0);})
       .sort(function(a,b){return Math.abs(b.diffNova)-Math.abs(a.diffNova)||a.cod.localeCompare(b.cod);});
     // Coppie di colore: stessa base (codice senza le ultime 2 lettere del colore) e differenze opposte
@@ -9865,11 +9865,11 @@ function renderFasi(){
         +'<td style="white-space:normal;min-width:220px;font-size:12px;">'+cosaFare(a)+'</td></tr>'
         +(_fasi.aperto===a.cod?dettaglioFasiHtml(a,d,10):'');
     }).join(''):'<tr><td colspan="10" style="text-align:center;padding:14px;color:#999;">'+(soloNZ?'✅ Nessuna differenza con Nova.':'Nessun articolo.')+'</td></tr>';
-    tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Carico Nova: '+tN+' · Nova − App: '+(tN-tS):'';
+    tot.innerHTML=l.length?'Righe: '+l.length+' · Somma fasi: '+tS+' · Nova aperti: '+tN+' · Nova aperti − App: '+(tN-tS):'';
     base.lista=l;base.cosa=l.map(cosaFare);base.totTxt=tot.textContent;_fasi.stampa=base;
     return;
   }
-  // Tabella unica (vista 'tabella') o elenco anomalie: stesse colonne, una per fase + In casa + Carico DDT + Differenza
+  // Tabella unica (vista 'tabella') o elenco anomalie: stesse colonne, una per fase + In casa + Nova aperti + Differenza
   tab.className='rc-table fasi-grid';
   var anomV=_fasi.vista==='anomalie',ord=_fasi.ord;
   th.innerHTML='<tr><th>Articolo</th>'+COLS_FASI.map(function(k){
@@ -9881,10 +9881,10 @@ function renderFasi(){
     :vis.slice().sort(ord?function(a,b){return valOrdFasi(b,ord)-valOrdFasi(a,ord)||cmpAlfaFasi(a,b);}:cmpAlfaFasi);
   nota.innerHTML=avvisoCar+(anomV
     ?'Articoli con almeno una fase negativa (in rosso), in ordine alfabetico: manca un movimento o il saldo iniziale non torna. Tocca una riga per il dettaglio; tocca di nuovo il pulsante o un riquadro per tornare alla tabella.'+avvisoSenza
-    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Articoli con almeno una fase diversa da zero o con Carico DDT diverso da zero, '
+    :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Articoli con almeno una fase diversa da zero o con Nova aperti diverso da zero, '
       +(ord?'ordinati '+ordTxtFasi(ord)+' (tocca di nuovo lo stesso riquadro per tornare all\'ordine alfabetico).'
            :'in ordine alfabetico (tocca un riquadro per ordinare per quella colonna).')
-      +' Carico DDT = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dopo quella data; Differenza = In casa − Carico DDT.'
+      +' Nova aperti = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dopo quella data; Differenza = In casa − Nova aperti.'
       +' Tocca una riga per il dettaglio.'+avvisoSenza);
   var nc=1+COLS_FASI.length;
   tb.innerHTML=lista.length?lista.map(function(a){
@@ -9909,7 +9909,7 @@ function stampaFasi(){
   var d=S.d,nova=S.vista==='nova',E=escAbb;
   var ora=new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   var nomeVista=nova?'Controllo Nova':S.vista==='anomalie'?'Elenco anomalie':'Tabella';
-  var ordTxt=nova?'per differenza Nova − App':S.vista==='anomalie'||!S.ord?'alfabetico':ordTxtFasi(S.ord);
+  var ordTxt=nova?'per differenza Nova aperti − App':S.vista==='anomalie'||!S.ord?'alfabetico':ordTxtFasi(S.ord);
   function n(v,extra){return '<td class="n'+(v<0?' neg':v===0?' zero':'')+(extra||'')+'">'+v+'</td>';}
   var testa='<h1>'+E(getCliente())+' — Fasi magazzino</h1>'
     +'<div class="testa"><span>Stampato il <b>'+ora+'</b></span><span>Partenza al <b>'+fmtDataGMA(d.data)+'</b></span>'
@@ -9923,7 +9923,7 @@ function stampaFasi(){
   }else if(nova){
     corpo='<table class="dati"><thead><tr><th class="cod">Codice</th><th>Descrizione</th>'
       +ORDINE_FASI.map(function(f){return '<th class="n">'+FASI_COL[f][0]+'</th>';}).join('')
-      +'<th class="n">Somma fasi</th><th class="n">Carico Nova oggi</th><th class="n">Nova − App</th><th class="cosa">Cosa fare</th></tr></thead><tbody>'
+      +'<th class="n">Somma fasi</th><th class="n">Nova aperti</th><th class="n">Nova aperti − App</th><th class="cosa">Cosa fare</th></tr></thead><tbody>'
       +(S.lista.length?S.lista.map(function(a,i){
         return '<tr'+(a.diffNova!==0?' class="diff"':'')+'><td class="cod"><b>'+E(a.cod)+'</b></td><td>'+E(a.desc)+'</td>'
           +ORDINE_FASI.map(function(f){return n(a.r[f]);}).join('')
@@ -9934,7 +9934,7 @@ function stampaFasi(){
       +'</tbody></table>';
   }else{
     var anomV=S.vista==='anomalie';
-    corpo=(S.avvisoCar?'<div class="avviso" style="margin-bottom:8px;">⚠ Carico DDT non disponibile: '+E(S.avvisoCar)+'</div>':'')
+    corpo=(S.avvisoCar?'<div class="avviso" style="margin-bottom:8px;">⚠ Nova aperti non disponibile: '+E(S.avvisoCar)+'</div>':'')
       +'<table class="dati"><thead><tr><th>Articolo</th>'
       +COLS_FASI.map(function(k){return '<th class="n'+(k==='tot'?' ftot':'')+(k===S.ord?' ford':'')+'">'+FASI_COL[k][0]+'</th>';}).join('')+'</tr></thead><tbody>'
       +(S.lista.length?S.lista.map(function(a){
