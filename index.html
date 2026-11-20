@@ -89,8 +89,8 @@ label { font-size: 12px; color: #666; margin-bottom: 3px; display: block; font-w
 .rc-table tbody tr[style*="background-color"] td:first-child { background: inherit; }
 /* Confronto: la card stessa e' l'area che scorre; senza margine interno in alto
    l'intestazione fissa parte dal bordo della card e non copre la prima riga. */
-#rc-table-ber, #rc-table-azzurra { padding-top: 0; }
-#rc-table-ber .rc-table th, #rc-table-azzurra .rc-table th { box-shadow: 0 1px 0 #163a5e; }
+#rc-table-ber { padding-top: 0; }
+#rc-table-ber .rc-table th { box-shadow: 0 1px 0 #163a5e; }
 .row-item.viola { border-left-color: #5B2C8D; }
 .row-item.teal { border-left-color: #1F6B75; }
 .row-qty { font-size: 18px; font-weight: bold; color: #1F4E79; min-width: 40px; text-align: center; }
@@ -949,14 +949,6 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <button class="btn btn-blue" onclick="aggiornaConfronto()">↻ AGGIORNA</button>
     <button class="btn btn-gray btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="printSection('confronto-stampa')">STAMPA</button>
     <button class="btn btn-orange btn-sm" style="width:auto;white-space:nowrap;padding:10px 14px;" onclick="apriModaleVerificaPdfNova()">VERIFICA PDF NOVA</button>
-    <!-- LEGENDA AZZURRA -->
-    <div id="rc-legenda-azzurra" style="margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
-      <strong>Legenda:</strong><br>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fffde7;border-radius:4px;margin-right:6px;">🟡 WA Uscita ≠ Imballo</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fce4ec;border-radius:4px;margin-right:6px;">❓ Solo Imballo (conferma richiesta)</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff3e0;border-radius:4px;margin-right:6px;">⚠️ DDT Entrata ≠ WA Entrata</span>
-      <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff;border:1px solid #eee;border-radius:4px;">✓ Bianco = tutto ok</span>
-    </div>
     <!-- LEGENDA BERGAMASCO -->
     <div id="rc-legenda-ber" style="display:none;margin-top:12px;padding:10px;background:#f7f8fa;border-radius:8px;font-size:12px;">
       <strong>Legenda:</strong><br>
@@ -964,13 +956,6 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fce4ec;border-radius:4px;margin-right:6px;">❓ Solo Imballo senza Verniciato</span>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff3e0;border-radius:4px;margin-right:6px;">⚠️ DDT Entrata ≠ Verniciato</span>
       <span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#fff;border:1px solid #eee;border-radius:4px;">✓ Bianco = tutto ok</span>
-    </div>
-    <!-- FILTRI AZZURRA -->
-    <div id="rc-filtri-azzurra" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
-      <button class="btn btn-blue btn-sm" id="rc-f-tutti" style="flex:1;" onclick="filtraRiepilogoCompleto('tutti')">Tutti</button>
-      <button class="btn btn-gray btn-sm" id="rc-f-differenze" style="flex:1;" onclick="filtraRiepilogoCompleto('differenze')">Solo differenze</button>
-      <button class="btn btn-gray btn-sm" id="rc-f-verificare" style="flex:1;" onclick="filtraRiepilogoCompleto('verificare')">Da verificare</button>
-      <button class="btn btn-gray btn-sm" id="rc-f-conferma" style="flex:1;" onclick="filtraRiepilogoCompleto('conferma')">Conferma richiesta</button>
     </div>
     <!-- FILTRI BERGAMASCO -->
     <div id="rc-filtri-ber" style="display:none;gap:6px;flex-wrap:wrap;margin-top:12px;">
@@ -980,27 +965,6 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
       <button class="btn btn-gray btn-sm" id="rc-ber-f-conferma" style="flex:1;" onclick="filtraRiepilogoBer('conferma')">Conferma richiesta</button>
     </div>
     <div id="rc-periodo-info" style="display:none;margin-top:8px;font-size:12px;color:#555;padding:6px 10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #1F4E79;"></div>
-  </div>
-
-  <!-- VERIFICA PDF DDT USCITA NOVA (solo AZZURRA) -->
-  <div class="card" id="rc-verifica-pdf-azzurra" style="display:none;">
-    <h2>Verifica PDF DDT Uscita (Nova)</h2>
-    <p style="font-size:12px;color:#666;margin-bottom:10px;">Carica il PDF Nova dei DDT Uscita (uno o più DDT, anche multi-pagina) per confrontarlo automaticamente con i dati Uscita già presenti in app nello stesso periodo di date.</p>
-    <button class="btn btn-orange" type="button" onclick="document.getElementById('rc-verifica-pdf-inp').click()">📄 CARICA PDF DDT USCITA</button>
-    <input type="file" id="rc-verifica-pdf-inp" class="pdf-input" accept="application/pdf,.pdf" onchange="leggiPdfVerificaUscita(this)">
-    <div id="rc-verifica-pdf-status" style="margin-top:8px;"></div>
-  </div>
-  <div id="rc-verifica-pdf-risultati" style="display:none;">
-    <div class="card" id="rc-verifica-pdf-riepilogo" style="font-size:13px;"></div>
-    <div class="card" id="rc-verifica-pdf-legenda" style="font-size:12px;"></div>
-    <div class="card rc-table-scroll">
-      <table class="rc-table">
-        <thead>
-          <tr><th>Codice</th><th>Descrizione</th><th>Qtà PDF</th><th>Qtà App</th><th>Differenza</th><th>Stato</th></tr>
-        </thead>
-        <tbody id="rc-verifica-pdf-tbody"></tbody>
-      </table>
-    </div>
   </div>
 
   <!-- CONTROLLO INEVASI NOVA – BERGAMASCO (solo controllo: nessun salvataggio) -->
@@ -1028,17 +992,6 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
 
   <div id="confronto-stampa">
     <div class="card" id="rc-totali"><div class="empty">Premi Aggiorna</div></div>
-    <!-- TABELLA AZZURRA -->
-    <div id="rc-table-azzurra" class="card rc-table-scroll">
-      <table class="rc-table">
-        <thead>
-          <tr>
-            <th>Articolo</th><th>WA Entr.</th><th>DDT Entr.</th><th>WA Usc.</th><th>DDT Usc.</th><th>Stato</th>
-          </tr>
-        </thead>
-        <tbody id="rc-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Premi Aggiorna</td></tr></tbody>
-      </table>
-    </div>
     <!-- ARTICOLI APERTI (solo AZZURRA): Entrata ≠ Uscita, codici diretti A0..., nessun abbinamenti_ber -->
     <div id="rc-aperti-azzurra" class="card">
       <h3 style="margin-bottom:8px;color:#1F4E79;">Articoli Aperti AZZURRA</h3>
@@ -1839,6 +1792,9 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
     <input type="file" id="vpn-pdf-inp" accept="application/pdf,.pdf" style="margin-bottom:10px;">
     <label>Confronta con</label>
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+      <label id="vpn-fonte-unica-label" style="display:none;align-items:center;gap:8px;font-weight:bold;cursor:pointer;">
+        <input type="radio" name="vpn-fonte" value="unica" onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Imballo + WA Uscita + Aperti Nova (tabella unica)
+      </label>
       <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
         <input type="radio" name="vpn-fonte" value="wa" checked onchange="aggiornaFonteVerificaPdfNova()" style="width:auto;margin-bottom:0;"> Confronta con dati WA Uscita dell'app
       </label>
@@ -1871,7 +1827,8 @@ details.ext-lis-gr > summary { font-weight: bold; color: #1F4E79; cursor: pointe
         </table>
       </div>
       <button class="btn btn-blue btn-sm" id="vpn-btn-diff" style="margin-top:10px;" onclick="esportaDifferenzeVerificaPdfNova()">⬇ Esporta differenze in CSV</button>
-      <button class="btn btn-gray btn-sm" style="margin-top:10px;" onclick="esportaTuttoVerificaPdfNova()">⬇ Esporta tutto in CSV</button>
+      <button class="btn btn-gray btn-sm" id="vpn-btn-tutto" style="margin-top:10px;" onclick="esportaTuttoVerificaPdfNova()">⬇ Esporta tutto in CSV</button>
+      <button class="btn btn-green btn-sm" id="vpn-btn-xlsx" style="margin-top:10px;display:none;" onclick="esportaExcelTabellaUnicaVpn()">⬇ Esporta Excel</button>
     </div>
   </div>
 </div>
@@ -4994,129 +4951,33 @@ async function aggiungiTestoLiberoUscita(){
   else if(saltate)showMsg('msg-uscita','Nessuna riga aggiunta ('+saltate+' doppioni saltati)','err');
 }
 // ── RIEPILOGO COMPLETO (ex CONFRONTO) ───────────────────────────────────
-var rcDatiCompleti=null;
-var rcFiltroAttivo='tutti';
-
+// AZZURRA: solo Articoli Aperti (la tabella Totali WA/DDT con "Segna OK" e' stata tolta).
+// BERGAMASCO: come prima.
 async function aggiornaConfronto(){
   var isBer=getCliente()==='BERGAMASCO';
-  var elLA=document.getElementById('rc-legenda-azzurra'),elLB=document.getElementById('rc-legenda-ber');
-  var elFA=document.getElementById('rc-filtri-azzurra'),elFB=document.getElementById('rc-filtri-ber');
-  var elTA=document.getElementById('rc-table-azzurra'),elTB=document.getElementById('rc-table-ber');
+  var elLB=document.getElementById('rc-legenda-ber');
+  var elFB=document.getElementById('rc-filtri-ber');
+  var elTB=document.getElementById('rc-table-ber');
   var elAperti=document.getElementById('rc-aperti-azzurra');
-  var elVerificaPdf=document.getElementById('rc-verifica-pdf-azzurra');
-  var elVerificaPdfRis=document.getElementById('rc-verifica-pdf-risultati');
-  if(elLA)elLA.style.display=isBer?'none':'';
   if(elLB)elLB.style.display=isBer?'':'none';
-  if(elFA)elFA.style.display=isBer?'none':'flex';
   if(elFB)elFB.style.display=isBer?'flex':'none';
-  if(elTA)elTA.style.display=isBer?'none':'';
   if(elTB)elTB.style.display=isBer?'':'none';
   if(elAperti)elAperti.style.display=isBer?'none':'';
+  // Totali e periodo: li usa solo BERGAMASCO
+  var elTot=document.getElementById('rc-totali');
+  if(elTot)elTot.style.display=isBer?'':'none';
+  var elPer=document.getElementById('rc-periodo-info');
+  if(elPer&&!isBer)elPer.style.display='none';
   var elApertiBer=document.getElementById('rc-aperti-ber');
   if(elApertiBer)elApertiBer.style.display=isBer?'':'none';
   if(isBer)caricaApertiBer();
   var elInevasiBer=document.getElementById('rc-inevasi-ber');
   if(elInevasiBer)elInevasiBer.style.display=isBer?'':'none';
   if(isBer)preparaInevasiBer();
-  if(elVerificaPdf)elVerificaPdf.style.display=isBer?'none':'';
-  if(isBer){if(elVerificaPdfRis)elVerificaPdfRis.style.display='none';await aggiornaConfrrontoBer();return;}
+  if(isBer){await aggiornaConfrrontoBer();return;}
+  // OK manuali della vecchia tabella Totali AZZURRA: non servono piu'
+  try{localStorage.removeItem('az_ok_manuali');}catch(e){}
   caricaArticoliApertiAzzurra();
-
-  var we=await apiGetTutto('whatsapp_righe',ORDINE_COME_APIGET);
-  var wu=await apiGetTutto('whatsapp_uscita',ORDINE_COME_APIGET);
-  var vern=await apiGetTutto('verniciato',ORDINE_COME_APIGET);
-  var imb=await apiGetTutto('imballo',ORDINE_COME_APIGET);
-  var ddte=await apiGetTutto('ddt_entrata',ORDINE_COME_APIGET);
-  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
-  if(!we||!wu||!vern||!imb||!ddte||!ddtu)return;
-
-  // Confronto cumulativo dall'inizio: alle liste di lavoro attuali aggiungiamo anche
-  // quanto archiviato dalle chiusure mese precedenti (WA, Verniciato, Imballo), cosi'
-  // il totale non riparte mai da zero e resta sempre confrontabile con i DDT (che non
-  // vengono mai cancellati). Nessun filtro per data: e' un conto dall'inizio ad oggi.
-  // Archivio a pagine: per AZZURRA supera le 1000 righe (con apiGet se ne leggevano solo 1000).
-  var arch=await apiGetTutto('archivio','order=created_at.desc.nullslast,id.desc&cliente=eq.'+encodeURIComponent(getCliente()));
-  if(!arch)return;
-  we=we.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_righe';}));
-  wu=wu.concat(arch.filter(function(r){return r.tabella_origine==='whatsapp_uscita';}));
-  vern=vern.concat(arch.filter(function(r){return r.tabella_origine==='verniciato';}));
-  // I riporti Verniciato da Chiudi Mese sono pezzi gia' contati nel mese precedente (archivio):
-  // in un conto dall'inizio vanno esclusi, altrimenti si sommerebbero due volte.
-  vern=vern.filter(function(r){return !isRiportoVern(r)&&!isMovScarto(r);});
-  imb=imb.concat(arch.filter(function(r){return r.tabella_origine==='imballo';}));
-
-  var periodoElAz=document.getElementById('rc-periodo-info');
-  if(periodoElAz){
-    periodoElAz.style.display='';
-    periodoElAz.innerHTML='📊 Confronto su tutto lo storico, dal primo dato inserito ad oggi (WA/Verniciato/Imballo includono anche l\'archivio delle chiusure mese precedenti)';
-  }
-
-  function aggregaWA(arr){
-    var m={};
-    arr.forEach(function(r){
-      var k=(r.codice_articolo||r.descrizione||r.testo_riga||'?').toString();
-      if(!m[k])m[k]={cod:r.codice_articolo||'',desc:r.descrizione_articolo||r.descrizione||r.testo_riga||'',tot:0};
-      m[k].tot+=Number(r.quantita)||0;
-      if(!m[k].desc&&(r.descrizione_articolo||r.descrizione))m[k].desc=r.descrizione_articolo||r.descrizione;
-    });
-    return m;
-  }
-  var mWE=aggregaWA(we);
-  var mWU=aggregaWA(wu);
-  var mVern={};
-  vern.forEach(function(r){
-    var k=(r.codice_articolo||r.descrizione||'?').toString();
-    if(!mVern[k])mVern[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
-    mVern[k].tot+=Number(r.quantita)||0;
-  });
-  var mImb={};
-  imb.forEach(function(r){
-    var k=(r.codice_articolo||r.articolo||r.descrizione||'?').toString();
-    if(!mImb[k])mImb[k]={cod:r.codice_articolo||'',desc:r.articolo||r.descrizione||'',tot:0};
-    mImb[k].tot+=Number(r.totale)||0;
-  });
-  var mDDTE={};
-  ddte.forEach(function(r){
-    var k=(r.codice_articolo||r.descrizione||'?').toString();
-    if(!mDDTE[k])mDDTE[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
-    mDDTE[k].tot+=Number(r.quantita_ddt)||0;
-  });
-  var mDDTU={};
-  ddtu.forEach(function(r){
-    var k=(r.codice_articolo||r.descrizione||'?').toString();
-    if(!mDDTU[k])mDDTU[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
-    mDDTU[k].tot+=Number(r.quantita_ddt)||0;
-  });
-
-  var keys={};
-  [mWE,mWU,mVern,mImb,mDDTE,mDDTU].forEach(function(m){Object.keys(m).forEach(function(k){keys[k]=true;});});
-
-  var righe=Object.keys(keys).map(function(k){
-    var we_=mWE[k],wu_=mWU[k],v_=mVern[k],i_=mImb[k],de_=mDDTE[k],du_=mDDTU[k];
-    var waE=we_?we_.tot:0,waU=wu_?wu_.tot:0,vernTot=v_?v_.tot:0,imbTot=i_?i_.tot:0,ddtE=de_?de_.tot:0,ddtU=du_?du_.tot:0;
-    var cod=(we_&&we_.cod)||(wu_&&wu_.cod)||(v_&&v_.cod)||(i_&&i_.cod)||(de_&&de_.cod)||(du_&&du_.cod)||'';
-    var desc=(we_&&we_.desc)||(wu_&&wu_.desc)||(v_&&v_.desc)||(i_&&i_.desc)||(de_&&de_.desc)||(du_&&du_.desc)||'';
-    var diffE=ddtE-waE,diffU=ddtU-waU;
-    var imbOnly=waU===0&&imbTot>0;
-    var ddtEntDiff=(waE>0||ddtE>0)&&diffE!==0;
-    var waUscDiff=!imbOnly&&waU>0&&imbTot>0&&waU!==imbTot;
-    var soloWA=!imbOnly&&!ddtEntDiff&&!waUscDiff&&(waE>0||waU>0)&&vernTot===0&&imbTot===0&&ddtE===0&&ddtU===0;
-    var stato='ok',badge='✓ Ok',colore='';
-    if(imbOnly){stato='conferma';badge='❓ Conferma';colore='#fce4ec';}
-    else if(ddtEntDiff){stato='ddtdiff';badge='⚠️ DDT≠WA';colore='#fff3e0';}
-    else if(waUscDiff){stato='wadiff';badge='🟡 WA≠Imb';colore='#fffde7';}
-    else if(soloWA){stato='solowa';badge='📱 Solo WA';colore='';}
-    return {cod:cod,desc:desc,waE:waE,waU:waU,vern:vernTot,imb:imbTot,ddtE:ddtE,ddtU:ddtU,diffE:diffE,diffU:diffU,stato:stato,badge:badge,colore:colore};
-  });
-
-  righe.sort(function(a,b){
-    var pa=a.stato==='ok'||a.stato==='solowa'?1:0,pb=b.stato==='ok'||b.stato==='solowa'?1:0;
-    if(pa!==pb)return pa-pb;
-    return (a.cod||a.desc||'').localeCompare(b.cod||b.desc||'');
-  });
-
-  rcDatiCompleti=righe;
-  renderRiepilogoCompleto();
 }
 
 // ── ARTICOLI APERTI AZZURRA: inevasi Nova caricati in Abbinamenti AZZURRA ──
@@ -5731,70 +5592,6 @@ function esportaArticoliApertiExcel(){
   XLSX.writeFile(wb,'articoli_aperti_'+dataStr+'.xlsx');
 }
 
-function filtraRiepilogoCompleto(f){
-  rcFiltroAttivo=f;
-  var mappaBtn={tutti:'rc-f-tutti',differenze:'rc-f-differenze',verificare:'rc-f-verificare',conferma:'rc-f-conferma'};
-  Object.keys(mappaBtn).forEach(function(k){
-    var btn=document.getElementById(mappaBtn[k]);
-    if(btn)btn.className='btn btn-sm '+(k===f?'btn-blue':'btn-gray');
-  });
-  renderRiepilogoCompleto();
-}
-
-function renderRiepilogoCompleto(){
-  if(!rcDatiCompleti)return;
-  var okManuali=leggiOkManuali('az_ok_manuali');
-  function okRiga(r){return okManualeValido(okManuali,r,OK_CAMPI_AZ);}
-  var righe=rcDatiCompleti.filter(function(r){
-    if(rcFiltroAttivo==='tutti')return true;
-    if(rcFiltroAttivo==='differenze')return r.stato!=='ok'&&r.stato!=='solowa'&&!okRiga(r);
-    if(rcFiltroAttivo==='verificare')return (r.stato==='ddtdiff'||r.stato==='wadiff')&&!okRiga(r);
-    if(rcFiltroAttivo==='conferma')return r.stato==='conferma'&&!okRiga(r);
-    return true;
-  });
-  var tb=document.getElementById('rc-tbody');
-  if(!righe.length){
-    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';
-  }else{
-    tb.innerHTML=righe.map(function(r){
-      var manuale=okRiga(r);
-      var bg=manuale?'background-color:#E2EFDA;':(r.colore?'background-color:'+r.colore+';':'');
-      var badge=manuale?'✓ OK (manuale)':r.badge;
-      var btnOk=(!manuale&&r.stato!=='ok'&&r.stato!=='solowa')
-        ?'<button onclick="setOkManualeAz(\''+r.cod+'\')" title="Conferma la riga con i numeri attuali: se cambiano, l\'OK non vale piu\'" style="margin-left:6px;padding:2px 7px;background:#217346;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">Segna OK</button>'
-        :(manuale?'<button onclick="removeOkManualeAz(\''+r.cod+'\')" style="margin-left:6px;padding:2px 7px;background:#aaa;color:white;border:none;border-radius:4px;font-size:11px;cursor:pointer;">↩</button>':'');
-      // Riga confermata: niente avvisi ⚠️ nelle colonne DDT.
-      var lblE=(manuale||r.diffE===0)?'':(r.waE===0
-        ?'<span style="color:#C00000;font-size:11px;"> ⚠️ senza WA</span>'
-        :'<span style="color:#C00000;font-size:11px;"> ⚠️ diff: '+(r.diffE>0?'+':'')+r.diffE+'</span>');
-      var lblU=(manuale||r.diffU===0)?'':(r.waU===0
-        ?'<span style="color:#C00000;font-size:11px;"> ⚠️ senza WA</span>'
-        :'<span style="color:#C00000;font-size:11px;"> ⚠️ diff: '+(r.diffU>0?'+':'')+r.diffU+'</span>');
-      return '<tr style="'+bg+'">'
-        +'<td><strong>'+(r.cod||'—')+'</strong> '+r.desc+'</td>'
-        +'<td style="text-align:right;">'+r.waE+'</td>'
-        +'<td style="text-align:right;">'+r.ddtE+lblE+'</td>'
-        +'<td style="text-align:right;">'+r.waU+'</td>'
-        +'<td style="text-align:right;">'+r.ddtU+lblU+'</td>'
-        +'<td>'+badge+btnOk+'</td>'
-      +'</tr>';
-    }).join('');
-  }
-  var tot={waE:0,waU:0,ddtE:0,ddtU:0};
-  righe.forEach(function(r){tot.waE+=r.waE;tot.waU+=r.waU;tot.ddtE+=r.ddtE;tot.ddtU+=r.ddtU;});
-  document.getElementById('rc-totali').innerHTML='<strong>Totali ('+righe.length+' articoli):</strong> &nbsp; WA Entrata: <strong>'+tot.waE+'</strong> &nbsp; DDT Entrata: <strong>'+tot.ddtE+'</strong> &nbsp; WA Uscita: <strong>'+tot.waU+'</strong> &nbsp; DDT Uscita: <strong>'+tot.ddtU+'</strong>';
-}
-
-function setOkManualeAz(cod){
-  salvaOkManuale('az_ok_manuali',rcDatiCompleti,cod,OK_CAMPI_AZ);
-  renderRiepilogoCompleto();
-}
-
-function removeOkManualeAz(cod){
-  togliOkManuale('az_ok_manuali',cod);
-  renderRiepilogoCompleto();
-}
-
 // ── CONFRONTO BERGAMASCO ──────────────────────────────────────────────
 var rcDatiBer=null;
 var rcFiltroBer='tutti';
@@ -6028,7 +5825,6 @@ function filtraRiepilogoBer(f){
 // della conferma. L'OK vale solo finche' quei numeri restano uguali; gli OK vecchi
 // salvati senza numeri (valore true) sono scaduti.
 var OK_CAMPI_BER=['vern','imb','ddtE','ddtU'];
-var OK_CAMPI_AZ=['waE','ddtE','waU','ddtU'];
 function leggiOkManuali(chiave){
   var ok={};
   try{ok=JSON.parse(localStorage.getItem(chiave)||'{}')||{};}catch(e){ok={};}
@@ -7787,129 +7583,6 @@ async function importaPDFMultiUscita(){
   }
 }
 
-// ── VERIFICA PDF DDT USCITA vs APP (Confronto, solo AZZURRA) ──────────
-// Riusa parsePdfMultiAzzurra() (stessa estrazione testo pdf.js e stessi
-// pattern C6......+data / CODICE+desc+PZ.+qtà già collaudati nell'import
-// multi-DDT), solo che qui NON scrive nulla nel database: aggrega e confronta.
-async function leggiPdfVerificaUscita(input){
-  var file=input.files[0];if(!file)return;
-  var status=document.getElementById('rc-verifica-pdf-status');
-  var risultati=document.getElementById('rc-verifica-pdf-risultati');
-  if(risultati)risultati.style.display='none';
-  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura PDF...</div>';
-  try{
-    var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;
-    var testo='';
-    for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
-    var ddts=parsePdfMultiAzzurra(testo);
-    if(!ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';input.value='';return;}
-    var ok=await confrontaPdfConApp(ddts);
-    if(ok)status.innerHTML='<div class="msg msg-ok">PDF letto: '+ddts.length+' DDT trovati e confrontati.</div>';
-  }catch(e){
-    status.innerHTML='<div class="msg msg-err">Errore: '+e.message+'</div>';
-  }
-  input.value='';
-}
-
-async function confrontaPdfConApp(ddts){
-  var status=document.getElementById('rc-verifica-pdf-status');
-
-  // 1. Intervallo date coperto dal PDF (min/max tra i DDT trovati)
-  var date=ddts.map(function(d){return d.data;}).filter(Boolean).sort();
-  if(!date.length){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF.</div>';return false;}
-  var dataMin=date[0],dataMax=date[date.length-1];
-
-  // 2. Somma quantità PDF per codice articolo (tutti i DDT del PDF insieme)
-  var mPdf={};
-  ddts.forEach(function(d){
-    d.righe.forEach(function(r){
-      var k=r.cod;
-      if(!mPdf[k])mPdf[k]={cod:k,desc:r.desc,tot:0};
-      mPdf[k].tot+=r.qty;
-      if(!mPdf[k].desc&&r.desc)mPdf[k].desc=r.desc;
-    });
-  });
-
-  // 3. Stessa fonte/aggregazione già usata in aggiornaConfronto per la colonna "DDT Usc."
-  //    (ddt_uscita, quantita_ddt sommata per codice_articolo), filtrata sul periodo del PDF
-  var ddtu=await apiGetTutto('ddt_uscita',ORDINE_COME_APIGET);
-  if(!ddtu){status.innerHTML='<div class="msg msg-err">Errore caricamento dati DDT Uscita dell\'app.</div>';return false;}
-  var ddtuPeriodo=ddtu.filter(function(r){
-    var d=(r.data_ddt||r.created_at||'').slice(0,10);
-    return d&&d>=dataMin&&d<=dataMax;
-  });
-  var mApp={};
-  ddtuPeriodo.forEach(function(r){
-    var k=(r.codice_articolo||r.descrizione||'?').toString();
-    if(!mApp[k])mApp[k]={cod:r.codice_articolo||'',desc:r.descrizione||'',tot:0};
-    mApp[k].tot+=Number(r.quantita_ddt)||0;
-  });
-
-  // 4. Confronto per codice: OK / Discrepanza / Solo PDF / Solo App
-  var codici={};
-  Object.keys(mPdf).forEach(function(k){codici[k]=true;});
-  Object.keys(mApp).forEach(function(k){codici[k]=true;});
-  var righe=Object.keys(codici).map(function(k){
-    var p=mPdf[k],a=mApp[k];
-    var qtaPdf=p?p.tot:0,qtaApp=a?a.tot:0;
-    var artInfo=(artCache||[]).find(function(x){return (x.codice_articolo||'').trim().toUpperCase()===k.toUpperCase();});
-    var desc=(p&&p.desc)||(a&&a.desc)||(artInfo?artInfo.descrizione:'')||'';
-    var diff=qtaPdf-qtaApp;
-    var stato;
-    if(p&&a)stato=diff===0?'ok':'discrepanza';
-    else if(p&&!a)stato='solo_pdf';
-    else stato='solo_app';
-    return {cod:k,desc:desc,qtaPdf:qtaPdf,qtaApp:qtaApp,diff:diff,stato:stato};
-  });
-  var ordineStato={discrepanza:0,solo_pdf:1,solo_app:2,ok:3};
-  righe.sort(function(a,b){
-    if(ordineStato[a.stato]!==ordineStato[b.stato])return ordineStato[a.stato]-ordineStato[b.stato];
-    return (a.cod||'').localeCompare(b.cod||'');
-  });
-
-  renderVerificaPdfRisultati({dataMin:dataMin,dataMax:dataMax,righe:righe});
-  return true;
-}
-
-function renderVerificaPdfRisultati(dati){
-  var righe=dati.righe;
-  var totPdf=righe.reduce(function(s,r){return s+r.qtaPdf;},0);
-  var totApp=righe.reduce(function(s,r){return s+r.qtaApp;},0);
-  var diffTot=totPdf-totApp;
-
-  document.getElementById('rc-verifica-pdf-riepilogo').innerHTML=
-    '<strong>Periodo PDF:</strong> '+fmtData(dati.dataMin)+' — '+fmtData(dati.dataMax)+'<br>'
-    +'<strong>Totale pezzi PDF:</strong> '+totPdf+' &nbsp; '
-    +'<strong>Totale pezzi App (stesso periodo):</strong> '+totApp+' &nbsp; '
-    +'<strong>Differenza totale:</strong> <span style="color:'+(diffTot===0?'#217346':'#C00000')+';font-weight:bold;">'+(diffTot>0?'+':'')+diffTot+'</span>';
-
-  document.getElementById('rc-verifica-pdf-legenda').innerHTML='<strong>Legenda:</strong><br>'
-    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E2EFDA;border-radius:4px;margin-right:6px;">✓ OK</span>'
-    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FFF9DB;border-radius:4px;margin-right:6px;">🟡 Discrepanza (quantità diverse)</span>'
-    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#FCE4E4;border-radius:4px;margin-right:6px;">🔴 Solo PDF (mancante in app)</span>'
-    +'<span style="display:inline-block;margin-top:6px;padding:3px 8px;background:#E6F1FB;border-radius:4px;">🔵 Solo App (mancante nel PDF)</span>';
-
-  var coloriRiga={ok:'',discrepanza:'#FFF9DB',solo_pdf:'#FCE4E4',solo_app:'#E6F1FB'};
-  var etichette={ok:'✓ OK',discrepanza:'🟡 Discrepanza',solo_pdf:'🔴 Solo PDF',solo_app:'🔵 Solo App'};
-  var tb=document.getElementById('rc-verifica-pdf-tbody');
-  if(!righe.length){
-    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Nessun dato</td></tr>';
-  }else{
-    tb.innerHTML=righe.map(function(r){
-      var bg=coloriRiga[r.stato];
-      return '<tr'+(bg?' style="background-color:'+bg+';"':'')+'>'
-        +'<td><strong>'+(r.cod||'—')+'</strong></td>'
-        +'<td>'+(r.desc||'')+'</td>'
-        +'<td style="text-align:right;">'+r.qtaPdf+'</td>'
-        +'<td style="text-align:right;">'+r.qtaApp+'</td>'
-        +'<td style="text-align:right;color:'+(r.diff===0?'#217346':'#C00000')+';">'+(r.diff>0?'+':'')+r.diff+'</td>'
-        +'<td>'+etichette[r.stato]+'</td>'
-      +'</tr>';
-    }).join('');
-  }
-  document.getElementById('rc-verifica-pdf-risultati').style.display='block';
-}
-
 // ── MODALE "VERIFICA PDF NOVA" (Confronto): PDF vs WA Uscita app / vs CSV ──
 var _vpnUltimoConfronto=null;
 
@@ -7918,6 +7591,7 @@ function apriModaleVerificaPdfNova(){
   document.getElementById('vpn-csv-inp').value='';
   document.getElementById('vpn-status').innerHTML='';
   document.getElementById('vpn-risultati').style.display='none';
+  mostraPulsantiVpn(false);
   var isBer=getCliente()==='BERGAMASCO';
   // Per BERGAMASCO: Imballo/Verniciato separati nascosti, sostituiti dalla combinata.
   // Per AZZURRA: resta come prima (separati visibili, combinata nascosta).
@@ -7927,7 +7601,11 @@ function apriModaleVerificaPdfNova(){
   if(elImb)elImb.style.display=isBer?'none':'flex';
   if(elVern)elVern.style.display=isBer?'none':'flex';
   if(elImbVern)elImbVern.style.display=isBer?'flex':'none';
-  var fonteDefault=isBer?'imballo_verniciato':'imballo';
+  // Tabella unica (Imballo + WA Uscita + Aperti Nova): solo AZZURRA, scelta predefinita
+  var isAzV=getCliente()==='AZZURRA';
+  var elUnica=document.getElementById('vpn-fonte-unica-label');
+  if(elUnica)elUnica.style.display=isAzV?'flex':'none';
+  var fonteDefault=isBer?'imballo_verniciato':isAzV?'unica':'imballo';
   document.getElementsByName('vpn-fonte').forEach(function(r){r.checked=(r.value===fonteDefault);});
   aggiornaFonteVerificaPdfNova();
   document.getElementById('modal-verifica-pdf-nova').style.display='flex';
@@ -8064,6 +7742,8 @@ async function eseguiVerificaPdfNova(){
     for(var i=1;i<=pdf.numPages;i++){var p=await pdf.getPage(i);var c=await p.getTextContent();testo+=(function(c){var righe={};c.items.forEach(function(s){var y=Math.round(s.transform[5]);if(!righe[y])righe[y]=[];righe[y].push(s.str);});var ys=Object.keys(righe).map(Number).sort(function(a,b){return b-a;});return ys.map(function(y){return righe[y].join(' ');}).join('\n');})(c)+'\n';}
     var parse=parsePdfVerificaNova(testo);
     if(!parse.ddts.length){status.innerHTML='<div class="msg msg-err">Nessun DDT (C6......) trovato nel PDF.</div>';return;}
+    // Tabella unica (solo AZZURRA): calcolo a parte, le altre modalita' restano come prima
+    if(fonte==='unica'&&getCliente()==='AZZURRA'){await eseguiTabellaUnicaVpn(parse,status);return;}
 
     // Chiave normalizzata (trim + uppercase) usata OVUNQUE per il confronto, sia lato
     // PDF sia lato app/CSV, cosi' spazi residui o maiuscole/minuscole diverse tra le due
@@ -8250,6 +7930,8 @@ async function eseguiVerificaPdfNova(){
 }
 
 function renderVerificaPdfNovaRisultati(dati){
+  mostraPulsantiVpn(!!dati.unica);
+  if(dati.unica){renderTabellaUnicaVpn(dati);return;}
   var righe=dati.righe;
   var modoImbVern=!!dati.modoImbVern;
   var totPdf=righe.reduce(function(s,r){return s+r.qtaPdf;},0);
@@ -8413,6 +8095,163 @@ function esportaDaInserireNova(){
 }
 function esportaDifferenzeVerificaPdfNova(){esportaCsvVerificaPdfNova(true);}
 function esportaTuttoVerificaPdfNova(){esportaCsvVerificaPdfNova(false);}
+
+// ── VERIFICA PDF NOVA: TABELLA UNICA (solo AZZURRA) ──────────────────────
+// Una riga per articolo: PDF Nova (DDT scarti C610 esclusi) | Imballo | WA Uscita |
+// Riferimento (il maggiore tra Imballo e WA, a parita' WA, come nel Confronto) |
+// Differenza = PDF − Riferimento | Aperto Nova (inevasi di Abbinamenti AZZURRA, IA -> A0,
+// come la colonna Aperto di Articoli Aperti) | Stato. Codici IA convertiti in A0 ovunque.
+// Periodo Imballo/WA come le altre modalita': dal 1° del mese del primo DDT a fine mese dell'ultimo.
+// Stato: gruppo 0 rosso, 1 giallo, 2 verde (ordine di stampa e di export).
+var STATI_VPN_UNICA={
+  ok:{t:'OK',g:2,bg:'#E2EFDA',c:'#217346'},
+  agg:{t:'PUOI AGGIUNGERE',g:2,bg:'#E2EFDA',c:'#217346'},
+  alto:{t:'DDT PIÙ ALTO - VERIFICA',g:1,bg:'#FFF2CC',c:'#7B4A00'},
+  manca:{t:'MANCA ENTRATA',g:0,bg:'#FCE4E4',c:'#C00000'},
+  insuf:{t:'ENTRATA INSUFFICIENTE',g:0,bg:'#FCE4E4',c:'#C00000'}
+};
+function testoStatoVpn(r){return r.stato==='insuf'?'ENTRATA INSUFFICIENTE: mancano '+r.manca+' pz di entrata':STATI_VPN_UNICA[r.stato].t;}
+function isoLocaleVpn(v){var d=new Date(v);if(isNaN(d))return '';return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+
+async function eseguiTabellaUnicaVpn(parse,status){
+  function up(s){return String(s||'').trim().toUpperCase();}
+  // DDT scarti C610 esclusi (non sono ne' Imballo ne' WA)
+  var nC610=0;
+  var ddts=parse.ddts.filter(function(d){if(/^C610/i.test(d.nddt)){nC610++;return false;}return true;});
+  var nonRisolte=parse.nonRisolte.filter(function(x){return !/^C610/i.test(x.nddt);});
+  var date=parse.ddts.map(function(d){return d.data;}).filter(Boolean).sort();
+  if(!date.length){status.innerHTML='<div class="msg msg-err">Nessuna data DDT riconosciuta nel PDF, impossibile filtrare i dati app.</div>';return;}
+  var dataMin=date[0],dataMax=date[date.length-1];
+  var dal=dataMin.slice(0,8)+'01';
+  var pm=dataMax.split('-'),al=dataMax.slice(0,8)+('0'+new Date(+pm[0],+pm[1],0).getDate()).slice(-2);
+  status.innerHTML='<div style="padding:10px;color:#C55A11;">Lettura Imballo, WA Uscita e inevasi Nova...</div>';
+  var res=await Promise.all([
+    apiGetTutto('imballo'),apiGetTutto('whatsapp_uscita'),apiGetTutto('abbinamenti_azzurra','order=id.asc'),
+    apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('ultimo_import_inevasi_nova_AZZURRA')+'&select=valore&limit=1'),
+    apiGet('impostazioni_azzurra','chiave=eq.'+encodeURIComponent('inevasi_nova_scalate_fino_AZZURRA')+'&select=valore&limit=1')
+  ]);
+  var imb=res[0],wa=res[1],abz=res[2];
+  if(!imb||!wa||!abz){status.innerHTML='<div class="msg msg-err">Errore caricamento Imballo, WA Uscita o Abbinamenti AZZURRA: riprova.</div>';return;}
+  // IA -> A0 e Aperto Nova (stesso calcolo di Articoli Aperti: somma inevasi per A0, IA senza A0 resta IA)
+  var mappaIA={},aperto={},descNova={};
+  abz.forEach(function(r){
+    var ia=up(r.codice_ia),a0=up(r.codice_a0);if(!ia)return;
+    if(a0)mappaIA[ia]=a0;
+    var k=a0||ia;
+    if(!descNova[k]&&r.descrizione_ia)descNova[k]=r.descrizione_ia;
+    var q=Number(r.giacenza_iniziale)||0;if(!q)return;
+    aperto[k]=(aperto[k]||0)+q;
+  });
+  function key(c){var k=up(c)||'SENZA_CODICE';return mappaIA[k]||k;}
+  var m={};
+  function voce(c,desc){var k=key(c);if(!m[k])m[k]={cod:k,descApp:'',pdf:0,imb:0,wa:0};if(!m[k].descApp&&desc)m[k].descApp=desc;return m[k];}
+  ddts.forEach(function(d){d.righe.forEach(function(r){voce(r.cod,r.desc).pdf+=r.qty;});});
+  function nelPeriodo(r){var d=(r.data_inserimento||r.created_at||'').slice(0,10);return d&&d>=dal&&d<=al;}
+  imb.filter(nelPeriodo).forEach(function(r){voce(r.codice_articolo,r.articolo).imb+=Number(r.totale)||0;});
+  wa.filter(nelPeriodo).forEach(function(r){voce(r.codice_articolo,r.descrizione_articolo||r.descrizione).wa+=Number(r.quantita)||0;});
+  var artDesc={};(artCache||[]).forEach(function(a){var k=up(a.codice_articolo);if(k&&a.descrizione&&!artDesc[k])artDesc[k]=a.descrizione;});
+  var righe=Object.keys(m).map(function(k){
+    var a=m[k];
+    var rif=(a.wa!==0&&a.wa>=a.imb)?a.wa:a.imb;
+    var diff=a.pdf-rif,ap=aperto.hasOwnProperty(k)?aperto[k]:null,manca=0,stato;
+    if(diff===0)stato='ok';
+    else if(diff>0)stato='alto';
+    else{
+      var mancanti=-diff;
+      if(ap===null||ap<=0)stato='manca';
+      else if(ap>=mancanti)stato='agg';
+      else{stato='insuf';manca=mancanti-ap;}
+    }
+    return {cod:k,desc:artDesc[k]||descNova[k]||a.descApp||'',pdf:a.pdf,imb:a.imb,wa:a.wa,rif:rif,diff:diff,aperto:ap,stato:stato,manca:manca,imbWa:a.imb-a.wa};
+  }).filter(function(r){return r.pdf!==0||r.imb!==0||r.wa!==0;});
+  righe.sort(function(a,b){
+    return STATI_VPN_UNICA[a.stato].g-STATI_VPN_UNICA[b.stato].g
+      ||String(a.desc||a.cod).localeCompare(String(b.desc||b.cod),'it',{sensitivity:'base'})||a.cod.localeCompare(b.cod);
+  });
+  // Data degli inevasi: "uscite scalate fino al", se manca la data dell'ultimo import
+  var impT=res[3]&&res[3].length?res[3][0].valore:'';
+  var scal=res[4]&&res[4].length?String(res[4][0].valore||'').slice(0,10):'';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(scal))scal='';
+  var dataImp=impT?isoLocaleVpn(impT):'';
+  var dataRif=scal||dataImp;
+  var infoNova=!impT?'Inevasi Nova: nessun import ancora fatto (Aperto Nova vuoto).'
+    :'Inevasi Nova caricati il '+new Date(impT).toLocaleDateString('it-IT')+' alle '+new Date(impT).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})
+      +(scal?' — uscite scalate fino al '+fmtDataGMA(scal):' — data "uscite scalate fino al" non impostata');
+  var avvisoVecchio=dataRif&&dataMax>dataRif
+    ?'⚠ Aperto Nova forse vecchio: l\'ultimo DDT del PDF è del '+fmtDataGMA(dataMax)+', dopo il '+fmtDataGMA(dataRif)+(scal?' (uscite scalate fino al)':' (ultimo import inevasi)')+'. Ricarica gli inevasi Nova per avere l\'aperto aggiornato.'
+    :'';
+  _vpnUltimoConfronto={unica:true,righe:righe,nonRisolte:nonRisolte,nC610:nC610,dal:dal,al:al,dataMax:dataMax,nDdt:ddts.length,infoNova:infoNova,avvisoVecchio:avvisoVecchio};
+  renderVerificaPdfNovaRisultati(_vpnUltimoConfronto);
+  status.innerHTML='<div class="msg msg-ok">Confronto completato: '+righe.length+' articoli.'+(nonRisolte.length?(' ⚠️ '+nonRisolte.length+' righe PDF non risolte automaticamente, vedi sotto.'):'')+'</div>';
+}
+
+// Pulsanti di export: tabella unica = solo Excel; altre modalita' = i due CSV di prima
+function mostraPulsantiVpn(unica){
+  var x=document.getElementById('vpn-btn-xlsx'),d=document.getElementById('vpn-btn-diff'),t=document.getElementById('vpn-btn-tutto');
+  if(x)x.style.display=unica?'':'none';
+  if(d)d.style.display=unica?'none':'';
+  if(t)t.style.display=unica?'none':'';
+  var box=document.querySelector('#modal-verifica-pdf-nova .modal-box');
+  if(box)box.style.maxWidth=unica?'1100px':'640px';
+}
+
+function renderTabellaUnicaVpn(dati){
+  var E=escAbb,righe=dati.righe;
+  var cont={};Object.keys(STATI_VPN_UNICA).forEach(function(k){cont[k]=0;});
+  var tP=0,tI=0,tW=0;
+  righe.forEach(function(r){cont[r.stato]++;tP+=r.pdf;tI+=r.imb;tW+=r.wa;});
+  var nonRis=(dati.nonRisolte&&dati.nonRisolte.length)
+    ?'<div class="warn-box" style="margin-top:8px;">⚠️ '+dati.nonRisolte.length+' righe del PDF non risolte automaticamente (codice e descrizione probabilmente uniti senza spazio) — controllale a mano:<br>'
+      +dati.nonRisolte.map(function(x){return '<span style="font-size:11px;">['+E(x.nddt)+'] '+E(x.testo)+'</span>';}).join('<br>')+'</div>'
+    :'';
+  function chip(k){var s=STATI_VPN_UNICA[k];return '<span class="badge" style="background:'+s.bg+';color:'+s.c+';margin-right:4px;">'+s.t+': '+cont[k]+'</span>';}
+  document.getElementById('vpn-riepilogo').innerHTML=
+    '<div style="margin-bottom:4px;"><strong>'+E(dati.infoNova)+'</strong></div>'
+    +(dati.avvisoVecchio?'<div style="margin-bottom:4px;color:#C55A11;font-weight:bold;">'+E(dati.avvisoVecchio)+'</div>':'')
+    +'<div style="margin-bottom:6px;">PDF: '+dati.nDdt+' DDT, ultimo del '+fmtDataGMA(dati.dataMax)+(dati.nC610?' · DDT scarti C610 esclusi: '+dati.nC610:'')
+    +' · Imballo e WA Uscita dal '+fmtDataGMA(dati.dal)+' al '+fmtDataGMA(dati.al)+' · codici IA convertiti in A0.</div>'
+    +'<strong>Totali:</strong> PDF Nova '+tP+' · Imballo '+tI+' · WA Uscita '+tW+'<div style="margin-top:6px;">'
+    +['manca','insuf','alto','agg','ok'].map(chip).join('')+'</div>'+nonRis;
+  document.getElementById('vpn-thead').innerHTML='<tr><th>Codice</th><th>Descrizione</th><th>PDF Nova</th><th>Imballo</th><th>WA Uscita</th><th>Riferimento</th><th>Differenza</th><th>Aperto Nova</th><th>Stato</th></tr>';
+  var tb=document.getElementById('vpn-tbody');
+  if(!righe.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:#999;">Nessun articolo</td></tr>';}
+  else tb.innerHTML=righe.map(function(r){
+    var s=STATI_VPN_UNICA[r.stato],n='text-align:right;';
+    var bolla=r.imbWa!==0?' <span class="badge" style="background:#FCE4E4;color:#C00000;white-space:nowrap;" title="Imballo − WA Uscita">Imb≠WA '+(r.imbWa>0?'+':'')+r.imbWa+'</span>':'';
+    return '<tr style="background-color:'+s.bg+';">'
+      +'<td><strong>'+E(r.cod)+'</strong></td><td>'+E(r.desc)+'</td>'
+      +'<td style="'+n+'">'+r.pdf+'</td><td style="'+n+'">'+r.imb+'</td><td style="'+n+'">'+r.wa+'</td>'
+      +'<td style="'+n+'">'+r.rif+bolla+'</td>'
+      +'<td style="'+n+'font-weight:bold;color:'+(r.diff===0?'#217346':r.diff>0?'#7B4A00':'#C00000')+';">'+(r.diff>0?'+':'')+r.diff+'</td>'
+      +'<td style="'+n+'">'+(r.aperto===null?'—':r.aperto)+'</td>'
+      +'<td style="font-weight:bold;color:'+s.c+';white-space:normal;min-width:150px;">'+E(testoStatoVpn(r))+'</td></tr>';
+  }).join('');
+  document.getElementById('vpn-risultati').style.display='block';
+}
+
+function esportaExcelTabellaUnicaVpn(){
+  var D=_vpnUltimoConfronto;
+  if(!D||!D.unica||!D.righe.length){alert('Nessun confronto da esportare.');return;}
+  var header=['Codice','Descrizione','PDF Nova','Imballo','WA Uscita','Riferimento','Differenza','Aperto Nova','Stato','Imb≠WA','Note'];
+  var righe=D.righe.map(function(r){
+    return {'Codice':r.cod,'Descrizione':r.desc,'PDF Nova':r.pdf,'Imballo':r.imb,'WA Uscita':r.wa,'Riferimento':r.rif,'Differenza':r.diff,
+      'Aperto Nova':r.aperto===null?'':r.aperto,'Stato':testoStatoVpn(r),'Imb≠WA':r.imbWa!==0?r.imbWa:'','Note':''};
+  });
+  var ws=XLSX.utils.json_to_sheet(righe,{header:header});
+  ws['!cols']=[{wch:16},{wch:44},{wch:10},{wch:10},{wch:10},{wch:12},{wch:11},{wch:12},{wch:44},{wch:9},{wch:40}];
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Verifica');
+  var info=XLSX.utils.aoa_to_sheet([
+    ['Creato il',new Date().toLocaleString('it-IT')],
+    ['Inevasi Nova',D.infoNova],
+    ['Avviso',D.avvisoVecchio||''],
+    ['PDF',D.nDdt+' DDT, ultimo del '+fmtDataGMA(D.dataMax)+(D.nC610?'; DDT scarti C610 esclusi: '+D.nC610:'')],
+    ['Imballo e WA Uscita','dal '+fmtDataGMA(D.dal)+' al '+fmtDataGMA(D.al)],
+    ['Calcolo','Riferimento = il maggiore tra Imballo e WA Uscita; Differenza = PDF Nova − Riferimento; Aperto Nova = inevasi di Abbinamenti AZZURRA (IA -> A0)']
+  ]);
+  info['!cols']=[{wch:20},{wch:110}];
+  XLSX.utils.book_append_sheet(wb,info,'Info');
+  XLSX.writeFile(wb,'verifica_pdf_nova_tabella_unica_'+oggiISO()+'.xlsx');
+}
 
 async function leggiPDFMultiBergamasco(input){
   var file=input.files[0];if(!file)return;
