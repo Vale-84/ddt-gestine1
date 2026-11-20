@@ -14576,6 +14576,88 @@ function aggiornaTabAltro(){
   var tb=document.querySelector('.tabs');if(tb)tb.addEventListener('scroll',chiudiMenuAltro);
 })();
 
+// ── SWIPE TRA LE SCHEDE (solo telefono, max 768px) ────────────────────
+// Dito verso sinistra = scheda successiva, verso destra = precedente, solo tra le schede
+// visibili della barra (non quelle del menu Altro); ferma ai bordi, senza animazione.
+// Listener passivi, mai preventDefault: scroll verticale e tabelle restano come prima.
+// Ignorato: partenza entro 25px dal bordo (gesto "indietro"), su campi/pulsanti, dentro
+// elementi che scorrono in orizzontale (tabelle larghe, barra schede), con finestre o
+// menu Altro aperti, con piu' dita o testo selezionato.
+(function(){
+  var SOGLIA=80,RAPPORTO=2,TEMPO=600,BORDO=25,PAUSA=300;
+  var start=null,ultimo=0;
+  function telefono(){return window.matchMedia&&window.matchMedia('(max-width: 768px)').matches;}
+  function finestraAperta(){
+    var m=document.getElementById('tab-menu');
+    if(m&&m.classList.contains('open'))return true;
+    var aperta=false;
+    document.querySelectorAll('.modal').forEach(function(x){if(!aperta&&getComputedStyle(x).display!=='none')aperta=true;});
+    return aperta;
+  }
+  function scorreOrizz(el){
+    for(;el&&el!==document.body&&el!==document.documentElement;el=el.parentElement){
+      if(el.scrollWidth>el.clientWidth+1){
+        var ox=getComputedStyle(el).overflowX;
+        if(ox==='auto'||ox==='scroll')return true;
+      }
+    }
+    return false;
+  }
+  function vaBene(e){
+    if(!telefono()||e.touches.length!==1)return false;
+    var t=e.touches[0];
+    if(t.clientX<BORDO||t.clientX>window.innerWidth-BORDO)return false;
+    var el=e.target;
+    if(el&&el.closest&&el.closest('input,textarea,select,button,[contenteditable],[contenteditable=""],[contenteditable="true"]'))return false;
+    if(finestraAperta())return false;
+    var s=window.getSelection&&window.getSelection();
+    if(s&&!s.isCollapsed&&String(s).length)return false;
+    if(scorreOrizz(el))return false;
+    return true;
+  }
+  document.addEventListener('touchstart',function(e){
+    start=null;
+    if(!vaBene(e))return;
+    var t=e.touches[0];
+    start={x:t.clientX,y:t.clientY,t:Date.now()};
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){if(start&&e.touches.length!==1)start=null;},{passive:true});
+  document.addEventListener('touchcancel',function(){start=null;},{passive:true});
+  document.addEventListener('touchend',function(e){
+    var s=start;start=null;
+    if(!s||!e.changedTouches.length)return;
+    var t=e.changedTouches[0],dx=t.clientX-s.x,dy=t.clientY-s.y,ora=Date.now();
+    if(ora-s.t>TEMPO||Math.abs(dx)<SOGLIA||Math.abs(dx)<RAPPORTO*Math.abs(dy))return;
+    if(ora-ultimo<PAUSA||!telefono()||finestraAperta())return;
+    var schede=[].slice.call(document.querySelectorAll('.tabs > .tab')).filter(function(x){return x.style.display!=='none';});
+    var i=schede.findIndex(function(x){return x.classList.contains('active');});
+    if(i<0)return; // scheda attiva nel menu Altro: niente swipe
+    var j=dx<0?i+1:i-1;
+    if(j<0||j>=schede.length)return; // ferma ai bordi
+    ultimo=ora;
+    vaiSchedaDaSwipe(schede[j]);
+  },{passive:true});
+  // Come il tocco sulla linguetta: stesso showPage. Il tocco si fa con la barra schede a
+  // vista, quindi se lo swipe parte piu' in basso la pagina torna in cima (dove si vede la
+  // barra); se la barra e' gia' a vista lo scroll non si tocca, come col tocco.
+  function vaiSchedaDaSwipe(tab){
+    var tb=document.querySelector('.tabs');
+    var hd=document.querySelector('.header');
+    var altoBarra=hd?hd.getBoundingClientRect().bottom:0;
+    var barraVisibile=tb&&tb.getBoundingClientRect().top>=altoBarra-1;
+    showPage(tab.getAttribute('data-page'),tab);
+    if(!barraVisibile)window.scrollTo(0,0);
+    // linguetta nuova a vista nella barra (che scorre in orizzontale), senza scroll verticale
+    if(tb){
+      var altro=document.getElementById('tab-altro');
+      var wAltro=altro&&altro.style.display!=='none'?altro.offsetWidth:0;
+      var sx=tab.offsetLeft-tb.offsetLeft,dxBarra=sx+tab.offsetWidth;
+      if(sx<tb.scrollLeft)tb.scrollLeft=sx;
+      else if(dxBarra>tb.scrollLeft+tb.clientWidth-wAltro)tb.scrollLeft=dxBarra-tb.clientWidth+wAltro;
+    }
+  }
+})();
+
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(function(reg){
     reg.update();
