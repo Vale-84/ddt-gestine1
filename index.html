@@ -8244,7 +8244,125 @@ function renderTabellaUnicaVpn(dati){
   document.getElementById('vpn-risultati').style.display='block';
 }
 
-function esportaExcelTabellaUnicaVpn(){
+// ExcelJS caricato da CDN solo per questo export (SheetJS gratuito non scrive
+// impostazione pagina ne' colori). Gli altri export restano su SheetJS.
+var _excelJsPromise=null;
+function caricaExcelJS(){
+  if(window.ExcelJS)return Promise.resolve(window.ExcelJS);
+  if(_excelJsPromise)return _excelJsPromise;
+  _excelJsPromise=new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    s.onload=function(){if(window.ExcelJS)res(window.ExcelJS);else{_excelJsPromise=null;rej(new Error('ExcelJS non disponibile'));}};
+    s.onerror=function(){_excelJsPromise=null;s.remove();rej(new Error('download ExcelJS fallito'));};
+    document.head.appendChild(s);
+  });
+  return _excelJsPromise;
+}
+
+// Excel pronto da stampare: A4 orizzontale, 1 pagina in larghezza, intestazione ripetuta,
+// righe bianche, colorate solo le celle Stato e Differenza come a schermo.
+async function esportaExcelTabellaUnicaVpn(){
+  var D=_vpnUltimoConfronto;
+  if(!D||!D.unica||!D.righe.length){alert('Nessun confronto da esportare.');return;}
+  var ExcelJS;
+  try{ExcelJS=await caricaExcelJS();}
+  catch(e){
+    alert('Non riesco a caricare il modulo Excel per la stampa ('+e.message+').\nScarico il file nel formato semplice di prima.');
+    esportaExcelTabellaUnicaVpnSheetJS();return;
+  }
+  function argb(hex){return 'FF'+String(hex).replace('#','').toUpperCase();}
+  var NC=10,ultimaCol='J';
+  var wb=new ExcelJS.Workbook();
+  wb.creator='DDT Gestione';wb.created=new Date();
+  var ws=wb.addWorksheet('Verifica',{pageSetup:{
+    paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,
+    horizontalCentered:true,
+    margins:{left:0.25,right:0.25,top:0.4,bottom:0.45,header:0.2,footer:0.2}
+  }});
+  ws.headerFooter.oddFooter='&L&8Verifica PDF Nova AZZURRA&R&8Pagina &P di &N';
+  var larg=[14,40,9,9,9,11.5,8,11,9,26];
+  ws.columns=larg.map(function(w){return {width:w};});
+
+  // Intestazione sopra la tabella (come il riquadro a schermo)
+  var adesso=new Date();
+  var esportato='Esportato il '+adesso.toLocaleDateString('it-IT')+' alle '+adesso.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  var testa=[
+    {t:'Verifica PDF Nova – AZZURRA',f:{bold:true,size:14}},
+    {t:'Periodo Imballo e WA Uscita: dal '+fmtDataGMA(D.dal)+' al '+fmtDataGMA(D.al)+'  ·  PDF: '+D.nDdt+' DDT, ultimo del '+fmtDataGMA(D.dataMax)+(D.nC610?'  ·  DDT scarti C610 esclusi: '+D.nC610:''),f:{size:10}},
+    {t:D.infoNova||'',f:{size:10}}
+  ];
+  if(D.avvisoVecchio)testa.push({t:D.avvisoVecchio,f:{size:10,bold:true,color:{argb:'FFC55A11'}},h:28});
+  testa.push({t:esportato,f:{size:9,italic:true,color:{argb:'FF555555'}}});
+  testa.forEach(function(x,i){
+    var n=i+1;ws.mergeCells('A'+n+':'+ultimaCol+n);
+    var c=ws.getCell('A'+n);c.value=x.t;c.font=x.f;
+    c.alignment={vertical:'middle',wrapText:true};
+    ws.getRow(n).height=x.h||(i===0?20:15);
+  });
+  var rHead=testa.length+2; // una riga vuota di stacco
+
+  var bordo={style:'thin',color:{argb:'FFBFBFBF'}};
+  var bordi={top:bordo,left:bordo,bottom:bordo,right:bordo};
+  var intest=['Codice','Descrizione','PDF Nova','Imballo','WA Uscita','Riferimento','Imb≠WA','Differenza','Aperto Nova','Stato'];
+  var rh=ws.getRow(rHead);rh.values=intest;rh.height=30;
+  rh.eachCell(function(c,col){
+    c.font={bold:true,size:10};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9D9D9'}};
+    c.alignment={vertical:'middle',horizontal:col<=2||col===NC?'left':'center',wrapText:true};
+    c.border=bordi;
+  });
+
+  D.righe.forEach(function(r,i){
+    var s=STATI_VPN_UNICA[r.stato],stato=testoStatoVpn(r);
+    var row=ws.getRow(rHead+1+i);
+    row.values=[r.cod,r.desc,r.pdf,r.imb,r.wa,r.rif,r.imbWa!==0?r.imbWa:null,r.diff,r.aperto===null?null:r.aperto,stato];
+    for(var col=1;col<=NC;col++){
+      var c=row.getCell(col);
+      c.font={size:10};c.border=bordi;
+      c.alignment={vertical:'middle',horizontal:col<=2||col===NC?'left':'right',wrapText:col===2||col===NC};
+    }
+    row.getCell(1).font={size:10,bold:true};
+    if(r.aperto===null){var ca=row.getCell(9);ca.value='—';ca.alignment={vertical:'middle',horizontal:'right'};}
+    var cImb=row.getCell(7);cImb.numFmt='+0;-0;0';
+    if(r.imbWa!==0)cImb.font={size:10,bold:true,color:{argb:'FFC00000'}};
+    var cD=row.getCell(8);cD.numFmt='+0;-0;0';
+    cD.font={size:10,bold:true,color:{argb:argb(r.diff===0?'#217346':r.diff>0?'#7B4A00':'#C00000')}};
+    var cS=row.getCell(10);
+    cS.font={size:10,bold:true,color:{argb:argb(s.c)}};
+    cS.fill={type:'pattern',pattern:'solid',fgColor:{argb:argb(s.bg)}};
+    cS.alignment={vertical:'middle',horizontal:'left',wrapText:true,indent:1};
+    // altezza riga stimata dal testo che va a capo (Descrizione e Stato)
+    var linee=Math.max(1,Math.ceil(String(r.desc||'').length/(larg[1]-2)),Math.ceil(stato.length/(larg[9]-2)));
+    row.height=14*linee+2;
+  });
+
+  ws.pageSetup.printTitlesRow=rHead+':'+rHead;
+  ws.pageSetup.printArea='A1:'+ultimaCol+(rHead+D.righe.length);
+  ws.views=[{state:'frozen',ySplit:rHead}];
+
+  var info=wb.addWorksheet('Info');
+  info.columns=[{width:20},{width:110}];
+  [
+    ['Creato il',adesso.toLocaleString('it-IT')],
+    ['Inevasi Nova',D.infoNova],
+    ['Avviso',D.avvisoVecchio||''],
+    ['PDF',D.nDdt+' DDT, ultimo del '+fmtDataGMA(D.dataMax)+(D.nC610?'; DDT scarti C610 esclusi: '+D.nC610:'')],
+    ['Imballo e WA Uscita','dal '+fmtDataGMA(D.dal)+' al '+fmtDataGMA(D.al)],
+    ['Calcolo','Riferimento = il maggiore tra Imballo e WA Uscita; Imb≠WA = Imballo − WA Uscita (solo se diversi); Differenza = PDF Nova − Riferimento; Aperto Nova = inevasi di Abbinamenti AZZURRA (IA -> A0)']
+  ].forEach(function(x){var rr=info.addRow(x);rr.getCell(1).font={bold:true};rr.getCell(2).alignment={wrapText:true};});
+
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='verifica_pdf_nova_tabella_unica_'+oggiISO()+'.xlsx';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+}
+
+// Ripiego se ExcelJS non si carica (es. senza rete): il file semplice di prima, con SheetJS
+function esportaExcelTabellaUnicaVpnSheetJS(){
   var D=_vpnUltimoConfronto;
   if(!D||!D.unica||!D.righe.length){alert('Nessun confronto da esportare.');return;}
   var header=['Codice','Descrizione','PDF Nova','Imballo','WA Uscita','Riferimento','Differenza','Aperto Nova','Stato','Imb≠WA','Note'];
