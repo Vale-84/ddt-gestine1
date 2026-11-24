@@ -9518,7 +9518,10 @@ function renderMagazzino(){
 // ── FASI MAGAZZINO (solo AZZURRA) ──────────────────────────────────────
 // Saldo iniziale per fase (tabella saldo_fasi, ultimo data_saldo del cliente) a inizio
 // giornata della data, + movimenti con data da quel giorno compreso:
-//   Grezzo                  = saldo + DDT Entrata (IA -> A0) − Verniciato (senza SCARTO/RIPARATO)
+//   Grezzo                  = saldo + Grezzo arrivato − Verniciato (senza SCARTO/RIPARATO)
+//     Grezzo arrivato = il MAGGIORE tra totale WA Entrata e totale DDT Entrata dal saldo
+//     (IA -> A0): il DDT arriva a volte giorni dopo il WA; il massimo non somma due volte.
+//     Nova aperti / Saldo carico restano sui soli DDT.
 //   Verniciato ancora da imballare = saldo + Verniciato − Imballo − Scarti + Riparati
 //   Imballato ancora da spedire    = saldo + Imballo − DDT Uscita (senza bollettario scarti C610)
 //   Scarti da rendere       = saldo + Scarti − Riparati − DDT Uscita C610
@@ -9529,7 +9532,7 @@ function renderMagazzino(){
 // escluse (sono doppioni di pezzi gia' contati prima). Imballo da confermare: solo informazione.
 // cols: [etichetta, campo, segno]; residuo = saldo (fase s di saldo_fasi) + somma(segno*campo)
 var FASI_DEF={
-  grezzo:{nome:'Grezzo',s:'grezzo',cols:[['+ DDT Entrata','E',1],['− Verniciato','V',-1]],formula:'Grezzo = partenza + DDT Entrata − Verniciato'},
+  grezzo:{nome:'Grezzo',s:'grezzo',cols:[['+ Grezzo arrivato','G',1],['− Verniciato','V',-1]],formula:'Grezzo = partenza + Grezzo arrivato (il maggiore tra WA Entrata e DDT Entrata) − Verniciato'},
   verniciato:{nome:'Verniciato ancora da imballare',s:'verniciato',cols:[['+ Verniciato','V',1],['− Imballo','I',-1],['− Scarti','S',-1],['+ Riparati','R',1]],formula:'Verniciato ancora da imballare = partenza + Verniciato − Imballo − Scarti + Riparati'},
   imballato:{nome:'Imballato ancora da spedire',s:'imballato',cols:[['+ Imballo','I',1],['− DDT Uscita','U',-1]],formula:'Imballato ancora da spedire = partenza + Imballo − DDT Uscita (senza i DDT scarti C610)'},
   scarti:{nome:'Scarti da rendere',s:'scarti',cols:[['+ Scarti','S',1],['− Riparati','R',-1],['− DDT C610','UC',-1]],formula:'Scarti da rendere = partenza + Scarti − Riparati − DDT Uscita bollettario scarti (C610)'}
@@ -9616,7 +9619,8 @@ async function caricaFasi(silenzioso){
     caricaBaseCarico(),
     apiGetTutto('verniciato','order=id.asc'),apiGetTutto('imballo','order=id.asc'),
     apiGetTutto('imballo_da_confermare','order=id.asc'),
-    saldo.data?apiGetTutto('archivio','cliente=eq.AZZURRA&tabella_origine=in.(verniciato,imballo)&data_inserimento=gte.'+(inizioMeseFasi()<saldo.data?inizioMeseFasi():saldo.data)+'&order=id.asc'):Promise.resolve([])
+    saldo.data?apiGetTutto('archivio','cliente=eq.AZZURRA&tabella_origine=in.(verniciato,imballo,whatsapp_righe)&data_inserimento=gte.'+(inizioMeseFasi()<saldo.data?inizioMeseFasi():saldo.data)+'&order=id.asc'):Promise.resolve([]),
+    apiGetTutto('whatsapp_righe','order=id.asc')
   ]);
   if(n!==_fasi.n||getCliente()!=='AZZURRA')return;
   var info=document.getElementById('fasi-saldo-info');
@@ -9630,7 +9634,7 @@ async function caricaFasi(silenzioso){
     info.innerHTML='<strong>Nessuna partenza.</strong> Scarica il modello, fai il conteggio fisico e importalo con "IMPORTA SALDO INIZIALE".';
     _fasi.dati=null;renderFasi();return;
   }
-  _fasi.dati=calcolaFasi(saldo,res[0],res[1],res[2],res[3],res[4]);
+  _fasi.dati=calcolaFasi(saldo,res[0],res[1],res[2],res[3],res[4],res[5]);
   var op=saldo.righe.map(function(r){return r.inserito_da;}).filter(Boolean)[0]||'';
   var quando=saldo.righe.map(function(r){return r.created_at;}).filter(Boolean).sort().pop();
   info.innerHTML='Partenza al <strong>'+fmtDataGMA(saldo.data)+'</strong> (inizio giornata): '+_fasi.dati.nSaldo+' articoli'
@@ -9641,7 +9645,7 @@ async function caricaFasi(silenzioso){
   renderFasi();
 }
 
-function calcolaFasi(saldo,base,vern,imb,dc,arch){
+function calcolaFasi(saldo,base,vern,imb,dc,arch,wa){
   function up(s){return String(s||'').trim().toUpperCase();}
   var mappaIA={},descNova={};
   (abzCache||[]).forEach(function(r){var ia=up(r.codice_ia),a0=up(r.codice_a0);if(ia&&a0)mappaIA[ia]=a0;if(r.descrizione_ia&&!descNova[a0||ia])descNova[a0||ia]=r.descrizione_ia;});
@@ -9650,7 +9654,7 @@ function calcolaFasi(saldo,base,vern,imb,dc,arch){
   var dSaldo=saldo.data,m={},senzaCodice=0;
   function voce(cod,desc){
     var k=key(cod);if(!k||fuoriMag(k))return null;
-    if(!m[k])m[k]={cod:k,desc:'',s:{grezzo:0,verniciato:0,imballato:0,scarti:0},E:0,V:0,I:0,U:0,S:0,R:0,UC:0,att:0,nova:null};
+    if(!m[k])m[k]={cod:k,desc:'',s:{grezzo:0,verniciato:0,imballato:0,scarti:0},E:0,W:0,G:0,V:0,I:0,U:0,S:0,R:0,UC:0,att:0,nova:null};
     if(!m[k].desc&&desc)m[k].desc=desc;
     return m[k];
   }
@@ -9674,6 +9678,9 @@ function calcolaFasi(saldo,base,vern,imb,dc,arch){
   // Archivio: righe di mesi chiusi dopo la data del saldo
   somma(arch.filter(function(r){return r.tabella_origine==='verniciato';}),'V','quantita','descrizione');
   somma(arch.filter(function(r){return r.tabella_origine==='imballo';}),'I','totale','descrizione');
+  // WA Entrata (lavoro + archivio) dal saldo: solo per il Grezzo arrivato = max(WA, DDT)
+  somma(wa||[],'W','quantita','descrizione_articolo');
+  somma(arch.filter(function(r){return r.tabella_origine==='whatsapp_righe';}),'W','quantita','descrizione');
   function ddtDopo(r){var d=dataDDTCarico(r);return !!d&&d>=dSaldo;}
   base.ent.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v.E+=Number(r.quantita_ddt)||0;}});
   base.usc.forEach(function(r){if(r.codice_articolo&&ddtDopo(r)){var v=voce(r.codice_articolo,r.descrizione);if(v)v[isDdtScarti(r)?'UC':'U']+=Number(r.quantita_ddt)||0;}});
@@ -9706,6 +9713,9 @@ function calcolaFasi(saldo,base,vern,imb,dc,arch){
   var lista=Object.keys(m).map(function(k){
     var a=m[k];
     a.desc=a.desc||artDesc[k]||descNova[k]||'';
+    // Grezzo arrivato: il maggiore tra WA Entrata e DDT Entrata (E resta per Nova aperti)
+    a.G=Math.max(a.W,a.E);
+    a.fonteG=a.W===a.E?'uguali':a.W>a.E?'WA':'DDT';
     a.r={};a.somma=0;
     ORDINE_FASI.forEach(function(f){
       var d=FASI_DEF[f],v=a.s[d.s]||0;
@@ -9723,7 +9733,7 @@ function calcolaFasi(saldo,base,vern,imb,dc,arch){
 // Badge dei negativi, in parole semplici
 function badgeNegFase(fk,r){
   var n=Math.abs(r);
-  var t=fk==='grezzo'?'manca DDT Entrata: '+n+' pz':fk==='verniciato'?'manca verniciato: '+n+' pz':fk==='imballato'?'manca imballo: '+n+' pz':fk==='scarti'?'controllare scarti':'⚠ anomalia';
+  var t=fk==='grezzo'?'manca entrata grezzo: '+n+' pz':fk==='verniciato'?'manca verniciato: '+n+' pz':fk==='imballato'?'manca imballo: '+n+' pz':fk==='scarti'?'controllare scarti':'⚠ anomalia';
   return ' <span class="badge badge-err" style="white-space:normal;">'+t+'</span>';
 }
 function toggleDettFasi(cod){_fasi.aperto=_fasi.aperto===cod?'':cod;renderFasi();}
@@ -9741,6 +9751,13 @@ function dettaglioFasiContenuto(a,d){
     +riga('DDT Uscita',mm.U,mm.UC?' <span style="font-weight:normal;color:#666;">(+ '+mm.UC+' DDT scarti C610)</span>':'')
     +riga('Scarti / Riparati',mm.S+' / '+mm.R);
   var sP=a.s||{},partenza=ORDINE_FASI.some(function(f){return sP[FASI_DEF[f].s];});
+  // Grezzo arrivato dal saldo: WA Entrata e DDT Entrata, si usa il maggiore
+  var W=a.W||0,Ed=a.E||0;
+  h+='<div style="font-size:12px;color:#666;margin:10px 0 4px;">Grezzo arrivato dal '+fmtDataGMA(d.data)+' (si usa il maggiore tra WA Entrata e DDT Entrata):</div>'
+    +riga('WA Entrata dal saldo',W)
+    +riga('DDT Entrata dal saldo',Ed)
+    +riga('Usato per il Grezzo',(a.G||0),' <span style="font-weight:normal;color:#666;">('+(a.fonteG==='WA'?'WA Entrata':a.fonteG==='DDT'?'DDT Entrata':'WA = DDT')+')</span>');
+  if(W!==Ed)h+='<div style="font-size:12px;color:#C55A11;font-weight:bold;margin-top:4px;">⚠ WA '+W+' / DDT '+Ed+': '+(W>Ed?'manca DDT per '+(W-Ed):'manca WA per '+(Ed-W))+'</div>';
   h+='<div style="font-size:12px;color:#666;margin:10px 0 4px;">Risultato (come nella vista: partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+'):</div>';
   // Per ogni fase: residuo + conto (partenza e movimenti dal giorno del saldo, come in FASI_DEF)
   ORDINE_FASI.forEach(function(f){
@@ -9818,13 +9835,20 @@ function renderFasi(){
     // Coppie di colore: stessa base (codice senza le ultime 2 lettere del colore) e differenze opposte
     var perBase={};
     d.lista.forEach(function(a){if(a.diffNova&&a.cod.length>4){var b=a.cod.slice(0,-2);(perBase[b]=perBase[b]||[]).push(a);}});
-    function cosaFare(a){
-      if(!a.diffNova)return '';
-      if(a.r.grezzo<0&&a.nova===0)return '<span style="color:#C00000;font-weight:bold;">Manca DDT Entrata ('+Math.abs(a.r.grezzo)+' pz)</span>';
+    function cosaFareBase(a){
+      if(a.r.grezzo<0&&a.nova===0)return '<span style="color:#C00000;font-weight:bold;">Manca entrata grezzo ('+Math.abs(a.r.grezzo)+' pz)</span>';
       var gemello=(perBase[a.cod.slice(0,-2)]||[]).filter(function(x){return x.cod!==a.cod&&x.diffNova===-a.diffNova;})[0];
       if(gemello)return '<span style="color:#C55A11;font-weight:bold;">Probabile colore scambiato con '+escAbb(gemello.cod)+': controlla DDT Entrata</span>';
       return a.diffNova<0?'Nell\'app più pezzi di Nova: manca un DDT Uscita in app o un carico in Nova'
         :'In Nova più pezzi: manca un DDT Entrata in app o un movimento';
+    }
+    // WA Entrata > DDT Entrata: il Grezzo usa il WA, Nova aperti no -> manca il DDT Entrata.
+    // Se spiega da solo tutta la differenza, si mostra solo questo.
+    function cosaFare(a){
+      var mancaDdt=a.W>a.E?'<span style="color:#C55A11;font-weight:bold;">manca DDT Entrata per '+(a.W-a.E)+'</span>':'';
+      if(!a.diffNova)return mancaDdt;
+      if(mancaDdt&&a.diffNova===a.E-a.W)return mancaDdt;
+      return mancaDdt?mancaDdt+'<br>'+cosaFareBase(a):cosaFareBase(a);
     }
     var tS=0,tN=0;
     tb.innerHTML=l.length?l.map(function(a){
@@ -9856,6 +9880,7 @@ function renderFasi(){
     :'Partenza al '+fmtDataGMA(d.data)+' + movimenti dal '+fmtDataGMA(d.data)+' compreso. Articoli con almeno una fase diversa da zero o con Nova aperti diverso da zero, '
       +(ord?'ordinati '+ordTxtFasi(ord)+' (tocca di nuovo lo stesso riquadro per tornare all\'ordine alfabetico).'
            :'in ordine alfabetico (tocca un riquadro per ordinare per quella colonna).')
+      +' Grezzo: entrata = il maggiore tra WA Entrata e DDT Entrata dal saldo.'
       +' Nova aperti = inevasi Nova con uscite scalate fino al '+fmtDataGMA(d.novaX)+' + DDT Entrata − DDT Uscita dopo quella data; Differenza = In casa − Nova aperti.'
       +' Tocca una riga per il dettaglio.'+avvisoSenza);
   var nc=1+COLS_FASI.length;
